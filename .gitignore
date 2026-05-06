@@ -1,0 +1,29 @@
+# Binaries
+bin/
+tmp/
+*.exe
+
+# Environment
+.env
+!.env.example
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Coverage
+coverage.out
+coverage.html
+
+# Uploads
+uploads/*
+!uploads/.gitkeep
+
+# Build
+vendor/

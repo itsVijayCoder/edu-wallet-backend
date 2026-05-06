@@ -1,0 +1,83 @@
+package router
+
+import (
+	"log/slog"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
+
+	"github.com/itsVijayCoder/edu-wallet-backend/internal/handler"
+	"github.com/itsVijayCoder/edu-wallet-backend/internal/middleware"
+	"github.com/itsVijayCoder/edu-wallet-backend/pkg/jwt"
+)
+
+// Handlers aggregates all handler structs for dependency injection into the router.
+type Handlers struct {
+	Health *handler.HealthHandler
+	Auth   *handler.AuthHandler
+	User   *handler.AdminUserHandler
+}
+
+// RouterConfig holds router-level configuration.
+type RouterConfig struct {
+	AppEnv      string
+	AppPort     int
+	ExternalURL string
+	CORSOrigins []string
+}
+
+// New creates a fully configured *gin.Engine with all middleware and route groups.
+func New(log *slog.Logger, cfg RouterConfig, tokenMgr jwt.TokenManager, rdb *redis.Client, h Handlers) *gin.Engine {
+	// Set gin mode based on environment.
+	if cfg.AppEnv == "production" {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
+	r := gin.New()
+
+	// --- Global middleware chain ---
+	r.Use(
+		middleware.Recovery(log),
+		middleware.RequestID(),
+		middleware.SecurityHeaders(),
+		middleware.CORS(cfg.AppEnv, cfg.CORSOrigins),
+		middleware.Logger(log),
+	)
+
+	// --- API v1 ---
+	v1 := r.Group("/api/v1")
+	{
+		// Health probes (no auth required).
+		v1.GET("/healthz", h.Health.Healthz)
+		v1.GET("/readyz", h.Health.Readyz)
+
+		// Auth routes.
+		auth := v1.Group("/auth")
+		{
+			auth.POST("/login", middleware.RateLimit(rdb, 5, time.Minute), h.Auth.Login)
+			auth.POST("/register", middleware.RateLimit(rdb, 5, time.Minute), h.Auth.Register)
+			auth.POST("/refresh", h.Auth.Refresh)
+			auth.POST("/logout", middleware.Auth(tokenMgr), h.Auth.Logout)
+			auth.POST("/forgot-password", middleware.RateLimit(rdb, 3, time.Hour), h.Auth.ForgotPassword)
+			auth.POST("/reset-password", h.Auth.ResetPassword)
+		}
+
+		// Admin routes (authenticated + role-guarded).
+		admin := v1.Group("/admin", middleware.Auth(tokenMgr), middleware.RoleGuard("super_admin", "admin"))
+		{
+			users := admin.Group("/users")
+			{
+				users.POST("", h.User.Create)
+				users.GET("", h.User.List)
+				users.GET("/:id", h.User.GetByID)
+				users.PUT("/:id", h.User.Update)
+				users.DELETE("/:id", h.User.Delete)
+			}
+		}
+
+		// --- ADD YOUR ROUTES HERE ---
+	}
+
+	return r
+}

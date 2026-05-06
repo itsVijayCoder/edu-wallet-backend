@@ -1,0 +1,57 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${DB_USER:-eduwallet}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-eduwallet_secret}
+      POSTGRES_DB: ${DB_NAME:-eduwallet_db}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-eduwallet}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - eduwallet-net
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - eduwallet-net
+
+  api:
+    build: .
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    env_file:
+      - .env
+    environment:
+      DB_HOST: postgres
+      REDIS_HOST: redis
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - eduwallet-net
+
+volumes:
+  pg_data:
+  redis_data:
+
+networks:
+  eduwallet-net:
+    driver: bridge
