@@ -15,7 +15,7 @@ API is available at `http://localhost:8080`
 
 ## Tech Stack
 
-- **Language:** Go 1.24
+- **Language:** Go 1.25
 - **Framework:** Gin
 - **Database:** PostgreSQL 16 (pgx/v5, raw SQL, DBTX transactions)
 - **Cache:** Redis 7 (sessions, rate limiting)
