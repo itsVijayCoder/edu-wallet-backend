@@ -108,6 +108,43 @@ func (m *MockRoleRepository) List(ctx context.Context) ([]model.Role, error) {
 }
 
 // ---------------------------------------------------------------------------
+// MockTenantMembershipRepository implements repository.TenantMembershipRepository
+// ---------------------------------------------------------------------------
+
+type MockTenantMembershipRepository struct {
+	mock.Mock
+}
+
+func (m *MockTenantMembershipRepository) CreateMembership(ctx context.Context, membership *model.TenantMembership) error {
+	args := m.Called(ctx, membership)
+	return args.Error(0)
+}
+
+func (m *MockTenantMembershipRepository) GetByUserAndTenant(ctx context.Context, userID, tenantID uuid.UUID) (*model.TenantMembership, error) {
+	args := m.Called(ctx, userID, tenantID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*model.TenantMembership), args.Error(1)
+}
+
+func (m *MockTenantMembershipRepository) ListByUser(ctx context.Context, userID uuid.UUID) ([]model.TenantMembership, error) {
+	args := m.Called(ctx, userID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]model.TenantMembership), args.Error(1)
+}
+
+func (m *MockTenantMembershipRepository) ListPermissionsByRole(ctx context.Context, roleID uuid.UUID) ([]model.Permission, error) {
+	args := m.Called(ctx, roleID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]model.Permission), args.Error(1)
+}
+
+// ---------------------------------------------------------------------------
 // MockTokenManager implements jwt.TokenManager
 // ---------------------------------------------------------------------------
 
@@ -117,6 +154,11 @@ type MockTokenManager struct {
 
 func (m *MockTokenManager) GenerateAccess(userID uuid.UUID, email string, roles []string) (string, error) {
 	args := m.Called(userID, email, roles)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockTokenManager) GenerateTenantAccess(userID uuid.UUID, email string, roles []string, tenantID uuid.UUID, permissions []string) (string, error) {
+	args := m.Called(userID, email, roles, tenantID, permissions)
 	return args.String(0), args.Error(1)
 }
 

@@ -68,6 +68,10 @@ func Auth(tokenMgr jwt.TokenManager) gin.HandlerFunc {
 		c.Set("user_id", userID)
 		c.Set("user_email", claims.Email)
 		c.Set("user_roles", claims.Roles)
+		c.Set("user_permissions", claims.Permissions)
+		if claims.TenantID != nil {
+			c.Set("tenant_id", claims.TenantID.String())
+		}
 
 		// Propagate user_id into request context for structured logging.
 		ctx := logger.ContextWithUserID(c.Request.Context(), userID)

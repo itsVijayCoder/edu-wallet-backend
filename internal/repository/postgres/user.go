@@ -245,7 +245,7 @@ func (r *userRepository) scanUser(ctx context.Context, query string, args ...any
 
 // getRoles fetches the roles associated with a user.
 func (r *userRepository) getRoles(ctx context.Context, userID uuid.UUID) ([]model.Role, error) {
-	const query = `SELECT r.id, r.name, r.slug, r.description, r.created_at, r.updated_at
+	const query = `SELECT r.id, r.name, r.slug, r.description, r.scope, r.is_system, r.created_at, r.updated_at
 		FROM roles r
 		JOIN user_roles ur ON ur.role_id = r.id
 		WHERE ur.user_id = $1`
@@ -261,7 +261,8 @@ func (r *userRepository) getRoles(ctx context.Context, userID uuid.UUID) ([]mode
 		var role model.Role
 		if err := rows.Scan(
 			&role.ID, &role.Name, &role.Slug,
-			&role.Description, &role.CreatedAt, &role.UpdatedAt,
+			&role.Description, &role.Scope, &role.IsSystem,
+			&role.CreatedAt, &role.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}

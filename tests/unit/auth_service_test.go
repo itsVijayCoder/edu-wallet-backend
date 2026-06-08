@@ -112,7 +112,7 @@ func TestAuthService_Login(t *testing.T) {
 
 			log := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 
-			svc := service.NewAuthService(userRepo, hasherMock, tokenMgr, rdb, time.Hour, emailSvc, log)
+			svc := service.NewAuthService(userRepo, hasherMock, tokenMgr, rdb, time.Hour, emailSvc, log, true, nil)
 
 			resp, err := svc.Login(context.Background(), tc.req)
 
@@ -137,4 +137,101 @@ func TestAuthService_Login(t *testing.T) {
 			tokenMgr.AssertExpectations(t)
 		})
 	}
+}
+
+func TestAuthService_Register_PublicRegistrationDisabled(t *testing.T) {
+	userRepo := new(mocks.MockUserRepository)
+	hasherMock := new(mocks.MockHasher)
+	tokenMgr := new(mocks.MockTokenManager)
+	emailSvc := new(mocks.MockEmailService)
+	rdb, _ := redismock.NewClientMock()
+	log := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
+
+	svc := service.NewAuthService(userRepo, hasherMock, tokenMgr, rdb, time.Hour, emailSvc, log, false, nil)
+
+	resp, err := svc.Register(context.Background(), dto.RegisterRequest{
+		Email:     "new@example.com",
+		Password:  "password123",
+		FirstName: "New",
+		LastName:  "User",
+	})
+
+	require.Error(t, err)
+	assert.ErrorIs(t, err, apperror.ErrPublicRegistrationDisabled)
+	assert.Nil(t, resp)
+	userRepo.AssertNotCalled(t, "GetByEmail", mock.Anything, mock.Anything)
+}
+
+func TestAuthService_SelectTenant(t *testing.T) {
+	userID := uuid.New()
+	tenantID := uuid.New()
+	roleID := uuid.New()
+
+	user := &model.User{
+		ID:        userID,
+		Email:     "admin@example.com",
+		FirstName: "Admin",
+		LastName:  "User",
+		Status:    "active",
+		Roles: []model.Role{
+			{ID: uuid.New(), Name: "Member", Slug: "member"},
+		},
+	}
+
+	membership := &model.TenantMembership{
+		ID:       uuid.New(),
+		TenantID: tenantID,
+		UserID:   userID,
+		RoleID:   roleID,
+		Status:   "active",
+		Tenant: &model.Tenant{
+			ID:     tenantID,
+			Name:   "Acme School",
+			Slug:   "acme-school",
+			Status: "active",
+		},
+		Role: &model.Role{
+			ID:   roleID,
+			Name: "Admin",
+			Slug: "admin",
+		},
+		Permissions: []model.Permission{
+			{ID: uuid.New(), Code: "tenant.read"},
+			{ID: uuid.New(), Code: "tenant.update"},
+		},
+	}
+
+	userRepo := new(mocks.MockUserRepository)
+	membershipRepo := new(mocks.MockTenantMembershipRepository)
+	hasherMock := new(mocks.MockHasher)
+	tokenMgr := new(mocks.MockTokenManager)
+	emailSvc := new(mocks.MockEmailService)
+	rdb, rmock := redismock.NewClientMock()
+	log := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
+
+	userRepo.On("GetByID", mock.Anything, userID).Return(user, nil)
+	membershipRepo.On("GetByUserAndTenant", mock.Anything, userID, tenantID).Return(membership, nil)
+	tokenMgr.On(
+		"GenerateTenantAccess",
+		userID,
+		"admin@example.com",
+		[]string{"member", "admin"},
+		tenantID,
+		[]string{"tenant.read", "tenant.update"},
+	).Return("tenant-access-token", nil)
+	tokenMgr.On("GenerateRefresh", userID).Return("refresh-token", nil)
+	rmock.ExpectSet("refresh:"+userID.String(), "refresh-token", time.Hour).SetVal("OK")
+
+	svc := service.NewAuthService(userRepo, hasherMock, tokenMgr, rdb, time.Hour, emailSvc, log, true, membershipRepo)
+
+	resp, err := svc.SelectTenant(context.Background(), userID, dto.SelectTenantRequest{TenantID: tenantID})
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "tenant-access-token", resp.AccessToken)
+	assert.Equal(t, "refresh-token", resp.RefreshToken)
+	assert.NoError(t, rmock.ExpectationsWereMet())
+	userRepo.AssertExpectations(t)
+	membershipRepo.AssertExpectations(t)
+	tokenMgr.AssertExpectations(t)
 }

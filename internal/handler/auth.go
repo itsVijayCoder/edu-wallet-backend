@@ -3,7 +3,6 @@ package handler
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
-	"github.com/google/uuid"
 
 	"github.com/itsVijayCoder/edu-wallet-backend/internal/apperror"
 	"github.com/itsVijayCoder/edu-wallet-backend/internal/dto"
@@ -66,9 +65,30 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 	RespondOK(c, resp)
 }
 
+func (h *AuthHandler) SelectTenant(c *gin.Context) {
+	userID, err := currentUserID(c)
+	if err != nil {
+		HandleError(c, err)
+		return
+	}
+
+	var req dto.SelectTenantRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondValidationError(c, extractValidationErrors(err))
+		return
+	}
+
+	resp, err := h.authSvc.SelectTenant(c.Request.Context(), userID, req)
+	if err != nil {
+		HandleError(c, err)
+		return
+	}
+
+	RespondOK(c, resp)
+}
+
 func (h *AuthHandler) Logout(c *gin.Context) {
-	userIDStr, _ := c.Get("user_id")
-	userID, err := uuid.Parse(userIDStr.(string))
+	userID, err := currentUserID(c)
 	if err != nil {
 		HandleError(c, apperror.ErrInvalidToken)
 		return

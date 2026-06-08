@@ -18,6 +18,10 @@ type RefreshRequest struct {
 	RefreshToken string `json:"refresh_token" binding:"required"`
 }
 
+type SelectTenantRequest struct {
+	TenantID uuid.UUID `json:"tenant_id" binding:"required"`
+}
+
 type ForgotPasswordRequest struct {
 	Email string `json:"email" binding:"required,email"`
 }
@@ -34,7 +38,8 @@ type TokenPair struct {
 
 type LoginResponse struct {
 	TokenPair
-	User UserResponse `json:"user"`
+	User    UserResponse            `json:"user"`
+	Tenants []TenantMembershipBrief `json:"tenants,omitempty"`
 }
 
 type UserResponse struct {

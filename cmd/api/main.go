@@ -71,11 +71,26 @@ func run() error {
 	userRepo := postgres.NewUserRepository(pool)
 	sessionRepo := postgres.NewSessionRepository(pool)
 	_ = sessionRepo // used for session cleanup; wire into services as needed
+	tenantRepo := postgres.NewTenantRepository(pool)
+	membershipRepo := postgres.NewTenantMembershipRepository(pool)
+	auditRepo := postgres.NewAuditRepository(pool)
 	// --- ADD YOUR REPOSITORIES HERE ---
 
 	// --- Services ---
-	authSvc := service.NewAuthService(userRepo, h, tokenMgr, rdb, cfg.JWT.RefreshExpiry, emailSvc, log)
+	publicRegistrationEnabled := cfg.Auth.PublicRegistrationEnabled || cfg.App.Env != "production"
+	authSvc := service.NewAuthService(
+		userRepo,
+		h,
+		tokenMgr,
+		rdb,
+		cfg.JWT.RefreshExpiry,
+		emailSvc,
+		log,
+		publicRegistrationEnabled,
+		membershipRepo,
+	)
 	userSvc := service.NewUserService(userRepo, roleRepo, h, rdb)
+	tenantSvc := service.NewTenantService(tenantRepo, membershipRepo, roleRepo, auditRepo)
 	// --- ADD YOUR SERVICES HERE ---
 
 	// --- Router ---
@@ -88,6 +103,7 @@ func run() error {
 		Health: handler.NewHealthHandler(pool, rdb),
 		Auth:   handler.NewAuthHandler(authSvc),
 		User:   handler.NewAdminUserHandler(userSvc),
+		Tenant: handler.NewTenantHandler(tenantSvc),
 		// --- ADD YOUR HANDLERS HERE ---
 	})
 

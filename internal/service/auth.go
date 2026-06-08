@@ -18,13 +18,15 @@ import (
 )
 
 type authService struct {
-	userRepo   repository.UserRepository
-	hasher     hasher.Hasher
-	tokenMgr   jwt.TokenManager
-	redis      *redis.Client
-	refreshTTL time.Duration
-	emailSvc   EmailService
-	log        *slog.Logger
+	userRepo                  repository.UserRepository
+	membershipRepo            repository.TenantMembershipRepository
+	hasher                    hasher.Hasher
+	tokenMgr                  jwt.TokenManager
+	redis                     *redis.Client
+	refreshTTL                time.Duration
+	emailSvc                  EmailService
+	log                       *slog.Logger
+	publicRegistrationEnabled bool
 }
 
 func NewAuthService(
@@ -35,15 +37,19 @@ func NewAuthService(
 	refreshTTL time.Duration,
 	emailSvc EmailService,
 	log *slog.Logger,
+	publicRegistrationEnabled bool,
+	membershipRepo repository.TenantMembershipRepository,
 ) AuthService {
 	return &authService{
-		userRepo:   userRepo,
-		hasher:     h,
-		tokenMgr:   tokenMgr,
-		redis:      rdb,
-		refreshTTL: refreshTTL,
-		emailSvc:   emailSvc,
-		log:        log,
+		userRepo:                  userRepo,
+		membershipRepo:            membershipRepo,
+		hasher:                    h,
+		tokenMgr:                  tokenMgr,
+		redis:                     rdb,
+		refreshTTL:                refreshTTL,
+		emailSvc:                  emailSvc,
+		log:                       log,
+		publicRegistrationEnabled: publicRegistrationEnabled,
 	}
 }
 
@@ -86,11 +92,16 @@ func (s *authService) Login(ctx context.Context, req dto.LoginRequest) (*dto.Log
 			AccessToken:  accessToken,
 			RefreshToken: refreshToken,
 		},
-		User: userToResponse(user),
+		User:    userToResponse(user),
+		Tenants: s.membershipsForLogin(ctx, user.ID),
 	}, nil
 }
 
 func (s *authService) Register(ctx context.Context, req dto.RegisterRequest) (*dto.UserResponse, error) {
+	if !s.publicRegistrationEnabled {
+		return nil, apperror.ErrPublicRegistrationDisabled
+	}
+
 	existing, _ := s.userRepo.GetByEmail(ctx, req.Email)
 	if existing != nil {
 		return nil, apperror.ErrConflict
@@ -150,6 +161,53 @@ func (s *authService) RefreshToken(ctx context.Context, req dto.RefreshRequest) 
 	rctx2, cancel2 := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel2()
 	if err := s.redis.Set(rctx2, refreshKey(user.ID), refreshToken, s.refreshTTL).Err(); err != nil {
+		return nil, fmt.Errorf("store refresh token: %w", err)
+	}
+
+	return &dto.TokenPair{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+	}, nil
+}
+
+func (s *authService) SelectTenant(ctx context.Context, userID uuid.UUID, req dto.SelectTenantRequest) (*dto.TokenPair, error) {
+	if s.membershipRepo == nil {
+		return nil, apperror.ErrTenantAccessDenied
+	}
+
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil || user == nil || user.Status != "active" {
+		return nil, apperror.ErrTenantAccessDenied
+	}
+
+	membership, err := s.membershipRepo.GetByUserAndTenant(ctx, userID, req.TenantID)
+	if err != nil {
+		return nil, fmt.Errorf("get tenant membership: %w", err)
+	}
+	if membership == nil || membership.Tenant == nil || membership.Role == nil {
+		return nil, apperror.ErrTenantAccessDenied
+	}
+	if membership.Tenant.Status != "active" && membership.Tenant.Status != "trial" {
+		return nil, apperror.ErrTenantAccessDenied
+	}
+
+	roles := append([]string{}, rolesToSlugs(user.Roles)...)
+	roles = appendUnique(roles, membership.Role.Slug)
+	permissions := permissionsToCodes(membership.Permissions)
+
+	accessToken, err := s.tokenMgr.GenerateTenantAccess(user.ID, user.Email, roles, membership.TenantID, permissions)
+	if err != nil {
+		return nil, fmt.Errorf("generate tenant access token: %w", err)
+	}
+
+	refreshToken, err := s.tokenMgr.GenerateRefresh(user.ID)
+	if err != nil {
+		return nil, fmt.Errorf("generate refresh token: %w", err)
+	}
+
+	rctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	if err := s.redis.Set(rctx, refreshKey(user.ID), refreshToken, s.refreshTTL).Err(); err != nil {
 		return nil, fmt.Errorf("store refresh token: %w", err)
 	}
 
@@ -243,6 +301,50 @@ func rolesToSlugs(roles []model.Role) []string {
 		slugs[i] = r.Slug
 	}
 	return slugs
+}
+
+func permissionsToCodes(permissions []model.Permission) []string {
+	codes := make([]string, len(permissions))
+	for i, permission := range permissions {
+		codes[i] = permission.Code
+	}
+	return codes
+}
+
+func appendUnique(values []string, value string) []string {
+	for _, existing := range values {
+		if existing == value {
+			return values
+		}
+	}
+	return append(values, value)
+}
+
+func (s *authService) membershipsForLogin(ctx context.Context, userID uuid.UUID) []dto.TenantMembershipBrief {
+	if s.membershipRepo == nil {
+		return nil
+	}
+
+	memberships, err := s.membershipRepo.ListByUser(ctx, userID)
+	if err != nil {
+		s.log.Warn("failed to load tenant memberships for login", "user_id", userID, "error", err)
+		return nil
+	}
+
+	resp := make([]dto.TenantMembershipBrief, 0, len(memberships))
+	for _, membership := range memberships {
+		if membership.Tenant == nil || membership.Role == nil {
+			continue
+		}
+		resp = append(resp, dto.TenantMembershipBrief{
+			TenantID:    membership.TenantID,
+			TenantName:  membership.Tenant.Name,
+			TenantSlug:  membership.Tenant.Slug,
+			Role:        membership.Role.Slug,
+			Permissions: permissionsToCodes(membership.Permissions),
+		})
+	}
+	return resp
 }
 
 func userToResponse(user *model.User) dto.UserResponse {

@@ -17,6 +17,7 @@ type Handlers struct {
 	Health *handler.HealthHandler
 	Auth   *handler.AuthHandler
 	User   *handler.AdminUserHandler
+	Tenant *handler.TenantHandler
 }
 
 // RouterConfig holds router-level configuration.
@@ -58,9 +59,23 @@ func New(log *slog.Logger, cfg RouterConfig, tokenMgr jwt.TokenManager, rdb *red
 			auth.POST("/login", middleware.RateLimit(rdb, 5, time.Minute), h.Auth.Login)
 			auth.POST("/register", middleware.RateLimit(rdb, 5, time.Minute), h.Auth.Register)
 			auth.POST("/refresh", h.Auth.Refresh)
+			auth.POST("/select-tenant", middleware.Auth(tokenMgr), h.Auth.SelectTenant)
 			auth.POST("/logout", middleware.Auth(tokenMgr), h.Auth.Logout)
 			auth.POST("/forgot-password", middleware.RateLimit(rdb, 3, time.Hour), h.Auth.ForgotPassword)
 			auth.POST("/reset-password", h.Auth.ResetPassword)
+		}
+
+		// Platform routes are reserved for platform super admins.
+		platform := v1.Group("/platform", middleware.Auth(tokenMgr), middleware.RoleGuard("super_admin"))
+		{
+			tenants := platform.Group("/tenants")
+			{
+				tenants.POST("", h.Tenant.PlatformCreate)
+				tenants.GET("", h.Tenant.PlatformList)
+				tenants.GET("/:id", h.Tenant.PlatformGet)
+				tenants.PATCH("/:id", h.Tenant.PlatformUpdate)
+				tenants.POST("/:id/branches", h.Tenant.PlatformCreateBranch)
+			}
 		}
 
 		// Admin routes (authenticated + role-guarded).
@@ -74,6 +89,12 @@ func New(log *slog.Logger, cfg RouterConfig, tokenMgr jwt.TokenManager, rdb *red
 				users.PUT("/:id", h.User.Update)
 				users.DELETE("/:id", h.User.Delete)
 			}
+		}
+
+		adminTenant := v1.Group("/admin", middleware.Auth(tokenMgr), middleware.RequireTenant())
+		{
+			adminTenant.GET("/tenant", middleware.PermissionGuard("tenant.read"), h.Tenant.AdminGet)
+			adminTenant.PATCH("/tenant", middleware.PermissionGuard("tenant.update"), h.Tenant.AdminUpdate)
 		}
 
 		// --- ADD YOUR ROUTES HERE ---

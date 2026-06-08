@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log/slog"
 	"os"
@@ -39,6 +40,12 @@ var (
 )
 
 func TestMain(m *testing.M) {
+	flag.Parse()
+	if testing.Short() {
+		fmt.Fprintln(os.Stdout, "skipping e2e tests in short mode")
+		os.Exit(0)
+	}
+
 	ctx := context.Background()
 
 	// --- Start Postgres container ---
@@ -150,12 +157,15 @@ func SetupSuite(t *testing.T) *TestSuite {
 	// Repositories
 	roleRepo := postgres.NewRoleRepository(pgPool)
 	userRepo := postgres.NewUserRepository(pgPool)
-	_ = roleRepo // used by userSvc
+	tenantRepo := postgres.NewTenantRepository(pgPool)
+	membershipRepo := postgres.NewTenantMembershipRepository(pgPool)
+	auditRepo := postgres.NewAuditRepository(pgPool)
 
 	// Services - use a no-op email service for e2e tests
 	emailSvc := &noopEmailService{}
-	authSvc := service.NewAuthService(userRepo, h, tokenMgr, rdb, 7*24*time.Hour, emailSvc, log)
+	authSvc := service.NewAuthService(userRepo, h, tokenMgr, rdb, 7*24*time.Hour, emailSvc, log, true, membershipRepo)
 	userSvc := service.NewUserService(userRepo, roleRepo, h, rdb)
+	tenantSvc := service.NewTenantService(tenantRepo, membershipRepo, roleRepo, auditRepo)
 
 	// Router
 	r := router.New(log, router.RouterConfig{
@@ -167,6 +177,7 @@ func SetupSuite(t *testing.T) *TestSuite {
 		Health: handler.NewHealthHandler(pgPool, rdb),
 		Auth:   handler.NewAuthHandler(authSvc),
 		User:   handler.NewAdminUserHandler(userSvc),
+		Tenant: handler.NewTenantHandler(tenantSvc),
 	})
 
 	return &TestSuite{
@@ -218,6 +229,31 @@ func truncateAndReseed(t *testing.T, pool *pgxpool.Pool, rdb *redis.Client) {
 			('Super Admin', 'super_admin', 'Full system access'),
 			('Admin', 'admin', 'Administrative access'),
 			('Member', 'member', 'Standard member access')
+		ON CONFLICT DO NOTHING;
+
+		INSERT INTO permissions (code, name, category, description) VALUES
+			('platform.tenants.manage', 'Manage Tenants', 'platform', 'Create and update tenant accounts'),
+			('tenant.read', 'Read Tenant', 'tenant', 'Read current tenant profile'),
+			('tenant.update', 'Update Tenant', 'tenant', 'Update current tenant profile'),
+			('branches.create', 'Create Branches', 'tenant', 'Create tenant branches'),
+			('users.manage', 'Manage Users', 'tenant', 'Create and manage tenant users')
+		ON CONFLICT (code) DO UPDATE
+		SET name = EXCLUDED.name,
+			category = EXCLUDED.category,
+			description = EXCLUDED.description;
+
+		INSERT INTO role_permissions (role_id, permission_id)
+		SELECT r.id, p.id
+		FROM roles r
+		CROSS JOIN permissions p
+		WHERE r.slug = 'super_admin'
+		ON CONFLICT DO NOTHING;
+
+		INSERT INTO role_permissions (role_id, permission_id)
+		SELECT r.id, p.id
+		FROM roles r
+		JOIN permissions p ON p.code IN ('tenant.read', 'tenant.update', 'branches.create', 'users.manage')
+		WHERE r.slug = 'admin'
 		ON CONFLICT DO NOTHING;
 	`)
 	if err != nil {

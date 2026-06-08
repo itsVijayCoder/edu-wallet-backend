@@ -67,9 +67,27 @@ API is available at `http://localhost:8080`
 | POST   | `/api/v1/auth/register`           | Register new user          |
 | POST   | `/api/v1/auth/login`              | Login (returns tokens)     |
 | POST   | `/api/v1/auth/refresh`            | Refresh access token       |
+| POST   | `/api/v1/auth/select-tenant`      | Select tenant context      |
 | POST   | `/api/v1/auth/logout`             | Logout (requires auth)     |
 | POST   | `/api/v1/auth/forgot-password`    | Request password reset     |
 | POST   | `/api/v1/auth/reset-password`     | Reset password with token  |
+
+### Platform (requires super_admin role)
+
+| Method | Endpoint                                  | Description              |
+|--------|-------------------------------------------|--------------------------|
+| POST   | `/api/v1/platform/tenants`                | Create tenant            |
+| GET    | `/api/v1/platform/tenants`                | List tenants             |
+| GET    | `/api/v1/platform/tenants/:id`            | Get tenant by ID         |
+| PATCH  | `/api/v1/platform/tenants/:id`            | Update tenant            |
+| POST   | `/api/v1/platform/tenants/:id/branches`   | Create tenant branch     |
+
+### Tenant Admin (requires selected tenant token)
+
+| Method | Endpoint                    | Description              |
+|--------|-----------------------------|--------------------------|
+| GET    | `/api/v1/admin/tenant`      | Get current tenant       |
+| PATCH  | `/api/v1/admin/tenant`      | Update current tenant    |
 
 ### Admin (requires super_admin or admin role)
 
@@ -117,12 +135,13 @@ Copy `.env.example` to `.env` and adjust values. Key settings:
 | `REDIS_HOST`         | `localhost`      | Redis host                      |
 | `JWT_ACCESS_SECRET`  | -                | JWT signing key (generate with `openssl rand -base64 48`) |
 | `JWT_REFRESH_SECRET` | -                | Refresh token signing key       |
+| `AUTH_PUBLIC_REGISTRATION_ENABLED` | `false` | Enables public registration in production |
 | `RESEND_API_KEY`     | -                | Resend API key (optional, for emails) |
 
 ## Testing
 
 ```bash
-make test        # Unit tests with race detector (<3 seconds)
+make test        # Short tests with race detector; skips Docker-backed e2e containers
 make test-e2e    # E2E tests with real Postgres + Redis (testcontainers)
 make test-all    # Run everything
 make coverage    # Generate HTML coverage report

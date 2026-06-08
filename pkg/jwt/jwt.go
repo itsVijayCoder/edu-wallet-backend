@@ -15,15 +15,18 @@ var (
 
 // Claims holds the custom claims for access tokens.
 type Claims struct {
-	UserID uuid.UUID `json:"user_id"`
-	Email  string    `json:"email"`
-	Roles  []string  `json:"roles"`
+	UserID      uuid.UUID  `json:"user_id"`
+	Email       string     `json:"email"`
+	Roles       []string   `json:"roles"`
+	TenantID    *uuid.UUID `json:"tenant_id,omitempty"`
+	Permissions []string   `json:"permissions,omitempty"`
 	jwt.RegisteredClaims
 }
 
 // TokenManager handles JWT generation and validation.
 type TokenManager interface {
 	GenerateAccess(userID uuid.UUID, email string, roles []string) (string, error)
+	GenerateTenantAccess(userID uuid.UUID, email string, roles []string, tenantID uuid.UUID, permissions []string) (string, error)
 	GenerateRefresh(userID uuid.UUID) (string, error)
 	ValidateAccess(tokenStr string) (*Claims, error)
 	ValidateRefresh(tokenStr string) (*Claims, error)
@@ -48,11 +51,33 @@ func NewTokenManager(accessSecret, refreshSecret string, accessExpiry, refreshEx
 }
 
 func (m *tokenManager) GenerateAccess(userID uuid.UUID, email string, roles []string) (string, error) {
+	return m.generateAccess(userID, email, roles, nil, nil)
+}
+
+func (m *tokenManager) GenerateTenantAccess(
+	userID uuid.UUID,
+	email string,
+	roles []string,
+	tenantID uuid.UUID,
+	permissions []string,
+) (string, error) {
+	return m.generateAccess(userID, email, roles, &tenantID, permissions)
+}
+
+func (m *tokenManager) generateAccess(
+	userID uuid.UUID,
+	email string,
+	roles []string,
+	tenantID *uuid.UUID,
+	permissions []string,
+) (string, error) {
 	now := time.Now()
 	claims := Claims{
-		UserID: userID,
-		Email:  email,
-		Roles:  roles,
+		UserID:      userID,
+		Email:       email,
+		Roles:       roles,
+		TenantID:    tenantID,
+		Permissions: permissions,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(now.Add(m.accessExpiry)),
 			IssuedAt:  jwt.NewNumericDate(now),

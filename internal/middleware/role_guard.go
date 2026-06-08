@@ -59,3 +59,85 @@ func RoleGuard(allowedRoles ...string) gin.HandlerFunc {
 		})
 	}
 }
+
+// RequireTenant rejects requests whose access token has not selected a tenant.
+func RequireTenant() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if tenantID, exists := c.Get("tenant_id"); exists && tenantID != "" {
+			c.Next()
+			return
+		}
+
+		c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "TENANT_REQUIRED",
+				"message": "tenant context is required",
+			},
+		})
+	}
+}
+
+// PermissionGuard restricts access by tenant-scoped permissions.
+// Users with the "super_admin" role bypass permission checks.
+func PermissionGuard(requiredPermissions ...string) gin.HandlerFunc {
+	required := make(map[string]struct{}, len(requiredPermissions))
+	for _, permission := range requiredPermissions {
+		required[permission] = struct{}{}
+	}
+
+	return func(c *gin.Context) {
+		if hasRole(c, "super_admin") {
+			c.Next()
+			return
+		}
+
+		permissionsVal, exists := c.Get("user_permissions")
+		if !exists {
+			abortForbidden(c)
+			return
+		}
+
+		userPermissions, ok := permissionsVal.([]string)
+		if !ok {
+			abortForbidden(c)
+			return
+		}
+
+		for _, permission := range userPermissions {
+			if _, ok := required[permission]; ok {
+				c.Next()
+				return
+			}
+		}
+
+		abortForbidden(c)
+	}
+}
+
+func hasRole(c *gin.Context, expected string) bool {
+	rolesVal, exists := c.Get("user_roles")
+	if !exists {
+		return false
+	}
+	userRoles, ok := rolesVal.([]string)
+	if !ok {
+		return false
+	}
+	for _, role := range userRoles {
+		if role == expected {
+			return true
+		}
+	}
+	return false
+}
+
+func abortForbidden(c *gin.Context) {
+	c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+		"success": false,
+		"error": gin.H{
+			"code":    "FORBIDDEN",
+			"message": "insufficient permissions",
+		},
+	})
+}

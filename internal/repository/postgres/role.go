@@ -25,7 +25,7 @@ func NewRoleRepository(db database.DBTX) repository.RoleRepository {
 }
 
 func (r *roleRepository) GetByID(ctx context.Context, id uuid.UUID) (*model.Role, error) {
-	const query = `SELECT id, name, slug, description, created_at, updated_at
+	const query = `SELECT id, name, slug, description, scope, is_system, created_at, updated_at
 		FROM roles WHERE id = $1`
 
 	var role model.Role
@@ -34,6 +34,8 @@ func (r *roleRepository) GetByID(ctx context.Context, id uuid.UUID) (*model.Role
 		&role.Name,
 		&role.Slug,
 		&role.Description,
+		&role.Scope,
+		&role.IsSystem,
 		&role.CreatedAt,
 		&role.UpdatedAt,
 	)
@@ -47,7 +49,7 @@ func (r *roleRepository) GetByID(ctx context.Context, id uuid.UUID) (*model.Role
 }
 
 func (r *roleRepository) GetBySlug(ctx context.Context, slug string) (*model.Role, error) {
-	const query = `SELECT id, name, slug, description, created_at, updated_at
+	const query = `SELECT id, name, slug, description, scope, is_system, created_at, updated_at
 		FROM roles WHERE slug = $1`
 
 	var role model.Role
@@ -56,6 +58,8 @@ func (r *roleRepository) GetBySlug(ctx context.Context, slug string) (*model.Rol
 		&role.Name,
 		&role.Slug,
 		&role.Description,
+		&role.Scope,
+		&role.IsSystem,
 		&role.CreatedAt,
 		&role.UpdatedAt,
 	)
@@ -69,7 +73,7 @@ func (r *roleRepository) GetBySlug(ctx context.Context, slug string) (*model.Rol
 }
 
 func (r *roleRepository) List(ctx context.Context) ([]model.Role, error) {
-	const query = `SELECT id, name, slug, description, created_at, updated_at
+	const query = `SELECT id, name, slug, description, scope, is_system, created_at, updated_at
 		FROM roles ORDER BY name`
 
 	rows, err := r.db.Query(ctx, query)
@@ -86,6 +90,8 @@ func (r *roleRepository) List(ctx context.Context) ([]model.Role, error) {
 			&role.Name,
 			&role.Slug,
 			&role.Description,
+			&role.Scope,
+			&role.IsSystem,
 			&role.CreatedAt,
 			&role.UpdatedAt,
 		); err != nil {

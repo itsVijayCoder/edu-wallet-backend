@@ -32,3 +32,27 @@ type UserRepository interface {
 type SessionRepository interface {
 	DeleteByUser(ctx context.Context, userID uuid.UUID) error
 }
+
+// TenantRepository defines tenant and branch data-access operations.
+type TenantRepository interface {
+	Create(ctx context.Context, tenant *model.Tenant) error
+	GetByID(ctx context.Context, id uuid.UUID) (*model.Tenant, error)
+	GetBySlug(ctx context.Context, slug string) (*model.Tenant, error)
+	List(ctx context.Context, params model.PaginationParams) (*model.PaginatedResult[model.Tenant], error)
+	Update(ctx context.Context, tenant *model.Tenant) error
+	CreateBranch(ctx context.Context, branch *model.TenantBranch) error
+	ListBranches(ctx context.Context, tenantID uuid.UUID) ([]model.TenantBranch, error)
+}
+
+// TenantMembershipRepository defines user-to-tenant access operations.
+type TenantMembershipRepository interface {
+	CreateMembership(ctx context.Context, membership *model.TenantMembership) error
+	GetByUserAndTenant(ctx context.Context, userID, tenantID uuid.UUID) (*model.TenantMembership, error)
+	ListByUser(ctx context.Context, userID uuid.UUID) ([]model.TenantMembership, error)
+	ListPermissionsByRole(ctx context.Context, roleID uuid.UUID) ([]model.Permission, error)
+}
+
+// AuditRepository writes immutable audit events.
+type AuditRepository interface {
+	Create(ctx context.Context, entry *model.AuditLog) error
+}

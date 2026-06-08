@@ -13,6 +13,7 @@ import (
 
 type Config struct {
 	App    AppConfig
+	Auth   AuthConfig
 	DB     database.PostgresConfig
 	Redis  database.RedisConfig
 	JWT    JWTConfig
@@ -25,6 +26,10 @@ type AppConfig struct {
 	Name        string   `env:"APP_NAME"         envDefault:"eduwallet"`
 	ExternalURL string   `env:"APP_EXTERNAL_URL"`
 	CORSOrigins []string `env:"CORS_ALLOWED_ORIGINS" envSeparator:","`
+}
+
+type AuthConfig struct {
+	PublicRegistrationEnabled bool `env:"AUTH_PUBLIC_REGISTRATION_ENABLED" envDefault:"false"`
 }
 
 type JWTConfig struct {
