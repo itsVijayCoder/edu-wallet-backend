@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -76,6 +77,7 @@ func run() error {
 	auditRepo := postgres.NewAuditRepository(pool)
 	academicRepo := postgres.NewAcademicRepository(pool)
 	billingRepo := postgres.NewBillingRepository(pool)
+	paymentRepo := postgres.NewPaymentRepository(pool)
 	transactor := database.NewTransactor(pool)
 	// --- ADD YOUR REPOSITORIES HERE ---
 
@@ -95,7 +97,10 @@ func run() error {
 	userSvc := service.NewUserService(userRepo, roleRepo, h, rdb)
 	tenantSvc := service.NewTenantService(tenantRepo, membershipRepo, roleRepo, auditRepo)
 	academicSvc := service.NewAcademicService(academicRepo, postgres.NewAcademicRepository, transactor, auditRepo)
-	billingSvc := service.NewBillingService(billingRepo, postgres.NewBillingRepository, academicRepo, transactor, auditRepo)
+	paymentProvider := paymentProviderFromConfig(cfg)
+	paymentRenderer := service.NewPDFReceiptRenderer()
+	paymentSvc := service.NewPaymentService(paymentRepo, postgres.NewPaymentRepository, academicRepo, transactor, auditRepo, paymentProvider, paymentRenderer)
+	billingSvc := service.NewBillingService(billingRepo, postgres.NewBillingRepository, academicRepo, transactor, auditRepo, paymentRepo)
 	// --- ADD YOUR SERVICES HERE ---
 
 	// --- Router ---
@@ -111,6 +116,7 @@ func run() error {
 		Tenant:   handler.NewTenantHandler(tenantSvc),
 		Academic: handler.NewAcademicHandler(academicSvc),
 		Billing:  handler.NewBillingHandler(billingSvc),
+		Payment:  handler.NewPaymentHandler(paymentSvc),
 		// --- ADD YOUR HANDLERS HERE ---
 	})
 
@@ -156,4 +162,17 @@ func run() error {
 
 	log.Info("eduwallet stopped")
 	return nil
+}
+
+func paymentProviderFromConfig(cfg *config.Config) service.PaymentProvider {
+	if strings.EqualFold(cfg.Payments.Provider, "razorpay") {
+		return service.NewRazorpayPaymentProvider(
+			cfg.Payments.RazorpayKeyID,
+			cfg.Payments.RazorpayKeySecret,
+			cfg.Payments.RazorpayWebhookSecret,
+			cfg.Payments.RazorpayBaseURL,
+			http.DefaultClient,
+		)
+	}
+	return service.NewFakePaymentProvider("fake", cfg.Payments.FakeSigningSecret)
 }

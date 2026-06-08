@@ -20,6 +20,7 @@ type Handlers struct {
 	Tenant   *handler.TenantHandler
 	Academic *handler.AcademicHandler
 	Billing  *handler.BillingHandler
+	Payment  *handler.PaymentHandler
 }
 
 // RouterConfig holds router-level configuration.
@@ -65,6 +66,11 @@ func New(log *slog.Logger, cfg RouterConfig, tokenMgr jwt.TokenManager, rdb *red
 			auth.POST("/logout", middleware.Auth(tokenMgr), h.Auth.Logout)
 			auth.POST("/forgot-password", middleware.RateLimit(rdb, 3, time.Hour), h.Auth.ForgotPassword)
 			auth.POST("/reset-password", h.Auth.ResetPassword)
+		}
+
+		webhooks := v1.Group("/webhooks")
+		{
+			webhooks.POST("/razorpay", h.Payment.RazorpayWebhook)
 		}
 
 		// Platform routes are reserved for platform super admins.
@@ -184,11 +190,32 @@ func New(log *slog.Logger, cfg RouterConfig, tokenMgr jwt.TokenManager, rdb *red
 				invoices.GET("", h.Billing.ListInvoices)
 				invoices.GET("/:id", h.Billing.GetInvoice)
 			}
+
+			adminTenant.POST("/offline-payments", middleware.PermissionGuard("payments.manage"), h.Payment.CreateOfflinePayment)
+
+			payments := adminTenant.Group("/payments", middleware.PermissionGuard("payments.manage"))
+			{
+				payments.GET("", h.Payment.ListPayments)
+				payments.GET("/:id", h.Payment.GetPayment)
+			}
+
+			receipts := adminTenant.Group("/receipts", middleware.PermissionGuard("payments.manage"))
+			{
+				receipts.GET("", h.Payment.ListReceipts)
+				receipts.GET("/:id", h.Payment.GetReceipt)
+				receipts.GET("/:id/download", h.Payment.DownloadReceipt)
+			}
+
+			adminTenant.GET("/payment-events", middleware.PermissionGuard("payments.manage"), h.Payment.ListPaymentEvents)
 		}
 
 		parent := v1.Group("/parent", middleware.Auth(tokenMgr), middleware.RequireTenant())
 		{
 			parent.GET("/children/:id/dues", h.Billing.GetParentChildDues)
+			parent.POST("/payments/orders", h.Payment.CreatePaymentOrder)
+			parent.POST("/payments/verify", h.Payment.VerifyPayment)
+			parent.GET("/receipts", h.Payment.ListParentReceipts)
+			parent.GET("/receipts/:id/download", h.Payment.DownloadParentReceipt)
 		}
 
 		// --- ADD YOUR ROUTES HERE ---

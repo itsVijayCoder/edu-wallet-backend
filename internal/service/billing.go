@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -19,8 +20,15 @@ type billingService struct {
 	repo         repository.BillingRepository
 	repoFactory  repository.BillingRepositoryFactory
 	academicRepo repository.AcademicRepository
+	paymentRepo  repository.PaymentRepository
 	tx           database.Transactor
 	auditRepo    repository.AuditRepository
+}
+
+type datedLedgerEntry struct {
+	date  time.Time
+	order int
+	entry dto.StudentLedgerEntryResponse
 }
 
 func NewBillingService(
@@ -29,11 +37,17 @@ func NewBillingService(
 	academicRepo repository.AcademicRepository,
 	tx database.Transactor,
 	auditRepo repository.AuditRepository,
+	paymentRepo ...repository.PaymentRepository,
 ) BillingService {
+	var payments repository.PaymentRepository
+	if len(paymentRepo) > 0 {
+		payments = paymentRepo[0]
+	}
 	return &billingService{
 		repo:         repo,
 		repoFactory:  repoFactory,
 		academicRepo: academicRepo,
+		paymentRepo:  payments,
 		tx:           tx,
 		auditRepo:    auditRepo,
 	}
@@ -565,38 +579,103 @@ func (s *billingService) GetStudentLedger(ctx context.Context, tenantID, student
 		OpeningBalancePaise: student.OpeningBalancePaise,
 		Entries:             []dto.StudentLedgerEntryResponse{},
 	}
-	balance := student.OpeningBalancePaise
+
+	entries := []datedLedgerEntry{}
 	if student.OpeningBalancePaise != 0 {
-		ledger.Entries = append(ledger.Entries, dto.StudentLedgerEntryResponse{
-			EntryType:         "opening_balance",
-			EntryID:           student.ID,
-			ReferenceNumber:   "OPENING_BALANCE",
-			Description:       "Opening balance",
-			EntryDate:         student.CreatedAt.Format(dateLayout),
-			DebitAmountPaise:  positiveOnly(student.OpeningBalancePaise),
-			CreditAmountPaise: positiveOnly(-student.OpeningBalancePaise),
-			BalanceAfterPaise: balance,
-			Status:            "posted",
+		entries = append(entries, datedLedgerEntry{
+			date:  student.CreatedAt,
+			order: 0,
+			entry: dto.StudentLedgerEntryResponse{
+				EntryType:         "opening_balance",
+				EntryID:           student.ID,
+				ReferenceNumber:   "OPENING_BALANCE",
+				Description:       "Opening balance",
+				EntryDate:         student.CreatedAt.Format(dateLayout),
+				DebitAmountPaise:  positiveOnly(student.OpeningBalancePaise),
+				CreditAmountPaise: positiveOnly(-student.OpeningBalancePaise),
+				Status:            "posted",
+			},
 		})
 	}
 	for i := range invoices {
 		invoice := invoices[i]
 		ledger.TotalBilledPaise += invoice.TotalAmountPaise
-		ledger.TotalPaidPaise += invoice.PaidAmountPaise
-		balance += invoice.BalanceAmountPaise
 		dueDate := invoice.DueDate.Format(dateLayout)
-		ledger.Entries = append(ledger.Entries, dto.StudentLedgerEntryResponse{
-			EntryType:         "invoice",
-			EntryID:           invoice.ID,
-			ReferenceNumber:   invoice.InvoiceNumber,
-			Description:       "Invoice " + invoice.InvoiceNumber,
-			EntryDate:         invoice.IssueDate.Format(dateLayout),
-			DueDate:           &dueDate,
-			DebitAmountPaise:  invoice.TotalAmountPaise,
-			CreditAmountPaise: invoice.PaidAmountPaise,
-			BalanceAfterPaise: balance,
-			Status:            invoice.Status,
+		entries = append(entries, datedLedgerEntry{
+			date:  invoice.IssueDate,
+			order: 1,
+			entry: dto.StudentLedgerEntryResponse{
+				EntryType:         "invoice",
+				EntryID:           invoice.ID,
+				ReferenceNumber:   invoice.InvoiceNumber,
+				Description:       "Invoice " + invoice.InvoiceNumber,
+				EntryDate:         invoice.IssueDate.Format(dateLayout),
+				DueDate:           &dueDate,
+				DebitAmountPaise:  invoice.TotalAmountPaise,
+				CreditAmountPaise: 0,
+				Status:            invoice.Status,
+			},
 		})
+	}
+	if s.paymentRepo != nil {
+		payments, err := s.paymentRepo.ListStudentPayments(ctx, tenantID, studentID)
+		if err != nil {
+			return nil, fmt.Errorf("list student payments: %w", err)
+		}
+		for i := range payments {
+			payment := payments[i]
+			ledger.TotalPaidPaise += payment.AmountAppliedPaise
+			entryDate := payment.CreatedAt
+			if payment.PaidAt != nil {
+				entryDate = *payment.PaidAt
+			}
+			reference := payment.ExternalReference
+			if reference == "" && payment.GatewayPaymentID != nil {
+				reference = *payment.GatewayPaymentID
+			}
+			receipt, err := s.paymentRepo.GetReceiptByPaymentID(ctx, tenantID, payment.ID)
+			if err != nil {
+				return nil, fmt.Errorf("get payment receipt: %w", err)
+			}
+			if receipt != nil {
+				reference = receipt.ReceiptNumber
+			}
+			if reference == "" {
+				reference = payment.ID.String()
+			}
+			entries = append(entries, datedLedgerEntry{
+				date:  entryDate,
+				order: 2,
+				entry: dto.StudentLedgerEntryResponse{
+					EntryType:         "payment",
+					EntryID:           payment.ID,
+					ReferenceNumber:   reference,
+					Description:       "Payment " + reference,
+					EntryDate:         entryDate.Format(dateLayout),
+					DebitAmountPaise:  0,
+					CreditAmountPaise: payment.AmountAppliedPaise,
+					Status:            payment.Status,
+				},
+			})
+		}
+	} else {
+		for i := range invoices {
+			ledger.TotalPaidPaise += invoices[i].PaidAmountPaise
+		}
+	}
+	sort.SliceStable(entries, func(i, j int) bool {
+		if entries[i].date.Equal(entries[j].date) {
+			return entries[i].order < entries[j].order
+		}
+		return entries[i].date.Before(entries[j].date)
+	})
+	balance := int64(0)
+	ledger.Entries = make([]dto.StudentLedgerEntryResponse, len(entries))
+	for i := range entries {
+		entry := entries[i].entry
+		balance += entry.DebitAmountPaise - entry.CreditAmountPaise
+		entry.BalanceAfterPaise = balance
+		ledger.Entries[i] = entry
 	}
 	ledger.BalancePaise = balance
 	return &ledger, nil

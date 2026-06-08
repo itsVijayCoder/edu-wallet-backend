@@ -63,6 +63,8 @@ type AcademicRepositoryFactory func(db database.DBTX) AcademicRepository
 
 type BillingRepositoryFactory func(db database.DBTX) BillingRepository
 
+type PaymentRepositoryFactory func(db database.DBTX) PaymentRepository
+
 // AcademicRepository defines tenant-scoped academic setup, student, guardian, and import operations.
 type AcademicRepository interface {
 	CreateAcademicYear(ctx context.Context, academicYear *model.AcademicYear) error
@@ -145,4 +147,45 @@ type BillingRepository interface {
 	ListInvoices(ctx context.Context, tenantID uuid.UUID, filter model.InvoiceFilter, params model.PaginationParams) (*model.PaginatedResult[model.Invoice], error)
 	ListInvoiceItems(ctx context.Context, tenantID, invoiceID uuid.UUID) ([]model.InvoiceItem, error)
 	ListStudentInvoices(ctx context.Context, tenantID, studentID uuid.UUID) ([]model.Invoice, error)
+}
+
+// PaymentRepository defines tenant-scoped payment, webhook, receipt, and ledger operations.
+type PaymentRepository interface {
+	CreatePaymentAttempt(ctx context.Context, attempt *model.PaymentAttempt) error
+	GetPaymentAttempt(ctx context.Context, tenantID, id uuid.UUID) (*model.PaymentAttempt, error)
+	GetPaymentAttemptByProviderOrderID(ctx context.Context, tenantID uuid.UUID, provider, providerOrderID string) (*model.PaymentAttempt, error)
+	GetPaymentAttemptByProviderOrderIDAnyTenant(ctx context.Context, provider, providerOrderID string) (*model.PaymentAttempt, error)
+	GetPaymentAttemptByIdempotencyKey(ctx context.Context, tenantID uuid.UUID, idempotencyKey string) (*model.PaymentAttempt, error)
+	UpdatePaymentAttemptProviderOrder(ctx context.Context, tenantID, id uuid.UUID, providerOrderID, checkoutURL, status string, metadata map[string]any) error
+	UpdatePaymentAttemptStatus(ctx context.Context, tenantID, id uuid.UUID, status string) error
+	CreatePaymentAttemptAllocations(ctx context.Context, allocations []model.PaymentAllocation) error
+	ListPaymentAttemptAllocations(ctx context.Context, tenantID, attemptID uuid.UUID) ([]model.PaymentAllocation, error)
+
+	GetInvoiceForPayment(ctx context.Context, tenantID, invoiceID uuid.UUID) (*model.Invoice, error)
+	ApplyInvoicePayment(ctx context.Context, tenantID, invoiceID uuid.UUID, amountPaise int64, asOf time.Time) (*model.Invoice, error)
+
+	CreatePayment(ctx context.Context, payment *model.Payment) error
+	GetPayment(ctx context.Context, tenantID, id uuid.UUID) (*model.Payment, error)
+	GetPaymentByGatewayPaymentID(ctx context.Context, tenantID uuid.UUID, provider, gatewayPaymentID string) (*model.Payment, error)
+	ListPayments(ctx context.Context, tenantID uuid.UUID, filter model.PaymentFilter, params model.PaginationParams) (*model.PaginatedResult[model.Payment], error)
+	CreatePaymentAllocations(ctx context.Context, allocations []model.PaymentAllocation) error
+	ListPaymentAllocations(ctx context.Context, tenantID, paymentID uuid.UUID) ([]model.PaymentAllocation, error)
+	ListStudentPayments(ctx context.Context, tenantID, studentID uuid.UUID) ([]model.Payment, error)
+
+	CreateGatewayWebhook(ctx context.Context, webhook *model.GatewayWebhook) error
+	GetGatewayWebhookByEventID(ctx context.Context, provider, eventID string) (*model.GatewayWebhook, error)
+	UpdateGatewayWebhookStatus(ctx context.Context, tenantID, id uuid.UUID, status, errorMessage string) error
+
+	NextReceiptNumber(ctx context.Context, tenantID, academicYearID uuid.UUID, branchID *uuid.UUID, prefix string) (int64, error)
+	CreateReceipt(ctx context.Context, receipt *model.Receipt) error
+	GetReceipt(ctx context.Context, tenantID, id uuid.UUID) (*model.Receipt, error)
+	GetReceiptByPaymentID(ctx context.Context, tenantID, paymentID uuid.UUID) (*model.Receipt, error)
+	ListReceipts(ctx context.Context, tenantID uuid.UUID, filter model.ReceiptFilter, params model.PaginationParams) (*model.PaginatedResult[model.Receipt], error)
+	ListStudentReceipts(ctx context.Context, tenantID, studentID uuid.UUID) ([]model.Receipt, error)
+
+	CreateOfflinePaymentReference(ctx context.Context, ref *model.OfflinePaymentReference) error
+	GetOfflinePaymentReferenceByPaymentID(ctx context.Context, tenantID, paymentID uuid.UUID) (*model.OfflinePaymentReference, error)
+
+	CreatePaymentEvent(ctx context.Context, event *model.PaymentEvent) error
+	ListPaymentEvents(ctx context.Context, tenantID uuid.UUID, filter model.PaymentEventFilter, params model.PaginationParams) (*model.PaginatedResult[model.PaymentEvent], error)
 }

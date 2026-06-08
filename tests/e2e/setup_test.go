@@ -163,6 +163,7 @@ func SetupSuite(t *testing.T) *TestSuite {
 	auditRepo := postgres.NewAuditRepository(pgPool)
 	academicRepo := postgres.NewAcademicRepository(pgPool)
 	billingRepo := postgres.NewBillingRepository(pgPool)
+	paymentRepo := postgres.NewPaymentRepository(pgPool)
 	transactor := database.NewTransactor(pgPool)
 
 	// Services - use a no-op email service for e2e tests
@@ -171,7 +172,9 @@ func SetupSuite(t *testing.T) *TestSuite {
 	userSvc := service.NewUserService(userRepo, roleRepo, h, rdb)
 	tenantSvc := service.NewTenantService(tenantRepo, membershipRepo, roleRepo, auditRepo)
 	academicSvc := service.NewAcademicService(academicRepo, postgres.NewAcademicRepository, transactor, auditRepo)
-	billingSvc := service.NewBillingService(billingRepo, postgres.NewBillingRepository, academicRepo, transactor, auditRepo)
+	paymentProvider := service.NewFakePaymentProvider("fake", "test_payment_secret")
+	paymentSvc := service.NewPaymentService(paymentRepo, postgres.NewPaymentRepository, academicRepo, transactor, auditRepo, paymentProvider, service.NewPDFReceiptRenderer())
+	billingSvc := service.NewBillingService(billingRepo, postgres.NewBillingRepository, academicRepo, transactor, auditRepo, paymentRepo)
 
 	// Router
 	r := router.New(log, router.RouterConfig{
@@ -186,6 +189,7 @@ func SetupSuite(t *testing.T) *TestSuite {
 		Tenant:   handler.NewTenantHandler(tenantSvc),
 		Academic: handler.NewAcademicHandler(academicSvc),
 		Billing:  handler.NewBillingHandler(billingSvc),
+		Payment:  handler.NewPaymentHandler(paymentSvc),
 	})
 
 	return &TestSuite{
@@ -249,7 +253,8 @@ func truncateAndReseed(t *testing.T, pool *pgxpool.Pool, rdb *redis.Client) {
 			('students.manage', 'Manage Students', 'tenant', 'Create, update, and list tenant students'),
 			('guardians.manage', 'Manage Guardians', 'tenant', 'Create, update, and list tenant guardians'),
 			('imports.manage', 'Manage Imports', 'tenant', 'Preview and commit student imports'),
-			('fees.manage', 'Manage Fees', 'tenant', 'Create fee setup, assignments, and generated invoices')
+			('fees.manage', 'Manage Fees', 'tenant', 'Create fee setup, assignments, and generated invoices'),
+			('payments.manage', 'Manage Payments', 'tenant', 'Record payments, process webhooks, and manage receipts')
 		ON CONFLICT (code) DO UPDATE
 		SET name = EXCLUDED.name,
 			category = EXCLUDED.category,
@@ -274,7 +279,8 @@ func truncateAndReseed(t *testing.T, pool *pgxpool.Pool, rdb *redis.Client) {
 			'students.manage',
 			'guardians.manage',
 			'imports.manage',
-			'fees.manage'
+			'fees.manage',
+			'payments.manage'
 		)
 		WHERE r.slug = 'admin'
 		ON CONFLICT DO NOTHING;

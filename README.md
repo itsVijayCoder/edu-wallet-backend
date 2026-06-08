@@ -161,7 +161,30 @@ Student import preview accepts multipart `file`, raw `text/csv`, or JSON `{ "fil
 
 Invoice generation accepts an `assignment_id`, optional `student_ids`, `issue_date`, `due_date`, and recurring `billing_period_start` / `billing_period_end`. Totals are calculated server-side from fee structure items and active concessions; client-submitted totals are ignored. Repeating the same assignment/student/period generation skips existing invoices through an idempotent generation key.
 
-Invoices store explicit partial-payment rules: `allow_partial_payment` and `minimum_partial_amount_paise`. Student ledger currently includes opening balance and generated invoices; payment, receipt, and adjustment entries are added in the payments phase.
+Invoices store explicit partial-payment rules: `allow_partial_payment` and `minimum_partial_amount_paise`. Student ledger includes opening balance, generated invoices, successful online payments, manually verified offline payments, and receipt references.
+
+### Payments, Webhooks, And Receipts
+
+Parent payment endpoints require auth + selected tenant token. Admin finance endpoints require selected tenant token + `payments.manage`.
+
+| Method | Endpoint                                  | Description                         |
+|--------|-------------------------------------------|-------------------------------------|
+| POST   | `/api/v1/parent/payments/orders`          | Create provider order for invoices  |
+| POST   | `/api/v1/parent/payments/verify`          | Verify checkout signature and apply payment |
+| POST   | `/api/v1/webhooks/razorpay`               | Process signed Razorpay webhook     |
+| POST   | `/api/v1/admin/offline-payments`          | Record cleared offline payment      |
+| GET    | `/api/v1/admin/payments`                  | List payments                       |
+| GET    | `/api/v1/admin/payments/:id`              | Get payment with allocations        |
+| GET    | `/api/v1/admin/receipts`                  | List receipts                       |
+| GET    | `/api/v1/admin/receipts/:id`              | Get receipt                         |
+| GET    | `/api/v1/admin/receipts/:id/download`     | Download receipt PDF                |
+| GET    | `/api/v1/parent/receipts`                 | List parent receipts                |
+| GET    | `/api/v1/parent/receipts/:id/download`    | Download parent receipt PDF         |
+| GET    | `/api/v1/admin/payment-events`            | List payment ticker events          |
+
+Order creation accepts `student_id`, `invoice_ids`, optional `amount_paise`, and optional `idempotency_key`. If `amount_paise` is omitted, the order covers the selected invoice balances. Partial payment is allowed only for one invoice at a time and must satisfy the invoice partial-payment rule.
+
+Webhook and payment verification paths are idempotent by provider event/payment IDs. Successful payments atomically update invoice balances, create payment allocations, generate one receipt per payment, and record payment events/audit logs.
 
 ### Parent Dues (requires auth + selected tenant token)
 

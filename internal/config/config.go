@@ -12,12 +12,13 @@ import (
 )
 
 type Config struct {
-	App    AppConfig
-	Auth   AuthConfig
-	DB     database.PostgresConfig
-	Redis  database.RedisConfig
-	JWT    JWTConfig
-	Resend ResendConfig
+	App      AppConfig
+	Auth     AuthConfig
+	DB       database.PostgresConfig
+	Redis    database.RedisConfig
+	JWT      JWTConfig
+	Resend   ResendConfig
+	Payments PaymentConfig
 }
 
 type AppConfig struct {
@@ -43,6 +44,15 @@ type ResendConfig struct {
 	APIKey    string `env:"RESEND_API_KEY"`
 	FromEmail string `env:"RESEND_FROM_EMAIL" envDefault:"noreply@example.com"`
 	FromName  string `env:"RESEND_FROM_NAME"  envDefault:"eduwallet"`
+}
+
+type PaymentConfig struct {
+	Provider              string `env:"PAYMENT_PROVIDER" envDefault:"fake"`
+	RazorpayKeyID         string `env:"RAZORPAY_KEY_ID"`
+	RazorpayKeySecret     string `env:"RAZORPAY_KEY_SECRET"`
+	RazorpayWebhookSecret string `env:"RAZORPAY_WEBHOOK_SECRET"`
+	RazorpayBaseURL       string `env:"RAZORPAY_BASE_URL" envDefault:"https://api.razorpay.com/v1"`
+	FakeSigningSecret     string `env:"PAYMENT_FAKE_SIGNING_SECRET" envDefault:"test_payment_secret"`
 }
 
 func Load() (*Config, error) {
@@ -73,6 +83,11 @@ func validate(cfg *Config) error {
 	// SSL enforcement in production
 	if cfg.App.Env == "production" && cfg.DB.SSLMode == "disable" {
 		return fmt.Errorf("DB_SSL_MODE=disable is not allowed in production")
+	}
+	if cfg.App.Env == "production" && strings.EqualFold(cfg.Payments.Provider, "razorpay") {
+		if cfg.Payments.RazorpayKeyID == "" || cfg.Payments.RazorpayKeySecret == "" || cfg.Payments.RazorpayWebhookSecret == "" {
+			return fmt.Errorf("razorpay payment provider requires RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, and RAZORPAY_WEBHOOK_SECRET")
+		}
 	}
 
 	return nil

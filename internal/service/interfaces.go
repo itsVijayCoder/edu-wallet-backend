@@ -107,3 +107,18 @@ type BillingService interface {
 	GetStudentLedger(ctx context.Context, tenantID, studentID uuid.UUID) (*dto.StudentLedgerResponse, error)
 	GetParentChildDues(ctx context.Context, tenantID, studentID uuid.UUID) (*dto.ParentDuesResponse, error)
 }
+
+type PaymentService interface {
+	CreatePaymentOrder(ctx context.Context, actorID, tenantID uuid.UUID, req dto.CreatePaymentOrderRequest) (*dto.PaymentOrderResponse, error)
+	VerifyPayment(ctx context.Context, actorID, tenantID uuid.UUID, req dto.VerifyPaymentRequest) (*dto.PaymentVerificationResponse, error)
+	ProcessRazorpayWebhook(ctx context.Context, payload []byte, signature, eventID string) (*dto.WebhookProcessResponse, error)
+	CreateOfflinePayment(ctx context.Context, actorID, tenantID uuid.UUID, req dto.CreateOfflinePaymentRequest) (*dto.PaymentVerificationResponse, error)
+	ListPayments(ctx context.Context, tenantID uuid.UUID, filter model.PaymentFilter, params model.PaginationParams) (*model.PaginatedResult[dto.PaymentResponse], error)
+	GetPayment(ctx context.Context, tenantID, id uuid.UUID) (*dto.PaymentResponse, error)
+	ListReceipts(ctx context.Context, tenantID uuid.UUID, filter model.ReceiptFilter, params model.PaginationParams) (*model.PaginatedResult[dto.ReceiptResponse], error)
+	GetReceipt(ctx context.Context, tenantID, id uuid.UUID) (*dto.ReceiptResponse, error)
+	DownloadReceipt(ctx context.Context, tenantID, id uuid.UUID) (*dto.ReceiptDownloadResponse, error)
+	ListParentReceipts(ctx context.Context, tenantID uuid.UUID, filter model.ReceiptFilter, params model.PaginationParams) (*model.PaginatedResult[dto.ReceiptResponse], error)
+	DownloadParentReceipt(ctx context.Context, tenantID, id uuid.UUID) (*dto.ReceiptDownloadResponse, error)
+	ListPaymentEvents(ctx context.Context, tenantID uuid.UUID, filter model.PaymentEventFilter, params model.PaginationParams) (*model.PaginatedResult[dto.PaymentEventResponse], error)
+}
