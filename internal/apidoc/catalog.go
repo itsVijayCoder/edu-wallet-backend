@@ -491,6 +491,7 @@ var endpointCatalog = []Endpoint{
 
 	endpoint(http.MethodGet, "/api/v1/admin/tenant", "Tenant", "Get selected tenant", secured("tenant.read")),
 	endpoint(http.MethodPatch, "/api/v1/admin/tenant", "Tenant", "Update selected tenant", secured("tenant.update"), body("GenericPatchRequest")),
+	endpoint(http.MethodPost, "/api/v1/admin/tenant/users", "Admin Users", "Create tenant user", secured("users.manage"), body("CreateTenantUserRequest"), created()),
 
 	endpoint(http.MethodPost, "/api/v1/admin/academic-years", "Academic Setup", "Create academic year", secured("academic.manage"), body("CreateAcademicYearRequest"), created()),
 	endpoint(http.MethodGet, "/api/v1/admin/academic-years", "Academic Setup", "List academic years", secured("academic.manage"), query(paginationParams()...)),
@@ -670,6 +671,13 @@ func schemaComponents() map[string]any {
 			"first_name": stringSchema(""),
 			"last_name":  stringSchema(""),
 			"roles":      arrayOf(stringSchema("")),
+		}),
+		"CreateTenantUserRequest": object([]string{"email", "password", "first_name", "last_name", "role"}, map[string]any{
+			"email":      stringSchema("email"),
+			"password":   stringSchema("password"),
+			"first_name": stringSchema(""),
+			"last_name":  stringSchema(""),
+			"role":       enumSchema("admin", "staff", "parents", "student"),
 		}),
 		"UpdateUserRequest": object(nil, map[string]any{
 			"email":      stringSchema("email"),

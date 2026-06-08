@@ -22,19 +22,21 @@ mindmap
     Start
       Run backend
       Open Swagger
-      Get platform admin login
+      Login as product owner
       Keep a notes file for tokens and IDs
     Onboard school
-      Login as platform admin
+      Login as product owner
+      Create school admin
       Create school tenant
       Create main campus branch
+      Login as school admin
       Select tenant
       Use tenant token for school work
     People
       School owner/admin
       Fee employee
-        Current test stand-in: school admin token
-        Future: employee tenant invite
+        Create tenant user
+        Use admin role for fee operations
       Guardians
         Create guardian records
         Link guardian to student
@@ -98,9 +100,9 @@ flowchart TD
 
 | Topic | What works now | What is not finished yet |
 |-------|----------------|--------------------------|
-| School onboarding | A `super_admin` can create a school tenant and assign an owner user. | A self-service school signup page is not available yet. |
-| Employee accounts | `/api/v1/admin/users` can create users such as `admin` or `staff`. | There is no API endpoint yet to attach that employee to a specific school tenant. For end-to-end fee testing, use the school owner/admin tenant token. |
-| Fee employee workflow | The school owner/admin token can create fee heads, fee structures, invoices, payments, reports, and exports. | A separate fee employee login needs tenant membership invite/assignment support. |
+| School onboarding | The seeded `super_admin` can create school/college admins and tenants. | A self-service school signup page is not available yet. |
+| Employee accounts | `POST /api/v1/admin/tenant/users` creates a user inside the selected tenant. | Fine-grained accountant/teacher permission presets are still basic. Use tenant role `admin` for fee staff that need fee operations. |
+| Fee employee workflow | A tenant admin can create another tenant `admin` user for fee setup, invoices, payments, reports, and exports. | Dedicated finance-only permissions can be tightened later. |
 | Guardians | Guardian records can be created and linked to students. | A guardian login portal is not finished yet. |
 | Parent payments | Parent dues and payment endpoints exist. | For testing, call parent endpoints with the tenant token until parent account mapping is added. |
 | Online payment | Fake local provider and Razorpay provider are supported. | Local fake online verification needs a generated HMAC signature, so offline payment is easier for non-technical testing. |
@@ -111,9 +113,12 @@ Create a notes file before testing and paste these values as you go:
 
 ```text
 PLATFORM_TOKEN=
-OWNER_USER_ID=
+PRODUCT_OWNER_USER_ID=
+SCHOOL_ADMIN_USER_ID=
+SCHOOL_ADMIN_TOKEN=
 TENANT_ID=
 TENANT_TOKEN=
+TENANT_USER_ID=
 ACADEMIC_YEAR_ID=
 CLASS_ID=
 SECTION_ID=
@@ -165,37 +170,59 @@ Health check in Swagger:
 | Health | `GET /api/v1/healthz` | `status: ok` |
 | Health | `GET /api/v1/readyz` | Postgres and Redis show `up` |
 
-## Phase 1: Get A Platform Admin Login
+## Phase 1: Login As Product Owner
 
-For a real school test, someone must give you a platform admin account first. This account needs the `super_admin` role because school creation is a platform-level action.
+After migrations, EduWallet has one product owner/developer account. This account has the `super_admin` role because school and college creation is a platform-level action.
 
 Use Swagger:
 
 | Step | Swagger section | Endpoint | What to save |
 |------|-----------------|----------|--------------|
-| Login | Auth | `POST /api/v1/auth/login` | `PLATFORM_TOKEN` and `OWNER_USER_ID` |
+| Login | Auth | `POST /api/v1/auth/login` | `PLATFORM_TOKEN` and `PRODUCT_OWNER_USER_ID` |
 
 Sample body:
 
 ```json
 {
-  "email": "platform@example.com",
-  "password": "password123"
+  "email": "admin@eduwallet.in",
+  "password": "password"
 }
 ```
 
 After the response:
 
 1. Copy `data.access_token` into `PLATFORM_TOKEN`.
-2. Copy `data.user.id` into `OWNER_USER_ID`.
+2. Copy `data.user.id` into `PRODUCT_OWNER_USER_ID`.
 3. In Swagger, click **Authorize**.
 4. Enter `Bearer PLATFORM_TOKEN`.
 
-Registration note: `POST /api/v1/auth/register` creates a basic user in development, but that user cannot create a school until a platform admin gives it the right role or uses it as the school owner during tenant creation.
+Rotate this password before using a shared or production database.
+
+## Phase 1A: Create The School Admin
+
+Create the login account for the school or college admin. This is the person who will run the tenant after onboarding.
+
+| Swagger section | Endpoint | Authorization | What to save |
+|-----------------|----------|---------------|--------------|
+| Admin Users | `POST /api/v1/admin/users` | `Bearer PLATFORM_TOKEN` | `SCHOOL_ADMIN_USER_ID` |
+
+Sample body:
+
+```json
+{
+  "email": "school-admin@acme-school.test",
+  "password": "password123",
+  "first_name": "School",
+  "last_name": "Admin",
+  "roles": ["admin"]
+}
+```
+
+After the response, copy `data.id` into `SCHOOL_ADMIN_USER_ID`.
 
 ## Phase 2: Create The School
 
-This creates the school account, also called a tenant.
+This creates the school account, also called a tenant, and attaches the school admin as the tenant owner/admin.
 
 | Swagger section | Endpoint | Authorization |
 |-----------------|----------|---------------|
@@ -210,7 +237,7 @@ Sample body:
   "legal_name": "Acme Public School",
   "contact_email": "admin@acme-school.test",
   "contact_phone": "9000000000",
-  "owner_user_id": "PASTE_OWNER_USER_ID_HERE",
+  "owner_user_id": "PASTE_SCHOOL_ADMIN_USER_ID_HERE",
   "branch": {
     "name": "Main Campus",
     "code": "MAIN"
@@ -229,15 +256,34 @@ Expected result:
 
 - Response status is `201`.
 - Save `data.id` as `TENANT_ID`.
-- The owner user becomes a school `admin` member.
+- The school admin user becomes a tenant `admin` member.
 
 ## Phase 3: Enter The School Workspace
 
-Before doing school work, select the tenant. This returns a tenant-scoped token.
+Before doing school work, login as the school admin and select the tenant. This returns a tenant-scoped token.
+
+| Swagger section | Endpoint | What to save |
+|-----------------|----------|--------------|
+| Auth | `POST /api/v1/auth/login` | `SCHOOL_ADMIN_TOKEN` |
+
+Sample body:
+
+```json
+{
+  "email": "school-admin@acme-school.test",
+  "password": "password123"
+}
+```
+
+After the response:
+
+1. Copy `data.access_token` into `SCHOOL_ADMIN_TOKEN`.
+2. In Swagger, click **Authorize**.
+3. Enter `Bearer SCHOOL_ADMIN_TOKEN`.
 
 | Swagger section | Endpoint | Authorization |
 |-----------------|----------|---------------|
-| Auth | `POST /api/v1/auth/select-tenant` | `Bearer PLATFORM_TOKEN` |
+| Auth | `POST /api/v1/auth/select-tenant` | `Bearer SCHOOL_ADMIN_TOKEN` |
 
 Sample body:
 
@@ -267,15 +313,15 @@ Use this as the product-language map:
 |--------|-------------------|--------------------------|
 | Platform admin | EduWallet operator who creates schools. | Uses `PLATFORM_TOKEN`. |
 | School owner/admin | Principal, school owner, or main office admin. | Uses `TENANT_TOKEN`. |
-| Fee employee | Accountant who manages fee setup and collections. | For now, use the school admin `TENANT_TOKEN` to test fee work. |
+| Fee employee | Accountant who manages fee setup and collections. | Create with `POST /api/v1/admin/tenant/users`; use role `admin` for fee operations. |
 | Guardian | Parent/guardian contact attached to a student. | Create through guardian endpoints. |
 | Parent | Person who checks dues and pays. | Parent endpoints exist, but use `TENANT_TOKEN` during MVP testing. |
 
-Optional platform user test:
+Create an extra tenant user:
 
-| Swagger section | Endpoint | Purpose |
-|-----------------|----------|---------|
-| Admin Users | `POST /api/v1/admin/users` | Create a login user record, for example an accountant. |
+| Swagger section | Endpoint | Authorization | What to save |
+|-----------------|----------|---------------|--------------|
+| Admin Users | `POST /api/v1/admin/tenant/users` | `Bearer TENANT_TOKEN` | `TENANT_USER_ID` |
 
 Sample body:
 
@@ -285,11 +331,11 @@ Sample body:
   "password": "password123",
   "first_name": "Fee",
   "last_name": "Manager",
-  "roles": ["admin"]
+  "role": "admin"
 }
 ```
 
-Important: this creates the user, but the API does not yet expose a non-technical endpoint to attach that employee to the school tenant. Continue the school test using `TENANT_TOKEN`.
+After the response, copy `data.user.id` into `TENANT_USER_ID`. That user can login and call `POST /api/v1/auth/select-tenant` for the same `TENANT_ID`.
 
 ## Phase 5: Create Academic Setup
 

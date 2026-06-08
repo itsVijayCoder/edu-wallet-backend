@@ -32,6 +32,33 @@ func (h *AdminUserHandler) Create(c *gin.Context) {
 	RespondCreated(c, resp)
 }
 
+func (h *AdminUserHandler) CreateTenantUser(c *gin.Context) {
+	actorID, err := currentUserID(c)
+	if err != nil {
+		HandleError(c, err)
+		return
+	}
+	tenantID, err := currentTenantID(c)
+	if err != nil {
+		HandleError(c, err)
+		return
+	}
+
+	var req dto.CreateTenantUserRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondValidationError(c, extractValidationErrors(err))
+		return
+	}
+
+	resp, err := h.userSvc.CreateForTenant(c.Request.Context(), actorID, tenantID, req)
+	if err != nil {
+		HandleError(c, err)
+		return
+	}
+
+	RespondCreated(c, resp)
+}
+
 func (h *AdminUserHandler) List(c *gin.Context) {
 	params := dto.ExtractPagination(c)
 

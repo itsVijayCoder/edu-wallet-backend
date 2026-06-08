@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
@@ -15,23 +16,26 @@ import (
 )
 
 type userService struct {
-	userRepo repository.UserRepository
-	roleRepo repository.RoleRepository
-	hasher   hasher.Hasher
-	redis    *redis.Client
+	userRepo       repository.UserRepository
+	roleRepo       repository.RoleRepository
+	membershipRepo repository.TenantMembershipRepository
+	hasher         hasher.Hasher
+	redis          *redis.Client
 }
 
 func NewUserService(
 	userRepo repository.UserRepository,
 	roleRepo repository.RoleRepository,
+	membershipRepo repository.TenantMembershipRepository,
 	h hasher.Hasher,
 	rdb *redis.Client,
 ) UserService {
 	return &userService{
-		userRepo: userRepo,
-		roleRepo: roleRepo,
-		hasher:   h,
-		redis:    rdb,
+		userRepo:       userRepo,
+		roleRepo:       roleRepo,
+		membershipRepo: membershipRepo,
+		hasher:         h,
+		redis:          rdb,
 	}
 }
 
@@ -62,7 +66,7 @@ func (s *userService) Create(ctx context.Context, req dto.CreateUserRequest) (*d
 	roleIDs := make([]uuid.UUID, 0, len(req.RoleSlugs))
 	for _, slug := range req.RoleSlugs {
 		role, err := s.roleRepo.GetBySlug(ctx, slug)
-		if err != nil {
+		if err != nil || role == nil {
 			return nil, apperror.New("INVALID_ROLE", fmt.Sprintf("role '%s' not found", slug), 400)
 		}
 		roleIDs = append(roleIDs, role.ID)
@@ -80,6 +84,62 @@ func (s *userService) Create(ctx context.Context, req dto.CreateUserRequest) (*d
 
 	resp := userToResponse(user)
 	return &resp, nil
+}
+
+func (s *userService) CreateForTenant(ctx context.Context, actorID, tenantID uuid.UUID, req dto.CreateTenantUserRequest) (*dto.TenantUserResponse, error) {
+	_ = actorID
+
+	if s.membershipRepo == nil {
+		return nil, apperror.New("TENANT_MEMBERSHIP_UNAVAILABLE", "tenant membership repository is unavailable", 500)
+	}
+
+	existing, _ := s.userRepo.GetByEmail(ctx, req.Email)
+	if existing != nil {
+		return nil, apperror.ErrConflict
+	}
+
+	role, err := s.roleRepo.GetBySlug(ctx, req.RoleSlug)
+	if err != nil || role == nil {
+		return nil, apperror.New("INVALID_ROLE", fmt.Sprintf("role '%s' not found", req.RoleSlug), 400)
+	}
+	if role.Scope == "platform" || role.Slug == "super_admin" {
+		return nil, apperror.New("INVALID_TENANT_ROLE", "tenant users must use a tenant-scoped role", 400)
+	}
+
+	hash, err := s.hasher.Hash(req.Password)
+	if err != nil {
+		return nil, fmt.Errorf("hash password: %w", err)
+	}
+
+	user := &model.User{
+		Email:        req.Email,
+		PasswordHash: hash,
+		FirstName:    req.FirstName,
+		LastName:     req.LastName,
+		Status:       "active",
+	}
+	if err := s.userRepo.Create(ctx, user); err != nil {
+		return nil, fmt.Errorf("create tenant user: %w", err)
+	}
+
+	now := time.Now()
+	membership := &model.TenantMembership{
+		TenantID: tenantID,
+		UserID:   user.ID,
+		RoleID:   role.ID,
+		Status:   "active",
+		JoinedAt: &now,
+	}
+	if err := s.membershipRepo.CreateMembership(ctx, membership); err != nil {
+		return nil, fmt.Errorf("create tenant user membership: %w", err)
+	}
+
+	respUser := userToResponse(user)
+	return &dto.TenantUserResponse{
+		User:       respUser,
+		TenantID:   tenantID,
+		TenantRole: role.Slug,
+	}, nil
 }
 
 func (s *userService) GetByID(ctx context.Context, id uuid.UUID) (*dto.UserResponse, error) {

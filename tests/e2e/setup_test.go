@@ -169,8 +169,8 @@ func SetupSuite(t *testing.T) *TestSuite {
 
 	// Services - use a no-op email service for e2e tests
 	emailSvc := &noopEmailService{}
-	authSvc := service.NewAuthService(userRepo, h, tokenMgr, rdb, 7*24*time.Hour, emailSvc, log, true, membershipRepo)
-	userSvc := service.NewUserService(userRepo, roleRepo, h, rdb)
+	authSvc := service.NewAuthService(userRepo, h, tokenMgr, rdb, 7*24*time.Hour, emailSvc, log, true, membershipRepo, tenantRepo)
+	userSvc := service.NewUserService(userRepo, roleRepo, membershipRepo, h, rdb)
 	tenantSvc := service.NewTenantService(tenantRepo, membershipRepo, roleRepo, auditRepo)
 	academicSvc := service.NewAcademicService(academicRepo, postgres.NewAcademicRepository, transactor, auditRepo)
 	paymentProvider := service.NewFakePaymentProvider("fake", "test_payment_secret")
@@ -241,11 +241,18 @@ func truncateAndReseed(t *testing.T, pool *pgxpool.Pool, rdb *redis.Client) {
 
 	// Re-insert default roles.
 	_, err = pool.Exec(ctx, `
-		INSERT INTO roles (name, slug, description) VALUES
-			('Super Admin', 'super_admin', 'Full system access'),
-			('Admin', 'admin', 'Administrative access'),
-			('Member', 'member', 'Standard member access')
-		ON CONFLICT DO NOTHING;
+		INSERT INTO roles (name, slug, description, scope, is_system) VALUES
+			('Super Admin', 'super_admin', 'Full system access', 'platform', TRUE),
+			('Admin', 'admin', 'Administrative access', 'tenant', TRUE),
+			('Parents', 'parents', 'Parents role', 'tenant', TRUE),
+			('Student', 'student', 'Student role', 'tenant', TRUE),
+			('Staff', 'staff', 'Staff role', 'tenant', TRUE),
+			('Member', 'member', 'Standard member access', 'tenant', TRUE)
+		ON CONFLICT (slug) DO UPDATE
+		SET name = EXCLUDED.name,
+			description = EXCLUDED.description,
+			scope = EXCLUDED.scope,
+			is_system = EXCLUDED.is_system;
 
 		INSERT INTO permissions (code, name, category, description) VALUES
 			('platform.tenants.manage', 'Manage Tenants', 'platform', 'Create and update tenant accounts'),

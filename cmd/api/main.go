@@ -94,8 +94,9 @@ func run() error {
 		log,
 		publicRegistrationEnabled,
 		membershipRepo,
+		tenantRepo,
 	)
-	userSvc := service.NewUserService(userRepo, roleRepo, h, rdb)
+	userSvc := service.NewUserService(userRepo, roleRepo, membershipRepo, h, rdb)
 	tenantSvc := service.NewTenantService(tenantRepo, membershipRepo, roleRepo, auditRepo)
 	academicSvc := service.NewAcademicService(academicRepo, postgres.NewAcademicRepository, transactor, auditRepo)
 	paymentProvider := paymentProviderFromConfig(cfg)

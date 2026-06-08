@@ -20,6 +20,7 @@ import (
 type authService struct {
 	userRepo                  repository.UserRepository
 	membershipRepo            repository.TenantMembershipRepository
+	tenantRepo                repository.TenantRepository
 	hasher                    hasher.Hasher
 	tokenMgr                  jwt.TokenManager
 	redis                     *redis.Client
@@ -39,10 +40,12 @@ func NewAuthService(
 	log *slog.Logger,
 	publicRegistrationEnabled bool,
 	membershipRepo repository.TenantMembershipRepository,
+	tenantRepo repository.TenantRepository,
 ) AuthService {
 	return &authService{
 		userRepo:                  userRepo,
 		membershipRepo:            membershipRepo,
+		tenantRepo:                tenantRepo,
 		hasher:                    h,
 		tokenMgr:                  tokenMgr,
 		redis:                     rdb,
@@ -180,22 +183,47 @@ func (s *authService) SelectTenant(ctx context.Context, userID uuid.UUID, req dt
 		return nil, apperror.ErrTenantAccessDenied
 	}
 
+	roles := rolesToSlugs(user.Roles)
+	var permissions []string
+	tenantID := req.TenantID
+
 	membership, err := s.membershipRepo.GetByUserAndTenant(ctx, userID, req.TenantID)
 	if err != nil {
 		return nil, fmt.Errorf("get tenant membership: %w", err)
 	}
-	if membership == nil || membership.Tenant == nil || membership.Role == nil {
-		return nil, apperror.ErrTenantAccessDenied
-	}
-	if membership.Tenant.Status != "active" && membership.Tenant.Status != "trial" {
-		return nil, apperror.ErrTenantAccessDenied
+
+	if membership != nil {
+		if membership.Tenant == nil || membership.Role == nil {
+			return nil, apperror.ErrTenantAccessDenied
+		}
+		if membership.Tenant.Status != "active" && membership.Tenant.Status != "trial" {
+			return nil, apperror.ErrTenantAccessDenied
+		}
+		tenantID = membership.TenantID
+		roles = appendUnique(roles, membership.Role.Slug)
+		permissions = permissionsToCodes(membership.Permissions)
+	} else {
+		superAdminRole := findRoleBySlug(user.Roles, "super_admin")
+		if superAdminRole == nil || s.tenantRepo == nil {
+			return nil, apperror.ErrTenantAccessDenied
+		}
+
+		tenant, err := s.tenantRepo.GetByID(ctx, req.TenantID)
+		if err != nil {
+			return nil, fmt.Errorf("get tenant: %w", err)
+		}
+		if tenant == nil || (tenant.Status != "active" && tenant.Status != "trial") {
+			return nil, apperror.ErrTenantAccessDenied
+		}
+
+		rolePermissions, err := s.membershipRepo.ListPermissionsByRole(ctx, superAdminRole.ID)
+		if err != nil {
+			return nil, fmt.Errorf("list super admin permissions: %w", err)
+		}
+		permissions = permissionsToCodes(rolePermissions)
 	}
 
-	roles := append([]string{}, rolesToSlugs(user.Roles)...)
-	roles = appendUnique(roles, membership.Role.Slug)
-	permissions := permissionsToCodes(membership.Permissions)
-
-	accessToken, err := s.tokenMgr.GenerateTenantAccess(user.ID, user.Email, roles, membership.TenantID, permissions)
+	accessToken, err := s.tokenMgr.GenerateTenantAccess(user.ID, user.Email, roles, tenantID, permissions)
 	if err != nil {
 		return nil, fmt.Errorf("generate tenant access token: %w", err)
 	}
@@ -318,6 +346,15 @@ func appendUnique(values []string, value string) []string {
 		}
 	}
 	return append(values, value)
+}
+
+func findRoleBySlug(roles []model.Role, slug string) *model.Role {
+	for i := range roles {
+		if roles[i].Slug == slug {
+			return &roles[i]
+		}
+	}
+	return nil
 }
 
 func (s *authService) membershipsForLogin(ctx context.Context, userID uuid.UUID) []dto.TenantMembershipBrief {

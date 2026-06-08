@@ -15,6 +15,18 @@ API is available at `http://localhost:8080`
 
 Swagger docs are available at `http://localhost:8080/api/v1/docs`.
 
+## Bootstrap Super Admin
+
+After `make migrate-up`, the database has one product owner/developer account:
+
+```text
+Email: admin@eduwallet.in
+Password: password
+Role: super_admin
+```
+
+Use this account to create school/college tenant admins and tenants. Rotate this password before using a shared or production database.
+
 ## Tech Stack
 
 - **Language:** Go 1.25
@@ -248,7 +260,7 @@ CSV exports are generated into `export_jobs` for the MVP. The service supports c
 |--------|---------------------------------------|-------------------------|
 | GET    | `/api/v1/parent/children/:id/dues`    | View unpaid child dues  |
 
-### Admin (requires super_admin or admin role)
+### Platform/Admin Users (requires super_admin or admin role)
 
 | Method | Endpoint                    | Description              |
 |--------|-----------------------------|--------------------------|
@@ -257,6 +269,12 @@ CSV exports are generated into `export_jobs` for the MVP. The service supports c
 | GET    | `/api/v1/admin/users/:id`   | Get user by ID           |
 | PUT    | `/api/v1/admin/users/:id`   | Update user              |
 | DELETE | `/api/v1/admin/users/:id`   | Soft delete user         |
+
+### Tenant User Management (requires selected tenant token + `users.manage`)
+
+| Method | Endpoint                    | Description              |
+|--------|-----------------------------|--------------------------|
+| POST   | `/api/v1/admin/tenant/users`| Create user in selected tenant |
 
 ### Health
 
@@ -267,9 +285,27 @@ CSV exports are generated into `export_jobs` for the MVP. The service supports c
 
 ## Key API Flow Examples
 
-Create a platform tenant, then select it to receive a tenant-scoped token:
+Login as the product owner, create a school admin, create a tenant for that school admin, then select the tenant to receive a tenant-scoped token:
 
 ```bash
+curl -s -X POST "$API/api/v1/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "admin@eduwallet.in",
+    "password": "password"
+  }'
+
+curl -s -X POST "$API/api/v1/admin/users" \
+  -H "Authorization: Bearer $PLATFORM_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "school-admin@pilot.example",
+    "password": "password123",
+    "first_name": "School",
+    "last_name": "Admin",
+    "roles": ["admin"]
+  }'
+
 curl -s -X POST "$API/api/v1/platform/tenants" \
   -H "Authorization: Bearer $PLATFORM_TOKEN" \
   -H "Content-Type: application/json" \
@@ -278,14 +314,32 @@ curl -s -X POST "$API/api/v1/platform/tenants" \
     "slug": "pilot-school",
     "legal_name": "Pilot School",
     "contact_email": "admin@pilot.example",
-    "owner_user_id": "'"$OWNER_USER_ID"'",
+    "owner_user_id": "'"$SCHOOL_ADMIN_USER_ID"'",
     "branch": { "name": "Main Campus", "code": "MAIN" }
   }'
 
+curl -s -X POST "$API/api/v1/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "school-admin@pilot.example",
+    "password": "password123"
+  }'
+
 curl -s -X POST "$API/api/v1/auth/select-tenant" \
-  -H "Authorization: Bearer $PLATFORM_TOKEN" \
+  -H "Authorization: Bearer $SCHOOL_ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{ "tenant_id": "'"$TENANT_ID"'" }'
+
+curl -s -X POST "$API/api/v1/admin/tenant/users" \
+  -H "Authorization: Bearer $TENANT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "fees@pilot.example",
+    "password": "password123",
+    "first_name": "Fee",
+    "last_name": "Staff",
+    "role": "staff"
+  }'
 ```
 
 Preview and commit pilot student data:

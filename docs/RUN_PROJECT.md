@@ -46,6 +46,16 @@ For local Go development, you can leave Postgres and Redis running and start the
 make migrate-up
 ```
 
+Migrations also seed the product owner/developer account:
+
+```text
+Email: admin@eduwallet.in
+Password: password
+Role: super_admin
+```
+
+Use this login to create school/college admins and tenants. Rotate the password before using a shared or production database.
+
 Useful migration checks:
 
 ```bash
@@ -144,10 +154,13 @@ For a non-technical school tester walkthrough, open `docs/SCHOOL_TEST_JOURNEY.md
 
 High-level flow:
 
-1. Get a platform admin login.
-2. Create a school tenant.
-3. Call `POST /api/v1/auth/select-tenant` to get a tenant-scoped JWT.
-4. Create academic year, class, section, guardians, and students.
-5. Create fee heads, fee structures, assignments, and invoices.
-6. View dues, record payment, download receipt, and check ledger.
-7. Test reminders, dashboard, reports, and CSV exports.
+1. Login as `admin@eduwallet.in` with password `password`.
+2. Create a school/college admin user.
+3. Create a school/college tenant with that admin as `owner_user_id`.
+4. Login as the school/college admin.
+5. Call `POST /api/v1/auth/select-tenant` to get a tenant-scoped JWT.
+6. Create tenant users with `POST /api/v1/admin/tenant/users` when needed.
+7. Create academic year, class, section, guardians, and students.
+8. Create fee heads, fee structures, assignments, and invoices.
+9. View dues, record payment, download receipt, and check ledger.
+10. Test reminders, dashboard, reports, and CSV exports.

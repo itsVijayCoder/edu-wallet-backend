@@ -118,6 +118,7 @@ func New(log *slog.Logger, cfg RouterConfig, tokenMgr jwt.TokenManager, rdb *red
 		{
 			adminTenant.GET("/tenant", middleware.PermissionGuard("tenant.read"), h.Tenant.AdminGet)
 			adminTenant.PATCH("/tenant", middleware.PermissionGuard("tenant.update"), h.Tenant.AdminUpdate)
+			adminTenant.POST("/tenant/users", middleware.PermissionGuard("users.manage"), h.User.CreateTenantUser)
 
 			academicYears := adminTenant.Group("/academic-years", middleware.PermissionGuard("academic.manage"))
 			{

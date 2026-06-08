@@ -849,6 +849,41 @@
         ],
         "type": "object"
       },
+      "CreateTenantUserRequest": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "type": "string"
+          },
+          "first_name": {
+            "type": "string"
+          },
+          "last_name": {
+            "type": "string"
+          },
+          "password": {
+            "format": "password",
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "admin",
+              "staff",
+              "parents",
+              "student"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password",
+          "first_name",
+          "last_name",
+          "role"
+        ],
+        "type": "object"
+      },
       "CreateUserRequest": {
         "properties": {
           "email": {
@@ -7870,6 +7905,73 @@
         "summary": "Update selected tenant",
         "tags": [
           "Tenant"
+        ]
+      }
+    },
+    "/api/v1/admin/tenant/users": {
+      "post": {
+        "description": "Requires permission: users.manage.",
+        "operationId": "post_admin_tenant_users",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTenantUserRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid, or expired JWT"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "Role or permission check failed"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Create tenant user",
+        "tags": [
+          "Admin Users"
         ]
       }
     },

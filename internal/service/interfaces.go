@@ -22,6 +22,7 @@ type AuthService interface {
 
 type UserService interface {
 	Create(ctx context.Context, req dto.CreateUserRequest) (*dto.UserResponse, error)
+	CreateForTenant(ctx context.Context, actorID, tenantID uuid.UUID, req dto.CreateTenantUserRequest) (*dto.TenantUserResponse, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*dto.UserResponse, error)
 	List(ctx context.Context, params model.PaginationParams) (*model.PaginatedResult[dto.UserResponse], error)
 	Update(ctx context.Context, id uuid.UUID, req dto.UpdateUserRequest) (*dto.UserResponse, error)

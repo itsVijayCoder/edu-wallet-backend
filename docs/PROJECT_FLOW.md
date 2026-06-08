@@ -79,18 +79,22 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-  A[User login or register] --> B[Select tenant]
-  B --> C[Create academic year, class, section]
-  C --> D[Create/import students and guardians]
-  D --> E[Create fee heads and fee structures]
-  E --> F[Assign fee structure]
-  F --> G[Generate invoices]
-  G --> H[Parent views dues]
-  H --> I[Create payment order]
-  I --> J[Verify payment or process Razorpay webhook]
-  J --> K[Apply allocations transactionally]
-  K --> L[Create receipt and ledger events]
-  L --> M[Dashboard, reports, reminders, exports]
+  A[Product owner super_admin login] --> B[Create school or college admin]
+  B --> C[Create tenant with admin owner_user_id]
+  C --> D[School admin login]
+  D --> E[Select tenant]
+  E --> F[Create tenant users as needed]
+  F --> G[Create academic year, class, section]
+  G --> H[Create/import students and guardians]
+  H --> I[Create fee heads and fee structures]
+  I --> J[Assign fee structure]
+  J --> K[Generate invoices]
+  K --> L[Parent views dues]
+  L --> M[Create payment order]
+  M --> N[Verify payment or process Razorpay webhook]
+  N --> O[Apply allocations transactionally]
+  O --> P[Create receipt and ledger events]
+  P --> Q[Dashboard, reports, reminders, exports]
 ```
 
 ## Layer Responsibilities
