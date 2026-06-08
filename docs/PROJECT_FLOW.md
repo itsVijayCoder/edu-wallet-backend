@@ -2,6 +2,8 @@
 
 Use this document to understand how a request moves through the backend and how the school-fee product workflow is modeled.
 
+For a non-technical school tester path through Swagger, use `docs/SCHOOL_TEST_JOURNEY.md`.
+
 ## Architecture Image
 
 ![EduWallet backend flow](project-flow.svg)

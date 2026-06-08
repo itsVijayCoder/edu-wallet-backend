@@ -56,7 +56,9 @@ Swagger docs are available at `http://localhost:8080/api/v1/docs`.
 ├── docs/                        # API documentation
 │   ├── RUN_PROJECT.md           # Local setup, run, test, and operations guide
 │   ├── PROJECT_FLOW.md          # Architecture and product workflow guide
+│   ├── SCHOOL_TEST_JOURNEY.md   # Non-technical school tester walkthrough
 │   ├── project-flow.svg         # Rendered project-flow diagram
+│   ├── school-test-journey.svg  # Rendered school tester journey
 │   └── swagger/                 # Generated Swagger/OpenAPI specs
 ├── Makefile                     # All project commands
 ├── Dockerfile                   # Multi-stage production build
@@ -66,6 +68,8 @@ Swagger docs are available at `http://localhost:8080/api/v1/docs`.
 ## API Endpoints
 
 Interactive Swagger UI is served by the app at `/api/v1/docs`.
+
+For a school-owner style walkthrough from first login to receipts, reports, and exports, use `docs/SCHOOL_TEST_JOURNEY.md`.
 
 Generated specs are checked in at:
 

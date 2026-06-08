@@ -140,11 +140,14 @@ Run the API and worker as separate processes in production.
 
 ## Local API Flow
 
-1. Register or create a user.
-2. Create a tenant as `super_admin`.
+For a non-technical school tester walkthrough, open `docs/SCHOOL_TEST_JOURNEY.md`.
+
+High-level flow:
+
+1. Get a platform admin login.
+2. Create a school tenant.
 3. Call `POST /api/v1/auth/select-tenant` to get a tenant-scoped JWT.
-4. Create academic year, class, section, students, and guardians.
+4. Create academic year, class, section, guardians, and students.
 5. Create fee heads, fee structures, assignments, and invoices.
-6. Parents view dues and create payment orders.
-7. Payments are verified or received through Razorpay webhooks.
-8. Receipts, ledgers, dashboard, reports, reminders, and exports read from the same tenant-scoped records.
+6. View dues, record payment, download receipt, and check ledger.
+7. Test reminders, dashboard, reports, and CSV exports.

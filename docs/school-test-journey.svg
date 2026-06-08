@@ -1,0 +1,166 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1050" viewBox="0 0 1500 1050" role="img" aria-labelledby="title desc">
+  <title id="title">EduWallet school tester journey</title>
+  <desc id="desc">Non-technical school testing flow from opening Swagger to exporting reports.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,4 L0,8 Z" fill="#475569"/>
+    </marker>
+    <style>
+      .bg { fill: #f8fafc; }
+      .title { font: 700 34px Arial, sans-serif; fill: #0f172a; }
+      .subtitle { font: 400 17px Arial, sans-serif; fill: #475569; }
+      .stage { stroke: #cbd5e1; stroke-width: 2; rx: 8; }
+      .stage-title { font: 700 17px Arial, sans-serif; fill: #0f172a; }
+      .stage-text { font: 400 13px Arial, sans-serif; fill: #334155; }
+      .lane-title { font: 700 18px Arial, sans-serif; fill: #0f172a; }
+      .small { font: 400 12px Arial, sans-serif; fill: #64748b; }
+      .edge { stroke: #475569; stroke-width: 2.2; fill: none; marker-end: url(#arrow); }
+      .soft-edge { stroke: #94a3b8; stroke-width: 1.8; fill: none; marker-end: url(#arrow); stroke-dasharray: 7 5; }
+    </style>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1500" height="1050"/>
+  <text class="title" x="48" y="60">EduWallet School Tester Journey</text>
+  <text class="subtitle" x="48" y="92">A school-friendly route through the backend MVP using Swagger as the testing console.</text>
+
+  <text class="lane-title" x="48" y="145">Access And School Setup</text>
+
+  <rect class="stage" x="48" y="170" width="190" height="105" fill="#dbeafe"/>
+  <text class="stage-title" x="70" y="202">0. Open Swagger</text>
+  <text class="stage-text" x="70" y="228">Run backend</text>
+  <text class="stage-text" x="70" y="249">Open /api/v1/docs</text>
+
+  <rect class="stage" x="278" y="170" width="190" height="105" fill="#fef3c7"/>
+  <text class="stage-title" x="300" y="202">1. Login</text>
+  <text class="stage-text" x="300" y="228">Platform admin</text>
+  <text class="stage-text" x="300" y="249">Save token</text>
+
+  <rect class="stage" x="508" y="170" width="190" height="105" fill="#dcfce7"/>
+  <text class="stage-title" x="530" y="202">2. Create School</text>
+  <text class="stage-text" x="530" y="228">Tenant profile</text>
+  <text class="stage-text" x="530" y="249">Main campus</text>
+
+  <rect class="stage" x="738" y="170" width="190" height="105" fill="#ede9fe"/>
+  <text class="stage-title" x="760" y="202">3. Select Tenant</text>
+  <text class="stage-text" x="760" y="228">School workspace</text>
+  <text class="stage-text" x="760" y="249">Save tenant token</text>
+
+  <rect class="stage" x="968" y="170" width="230" height="105" fill="#ffe4e6"/>
+  <text class="stage-title" x="990" y="202">4. People Roles</text>
+  <text class="stage-text" x="990" y="228">Owner/admin works now</text>
+  <text class="stage-text" x="990" y="249">Employee invite is next</text>
+
+  <path class="edge" d="M238 222 L278 222"/>
+  <path class="edge" d="M468 222 L508 222"/>
+  <path class="edge" d="M698 222 L738 222"/>
+  <path class="edge" d="M928 222 L968 222"/>
+
+  <text class="lane-title" x="48" y="345">School Data Setup</text>
+
+  <rect class="stage" x="48" y="370" width="190" height="105" fill="#e0f2fe"/>
+  <text class="stage-title" x="70" y="402">5. Academic Year</text>
+  <text class="stage-text" x="70" y="428">2026-27</text>
+  <text class="stage-text" x="70" y="449">Active year</text>
+
+  <rect class="stage" x="278" y="370" width="190" height="105" fill="#ecfccb"/>
+  <text class="stage-title" x="300" y="402">6. Class/Section</text>
+  <text class="stage-text" x="300" y="428">Class 10</text>
+  <text class="stage-text" x="300" y="449">Section A</text>
+
+  <rect class="stage" x="508" y="370" width="190" height="105" fill="#fae8ff"/>
+  <text class="stage-title" x="530" y="402">7. Guardian</text>
+  <text class="stage-text" x="530" y="428">Parent contact</text>
+  <text class="stage-text" x="530" y="449">Email/phone</text>
+
+  <rect class="stage" x="738" y="370" width="190" height="105" fill="#ccfbf1"/>
+  <text class="stage-title" x="760" y="402">8. Student</text>
+  <text class="stage-text" x="760" y="428">Admission number</text>
+  <text class="stage-text" x="760" y="449">Link guardian</text>
+
+  <rect class="stage" x="968" y="370" width="230" height="105" fill="#f1f5f9"/>
+  <text class="stage-title" x="990" y="402">9. Bulk Import</text>
+  <text class="stage-text" x="990" y="428">Preview CSV</text>
+  <text class="stage-text" x="990" y="449">Commit clean rows</text>
+
+  <path class="edge" d="M143 275 C143 322 143 333 143 370"/>
+  <path class="edge" d="M238 422 L278 422"/>
+  <path class="edge" d="M468 422 L508 422"/>
+  <path class="edge" d="M698 422 L738 422"/>
+  <path class="soft-edge" d="M928 422 L968 422"/>
+
+  <text class="lane-title" x="48" y="545">Fees, Invoices, And Collections</text>
+
+  <rect class="stage" x="48" y="570" width="190" height="105" fill="#fef3c7"/>
+  <text class="stage-title" x="70" y="602">10. Fee Heads</text>
+  <text class="stage-text" x="70" y="628">Tuition</text>
+  <text class="stage-text" x="70" y="649">Exam</text>
+
+  <rect class="stage" x="278" y="570" width="190" height="105" fill="#dcfce7"/>
+  <text class="stage-title" x="300" y="602">11. Fee Structure</text>
+  <text class="stage-text" x="300" y="628">Monthly plan</text>
+  <text class="stage-text" x="300" y="649">Partial allowed</text>
+
+  <rect class="stage" x="508" y="570" width="190" height="105" fill="#ede9fe"/>
+  <text class="stage-title" x="530" y="602">12. Assign Fee</text>
+  <text class="stage-text" x="530" y="628">Class/section/student</text>
+  <text class="stage-text" x="530" y="649">Effective date</text>
+
+  <rect class="stage" x="738" y="570" width="190" height="105" fill="#ffe4e6"/>
+  <text class="stage-title" x="760" y="602">13. Invoice</text>
+  <text class="stage-text" x="760" y="628">Generate dues</text>
+  <text class="stage-text" x="760" y="649">Avoid duplicates</text>
+
+  <rect class="stage" x="968" y="570" width="230" height="105" fill="#e0f2fe"/>
+  <text class="stage-title" x="990" y="602">14. Parent Dues</text>
+  <text class="stage-text" x="990" y="628">View payable amount</text>
+  <text class="stage-text" x="990" y="649">Minimum partial</text>
+
+  <path class="edge" d="M833 475 C833 525 143 520 143 570"/>
+  <path class="edge" d="M238 622 L278 622"/>
+  <path class="edge" d="M468 622 L508 622"/>
+  <path class="edge" d="M698 622 L738 622"/>
+  <path class="edge" d="M928 622 L968 622"/>
+
+  <rect class="stage" x="1238" y="570" width="210" height="105" fill="#ecfccb"/>
+  <text class="stage-title" x="1260" y="602">15. Payment</text>
+  <text class="stage-text" x="1260" y="628">Offline is easiest</text>
+  <text class="stage-text" x="1260" y="649">Online optional</text>
+  <path class="edge" d="M1198 622 L1238 622"/>
+
+  <text class="lane-title" x="48" y="745">Proof And Operations</text>
+
+  <rect class="stage" x="48" y="770" width="210" height="105" fill="#dbeafe"/>
+  <text class="stage-title" x="70" y="802">16. Receipt PDF</text>
+  <text class="stage-text" x="70" y="828">Receipt record</text>
+  <text class="stage-text" x="70" y="849">Download PDF</text>
+
+  <rect class="stage" x="298" y="770" width="210" height="105" fill="#fef3c7"/>
+  <text class="stage-title" x="320" y="802">17. Ledger</text>
+  <text class="stage-text" x="320" y="828">Opening balance</text>
+  <text class="stage-text" x="320" y="849">Invoices/payments</text>
+
+  <rect class="stage" x="548" y="770" width="210" height="105" fill="#dcfce7"/>
+  <text class="stage-title" x="570" y="802">18. Reminders</text>
+  <text class="stage-text" x="570" y="828">Template</text>
+  <text class="stage-text" x="570" y="849">Send and log</text>
+
+  <rect class="stage" x="798" y="770" width="210" height="105" fill="#ede9fe"/>
+  <text class="stage-title" x="820" y="802">19. Reports</text>
+  <text class="stage-text" x="820" y="828">Dashboard</text>
+  <text class="stage-text" x="820" y="849">Defaulters/dues</text>
+
+  <rect class="stage" x="1048" y="770" width="210" height="105" fill="#ffe4e6"/>
+  <text class="stage-title" x="1070" y="802">20. Export</text>
+  <text class="stage-text" x="1070" y="828">Create CSV</text>
+  <text class="stage-text" x="1070" y="849">Download file</text>
+
+  <path class="edge" d="M1343 675 C1343 732 153 718 153 770"/>
+  <path class="edge" d="M258 822 L298 822"/>
+  <path class="edge" d="M508 822 L548 822"/>
+  <path class="edge" d="M758 822 L798 822"/>
+  <path class="edge" d="M1008 822 L1048 822"/>
+
+  <text class="small" x="48" y="940">Rule of thumb: after every create step, copy data.id. After login/select-tenant, copy data.access_token.</text>
+  <text class="small" x="48" y="965">Use Bearer TENANT_TOKEN for school setup, fee setup, collection, receipts, reminders, reports, and exports.</text>
+  <text class="small" x="48" y="990">MVP limitation: separate fee employee and parent login journeys need tenant membership and parent account mapping endpoints.</text>
+</svg>
