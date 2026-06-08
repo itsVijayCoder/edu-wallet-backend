@@ -27,3 +27,6 @@ uploads/*
 
 # Build
 vendor/
+
+# Misc
+.antigravitycli
