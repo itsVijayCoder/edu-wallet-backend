@@ -22,6 +22,7 @@ const (
 
 // Handlers aggregates all handler structs for dependency injection into the router.
 type Handlers struct {
+	Docs     *handler.DocsHandler
 	Health   *handler.HealthHandler
 	Auth     *handler.AuthHandler
 	User     *handler.AdminUserHandler
@@ -62,6 +63,10 @@ func New(log *slog.Logger, cfg RouterConfig, tokenMgr jwt.TokenManager, rdb *red
 	// --- API v1 ---
 	v1 := r.Group("/api/v1")
 	{
+		v1.GET("/docs", h.Docs.SwaggerUI)
+		v1.GET("/docs/openapi.json", h.Docs.OpenAPIJSON)
+		v1.GET("/docs/swagger.json", h.Docs.OpenAPIJSON)
+
 		// Health probes (no auth required).
 		v1.GET("/healthz", h.Health.Healthz)
 		v1.GET("/readyz", h.Health.Readyz)

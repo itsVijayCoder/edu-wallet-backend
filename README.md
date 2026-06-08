@@ -13,6 +13,8 @@ make dev                 # Start with hot reload
 
 API is available at `http://localhost:8080`
 
+Swagger docs are available at `http://localhost:8080/api/v1/docs`.
+
 ## Tech Stack
 
 - **Language:** Go 1.25
@@ -52,13 +54,29 @@ API is available at `http://localhost:8080`
 │   ├── e2e/                     # E2E tests with testcontainers
 │   └── mocks/                   # Hand-written mock implementations
 ├── docs/                        # API documentation
-│   └── swagger/                 # Generated Swagger specs
+│   ├── RUN_PROJECT.md           # Local setup, run, test, and operations guide
+│   ├── PROJECT_FLOW.md          # Architecture and product workflow guide
+│   ├── project-flow.svg         # Rendered project-flow diagram
+│   └── swagger/                 # Generated Swagger/OpenAPI specs
 ├── Makefile                     # All project commands
 ├── Dockerfile                   # Multi-stage production build
 └── docker-compose.yml           # Local dev services (Postgres + Redis)
 ```
 
 ## API Endpoints
+
+Interactive Swagger UI is served by the app at `/api/v1/docs`.
+
+Generated specs are checked in at:
+
+- `docs/swagger/openapi.json`
+- `docs/swagger/swagger.json`
+
+Regenerate them with:
+
+```bash
+make swagger
+```
 
 ### Auth
 

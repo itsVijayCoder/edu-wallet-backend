@@ -1,0 +1,148 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="980" viewBox="0 0 1500 980" role="img" aria-labelledby="title desc">
+  <title id="title">EduWallet backend project flow</title>
+  <desc id="desc">Architecture and business workflow diagram for the EduWallet backend.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,4 L0,8 Z" fill="#334155"/>
+    </marker>
+    <style>
+      .bg { fill: #f8fafc; }
+      .title { font: 700 34px Arial, sans-serif; fill: #0f172a; }
+      .subtitle { font: 400 17px Arial, sans-serif; fill: #475569; }
+      .band-title { font: 700 18px Arial, sans-serif; fill: #0f172a; }
+      .box-title { font: 700 17px Arial, sans-serif; fill: #0f172a; }
+      .box-text { font: 400 13px Arial, sans-serif; fill: #334155; }
+      .tiny { font: 400 12px Arial, sans-serif; fill: #475569; }
+      .box { stroke: #cbd5e1; stroke-width: 2; rx: 8; }
+      .edge { stroke: #334155; stroke-width: 2.3; fill: none; marker-end: url(#arrow); }
+      .soft-edge { stroke: #64748b; stroke-width: 1.8; fill: none; marker-end: url(#arrow); stroke-dasharray: 6 5; }
+    </style>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1500" height="980"/>
+  <text class="title" x="48" y="58">EduWallet Backend Flow</text>
+  <text class="subtitle" x="48" y="88">How requests move through the Go service, and how school-fee workflows build on the same tenant-scoped data model.</text>
+
+  <text class="band-title" x="48" y="132">Request Architecture</text>
+
+  <rect class="box" x="48" y="155" width="210" height="105" fill="#e0f2fe"/>
+  <text class="box-title" x="70" y="188">Clients</text>
+  <text class="box-text" x="70" y="214">Admin app</text>
+  <text class="box-text" x="70" y="235">Parent app</text>
+  <text class="box-text" x="70" y="256">Razorpay webhook</text>
+
+  <rect class="box" x="300" y="155" width="220" height="105" fill="#fef3c7"/>
+  <text class="box-title" x="322" y="188">Router</text>
+  <text class="box-text" x="322" y="214">internal/router</text>
+  <text class="box-text" x="322" y="235">/api/v1 route groups</text>
+  <text class="box-text" x="322" y="256">Swagger docs routes</text>
+
+  <rect class="box" x="562" y="155" width="220" height="105" fill="#dcfce7"/>
+  <text class="box-title" x="584" y="188">Middleware</text>
+  <text class="box-text" x="584" y="214">Auth and tenant guard</text>
+  <text class="box-text" x="584" y="235">Permissions and rate limits</text>
+  <text class="box-text" x="584" y="256">CORS and body caps</text>
+
+  <rect class="box" x="824" y="155" width="220" height="105" fill="#ede9fe"/>
+  <text class="box-title" x="846" y="188">Handlers</text>
+  <text class="box-text" x="846" y="214">Bind request DTO</text>
+  <text class="box-text" x="846" y="235">Validate input</text>
+  <text class="box-text" x="846" y="256">Return APIResponse</text>
+
+  <rect class="box" x="1086" y="155" width="220" height="105" fill="#ffe4e6"/>
+  <text class="box-title" x="1108" y="188">Services</text>
+  <text class="box-text" x="1108" y="214">Business rules</text>
+  <text class="box-text" x="1108" y="235">Transactions</text>
+  <text class="box-text" x="1108" y="256">Provider calls</text>
+
+  <rect class="box" x="1086" y="320" width="220" height="105" fill="#f1f5f9"/>
+  <text class="box-title" x="1108" y="353">Repositories</text>
+  <text class="box-text" x="1108" y="379">Postgres SQL</text>
+  <text class="box-text" x="1108" y="400">DBTX pool or tx</text>
+
+  <rect class="box" x="824" y="320" width="220" height="105" fill="#ecfccb"/>
+  <text class="box-title" x="846" y="353">Providers</text>
+  <text class="box-text" x="846" y="379">Razorpay or fake</text>
+  <text class="box-text" x="846" y="400">Resend email</text>
+  <text class="box-text" x="846" y="421">PDF receipts</text>
+
+  <rect class="box" x="562" y="320" width="220" height="105" fill="#e0e7ff"/>
+  <text class="box-title" x="584" y="353">State Stores</text>
+  <text class="box-text" x="584" y="379">Postgres records</text>
+  <text class="box-text" x="584" y="400">Redis sessions</text>
+  <text class="box-text" x="584" y="421">Rate-limit counters</text>
+
+  <path class="edge" d="M258 207 L300 207"/>
+  <path class="edge" d="M520 207 L562 207"/>
+  <path class="edge" d="M782 207 L824 207"/>
+  <path class="edge" d="M1044 207 L1086 207"/>
+  <path class="edge" d="M1196 260 L1196 320"/>
+  <path class="edge" d="M1086 373 L1044 373"/>
+  <path class="soft-edge" d="M1086 224 C1036 284 995 313 934 320"/>
+  <path class="edge" d="M824 373 L782 373"/>
+
+  <text class="tiny" x="322" y="292">Route selects middleware chain and handler.</text>
+  <text class="tiny" x="846" y="292">Handlers keep HTTP concerns out of services.</text>
+  <text class="tiny" x="846" y="455">Providers are replaceable behind interfaces.</text>
+
+  <text class="band-title" x="48" y="520">Business Workflow</text>
+
+  <rect class="box" x="48" y="545" width="180" height="82" fill="#e0f2fe"/>
+  <text class="box-title" x="70" y="576">1. Auth</text>
+  <text class="box-text" x="70" y="601">Login/register</text>
+  <text class="box-text" x="70" y="622">Refresh JWT</text>
+
+  <rect class="box" x="268" y="545" width="180" height="82" fill="#fef3c7"/>
+  <text class="box-title" x="290" y="576">2. Tenant</text>
+  <text class="box-text" x="290" y="601">Create school</text>
+  <text class="box-text" x="290" y="622">Select tenant token</text>
+
+  <rect class="box" x="488" y="545" width="180" height="82" fill="#dcfce7"/>
+  <text class="box-title" x="510" y="576">3. Academic</text>
+  <text class="box-text" x="510" y="601">Year, class, section</text>
+  <text class="box-text" x="510" y="622">Students, guardians</text>
+
+  <rect class="box" x="708" y="545" width="180" height="82" fill="#ede9fe"/>
+  <text class="box-title" x="730" y="576">4. Billing</text>
+  <text class="box-text" x="730" y="601">Fee setup</text>
+  <text class="box-text" x="730" y="622">Generate invoices</text>
+
+  <rect class="box" x="928" y="545" width="180" height="82" fill="#ffe4e6"/>
+  <text class="box-title" x="950" y="576">5. Parent Dues</text>
+  <text class="box-text" x="950" y="601">View balances</text>
+  <text class="box-text" x="950" y="622">Choose invoices</text>
+
+  <rect class="box" x="1148" y="545" width="180" height="82" fill="#ecfccb"/>
+  <text class="box-title" x="1170" y="576">6. Payment</text>
+  <text class="box-text" x="1170" y="601">Order, verify</text>
+  <text class="box-text" x="1170" y="622">Webhook replay safe</text>
+
+  <path class="edge" d="M228 586 L268 586"/>
+  <path class="edge" d="M448 586 L488 586"/>
+  <path class="edge" d="M668 586 L708 586"/>
+  <path class="edge" d="M888 586 L928 586"/>
+  <path class="edge" d="M1108 586 L1148 586"/>
+
+  <rect class="box" x="268" y="705" width="240" height="92" fill="#f1f5f9"/>
+  <text class="box-title" x="290" y="738">Receipts and Ledger</text>
+  <text class="box-text" x="290" y="764">Allocate payment to invoices</text>
+  <text class="box-text" x="290" y="785">Create receipt and events</text>
+
+  <rect class="box" x="628" y="705" width="240" height="92" fill="#e0e7ff"/>
+  <text class="box-title" x="650" y="738">Operations</text>
+  <text class="box-text" x="650" y="764">Dashboard and reports</text>
+  <text class="box-text" x="650" y="785">Reminders and exports</text>
+
+  <rect class="box" x="988" y="705" width="240" height="92" fill="#fef3c7"/>
+  <text class="box-title" x="1010" y="738">Worker Mode</text>
+  <text class="box-text" x="1010" y="764">APP_MODE=worker</text>
+  <text class="box-text" x="1010" y="785">Retry reminder jobs</text>
+
+  <path class="edge" d="M1238 627 C1238 674 450 674 388 705"/>
+  <path class="edge" d="M508 751 L628 751"/>
+  <path class="soft-edge" d="M868 751 L988 751"/>
+
+  <text class="band-title" x="48" y="870">Where To Look In Code</text>
+  <text class="subtitle" x="48" y="900">Route: internal/router/router.go -> Handler: internal/handler -> Service: internal/service -> Repository: internal/repository/postgres -> Schema: migrations</text>
+  <text class="subtitle" x="48" y="930">Swagger docs: internal/apidoc/catalog.go -> make swagger -> docs/swagger/openapi.json -> /api/v1/docs</text>
+</svg>

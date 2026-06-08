@@ -123,6 +123,7 @@ func run() error {
 		ExternalURL: cfg.App.ExternalURL,
 		CORSOrigins: cfg.App.CORSOrigins,
 	}, tokenMgr, rdb, router.Handlers{
+		Docs:     handler.NewDocsHandler(cfg.App.ExternalURL),
 		Health:   handler.NewHealthHandler(pool, rdb),
 		Auth:     handler.NewAuthHandler(authSvc),
 		User:     handler.NewAdminUserHandler(userSvc),

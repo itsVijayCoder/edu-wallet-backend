@@ -185,6 +185,7 @@ func SetupSuite(t *testing.T) *TestSuite {
 		ExternalURL: "http://localhost:0",
 		CORSOrigins: []string{"*"},
 	}, tokenMgr, rdb, router.Handlers{
+		Docs:     handler.NewDocsHandler("http://localhost:0"),
 		Health:   handler.NewHealthHandler(pgPool, rdb),
 		Auth:     handler.NewAuthHandler(authSvc),
 		User:     handler.NewAdminUserHandler(userSvc),

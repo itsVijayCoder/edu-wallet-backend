@@ -108,11 +108,11 @@ ci-lint: ## CI lint pipeline
 
 .PHONY: swagger
 swagger: ## Generate Swagger docs
-	swag init -g cmd/api/main.go -o docs/swagger
+	go run ./cmd/apidocs
 
 .PHONY: swagger-fmt
 swagger-fmt: ## Format Swagger comments
-	swag fmt
+	$(MAKE) swagger
 
 ## ─── Deployment ──────────────────────────────────────────────
 
