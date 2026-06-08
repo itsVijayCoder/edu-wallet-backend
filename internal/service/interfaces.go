@@ -86,3 +86,24 @@ type AcademicService interface {
 	CommitStudentImport(ctx context.Context, actorID, tenantID uuid.UUID, req dto.StudentImportCommitRequest) (*dto.StudentImportCommitResponse, error)
 	ListImports(ctx context.Context, tenantID uuid.UUID, filter model.ImportFilter, params model.PaginationParams) (*model.PaginatedResult[dto.ImportResponse], error)
 }
+
+type BillingService interface {
+	CreateFeeHead(ctx context.Context, actorID, tenantID uuid.UUID, req dto.CreateFeeHeadRequest) (*dto.FeeHeadResponse, error)
+	ListFeeHeads(ctx context.Context, tenantID uuid.UUID, filter model.FeeHeadFilter, params model.PaginationParams) (*model.PaginatedResult[dto.FeeHeadResponse], error)
+	GetFeeHead(ctx context.Context, tenantID, id uuid.UUID) (*dto.FeeHeadResponse, error)
+	UpdateFeeHead(ctx context.Context, actorID, tenantID, id uuid.UUID, req dto.UpdateFeeHeadRequest) (*dto.FeeHeadResponse, error)
+	DeleteFeeHead(ctx context.Context, actorID, tenantID, id uuid.UUID) error
+
+	CreateFeeStructure(ctx context.Context, actorID, tenantID uuid.UUID, req dto.CreateFeeStructureRequest) (*dto.FeeStructureResponse, error)
+	ListFeeStructures(ctx context.Context, tenantID uuid.UUID, filter model.FeeStructureFilter, params model.PaginationParams) (*model.PaginatedResult[dto.FeeStructureResponse], error)
+	GetFeeStructure(ctx context.Context, tenantID, id uuid.UUID) (*dto.FeeStructureResponse, error)
+	UpdateFeeStructure(ctx context.Context, actorID, tenantID, id uuid.UUID, req dto.UpdateFeeStructureRequest) (*dto.FeeStructureResponse, error)
+	DeleteFeeStructure(ctx context.Context, actorID, tenantID, id uuid.UUID) error
+
+	CreateFeeAssignment(ctx context.Context, actorID, tenantID uuid.UUID, req dto.CreateFeeAssignmentRequest) (*dto.FeeAssignmentResponse, error)
+	GenerateInvoices(ctx context.Context, actorID, tenantID uuid.UUID, req dto.GenerateInvoicesRequest) (*dto.GenerateInvoicesResponse, error)
+	ListInvoices(ctx context.Context, tenantID uuid.UUID, filter model.InvoiceFilter, params model.PaginationParams) (*model.PaginatedResult[dto.InvoiceResponse], error)
+	GetInvoice(ctx context.Context, tenantID, id uuid.UUID) (*dto.InvoiceResponse, error)
+	GetStudentLedger(ctx context.Context, tenantID, studentID uuid.UUID) (*dto.StudentLedgerResponse, error)
+	GetParentChildDues(ctx context.Context, tenantID, studentID uuid.UUID) (*dto.ParentDuesResponse, error)
+}

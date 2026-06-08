@@ -75,6 +75,7 @@ func run() error {
 	membershipRepo := postgres.NewTenantMembershipRepository(pool)
 	auditRepo := postgres.NewAuditRepository(pool)
 	academicRepo := postgres.NewAcademicRepository(pool)
+	billingRepo := postgres.NewBillingRepository(pool)
 	transactor := database.NewTransactor(pool)
 	// --- ADD YOUR REPOSITORIES HERE ---
 
@@ -94,6 +95,7 @@ func run() error {
 	userSvc := service.NewUserService(userRepo, roleRepo, h, rdb)
 	tenantSvc := service.NewTenantService(tenantRepo, membershipRepo, roleRepo, auditRepo)
 	academicSvc := service.NewAcademicService(academicRepo, postgres.NewAcademicRepository, transactor, auditRepo)
+	billingSvc := service.NewBillingService(billingRepo, postgres.NewBillingRepository, academicRepo, transactor, auditRepo)
 	// --- ADD YOUR SERVICES HERE ---
 
 	// --- Router ---
@@ -108,6 +110,7 @@ func run() error {
 		User:     handler.NewAdminUserHandler(userSvc),
 		Tenant:   handler.NewTenantHandler(tenantSvc),
 		Academic: handler.NewAcademicHandler(academicSvc),
+		Billing:  handler.NewBillingHandler(billingSvc),
 		// --- ADD YOUR HANDLERS HERE ---
 	})
 

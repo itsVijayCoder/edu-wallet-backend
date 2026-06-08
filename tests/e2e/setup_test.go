@@ -162,6 +162,7 @@ func SetupSuite(t *testing.T) *TestSuite {
 	membershipRepo := postgres.NewTenantMembershipRepository(pgPool)
 	auditRepo := postgres.NewAuditRepository(pgPool)
 	academicRepo := postgres.NewAcademicRepository(pgPool)
+	billingRepo := postgres.NewBillingRepository(pgPool)
 	transactor := database.NewTransactor(pgPool)
 
 	// Services - use a no-op email service for e2e tests
@@ -170,6 +171,7 @@ func SetupSuite(t *testing.T) *TestSuite {
 	userSvc := service.NewUserService(userRepo, roleRepo, h, rdb)
 	tenantSvc := service.NewTenantService(tenantRepo, membershipRepo, roleRepo, auditRepo)
 	academicSvc := service.NewAcademicService(academicRepo, postgres.NewAcademicRepository, transactor, auditRepo)
+	billingSvc := service.NewBillingService(billingRepo, postgres.NewBillingRepository, academicRepo, transactor, auditRepo)
 
 	// Router
 	r := router.New(log, router.RouterConfig{
@@ -183,6 +185,7 @@ func SetupSuite(t *testing.T) *TestSuite {
 		User:     handler.NewAdminUserHandler(userSvc),
 		Tenant:   handler.NewTenantHandler(tenantSvc),
 		Academic: handler.NewAcademicHandler(academicSvc),
+		Billing:  handler.NewBillingHandler(billingSvc),
 	})
 
 	return &TestSuite{
@@ -245,7 +248,8 @@ func truncateAndReseed(t *testing.T, pool *pgxpool.Pool, rdb *redis.Client) {
 			('academic.manage', 'Manage Academic Setup', 'tenant', 'Create and update academic years, classes, and sections'),
 			('students.manage', 'Manage Students', 'tenant', 'Create, update, and list tenant students'),
 			('guardians.manage', 'Manage Guardians', 'tenant', 'Create, update, and list tenant guardians'),
-			('imports.manage', 'Manage Imports', 'tenant', 'Preview and commit student imports')
+			('imports.manage', 'Manage Imports', 'tenant', 'Preview and commit student imports'),
+			('fees.manage', 'Manage Fees', 'tenant', 'Create fee setup, assignments, and generated invoices')
 		ON CONFLICT (code) DO UPDATE
 		SET name = EXCLUDED.name,
 			category = EXCLUDED.category,
@@ -269,7 +273,8 @@ func truncateAndReseed(t *testing.T, pool *pgxpool.Pool, rdb *redis.Client) {
 			'academic.manage',
 			'students.manage',
 			'guardians.manage',
-			'imports.manage'
+			'imports.manage',
+			'fees.manage'
 		)
 		WHERE r.slug = 'admin'
 		ON CONFLICT DO NOTHING;

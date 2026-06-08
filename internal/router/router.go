@@ -19,6 +19,7 @@ type Handlers struct {
 	User     *handler.AdminUserHandler
 	Tenant   *handler.TenantHandler
 	Academic *handler.AcademicHandler
+	Billing  *handler.BillingHandler
 }
 
 // RouterConfig holds router-level configuration.
@@ -151,6 +152,43 @@ func New(log *slog.Logger, cfg RouterConfig, tokenMgr jwt.TokenManager, rdb *red
 				imports.POST("/students/preview", h.Academic.PreviewStudentImport)
 				imports.POST("/students/commit", h.Academic.CommitStudentImport)
 			}
+
+			adminTenant.GET("/students/:id/ledger", middleware.PermissionGuard("fees.manage"), h.Billing.GetStudentLedger)
+
+			feeHeads := adminTenant.Group("/fee-heads", middleware.PermissionGuard("fees.manage"))
+			{
+				feeHeads.POST("", h.Billing.CreateFeeHead)
+				feeHeads.GET("", h.Billing.ListFeeHeads)
+				feeHeads.GET("/:id", h.Billing.GetFeeHead)
+				feeHeads.PATCH("/:id", h.Billing.UpdateFeeHead)
+				feeHeads.DELETE("/:id", h.Billing.DeleteFeeHead)
+			}
+
+			feeStructures := adminTenant.Group("/fee-structures", middleware.PermissionGuard("fees.manage"))
+			{
+				feeStructures.POST("", h.Billing.CreateFeeStructure)
+				feeStructures.GET("", h.Billing.ListFeeStructures)
+				feeStructures.GET("/:id", h.Billing.GetFeeStructure)
+				feeStructures.PATCH("/:id", h.Billing.UpdateFeeStructure)
+				feeStructures.DELETE("/:id", h.Billing.DeleteFeeStructure)
+			}
+
+			feeAssignments := adminTenant.Group("/fee-assignments", middleware.PermissionGuard("fees.manage"))
+			{
+				feeAssignments.POST("", h.Billing.CreateFeeAssignment)
+			}
+
+			invoices := adminTenant.Group("/invoices", middleware.PermissionGuard("fees.manage"))
+			{
+				invoices.POST("/generate", h.Billing.GenerateInvoices)
+				invoices.GET("", h.Billing.ListInvoices)
+				invoices.GET("/:id", h.Billing.GetInvoice)
+			}
+		}
+
+		parent := v1.Group("/parent", middleware.Auth(tokenMgr), middleware.RequireTenant())
+		{
+			parent.GET("/children/:id/dues", h.Billing.GetParentChildDues)
 		}
 
 		// --- ADD YOUR ROUTES HERE ---

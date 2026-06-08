@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -60,6 +61,8 @@ type AuditRepository interface {
 
 type AcademicRepositoryFactory func(db database.DBTX) AcademicRepository
 
+type BillingRepositoryFactory func(db database.DBTX) BillingRepository
+
 // AcademicRepository defines tenant-scoped academic setup, student, guardian, and import operations.
 type AcademicRepository interface {
 	CreateAcademicYear(ctx context.Context, academicYear *model.AcademicYear) error
@@ -108,4 +111,38 @@ type AcademicRepository interface {
 	UpdateImport(ctx context.Context, imp *model.Import) error
 	CreateImportErrors(ctx context.Context, errors []model.ImportError) error
 	ListImportErrors(ctx context.Context, tenantID, importID uuid.UUID) ([]model.ImportError, error)
+}
+
+// BillingRepository defines tenant-scoped fee setup, invoice generation, and ledger reads.
+type BillingRepository interface {
+	CreateFeeHead(ctx context.Context, feeHead *model.FeeHead) error
+	GetFeeHead(ctx context.Context, tenantID, id uuid.UUID) (*model.FeeHead, error)
+	GetFeeHeadByCode(ctx context.Context, tenantID uuid.UUID, code string) (*model.FeeHead, error)
+	ListFeeHeads(ctx context.Context, tenantID uuid.UUID, filter model.FeeHeadFilter, params model.PaginationParams) (*model.PaginatedResult[model.FeeHead], error)
+	UpdateFeeHead(ctx context.Context, feeHead *model.FeeHead) error
+	SoftDeleteFeeHead(ctx context.Context, tenantID, id uuid.UUID) error
+
+	CreateFeeStructure(ctx context.Context, feeStructure *model.FeeStructure) error
+	GetFeeStructure(ctx context.Context, tenantID, id uuid.UUID) (*model.FeeStructure, error)
+	GetFeeStructureByCode(ctx context.Context, tenantID, academicYearID uuid.UUID, code string) (*model.FeeStructure, error)
+	ListFeeStructures(ctx context.Context, tenantID uuid.UUID, filter model.FeeStructureFilter, params model.PaginationParams) (*model.PaginatedResult[model.FeeStructure], error)
+	UpdateFeeStructure(ctx context.Context, feeStructure *model.FeeStructure) error
+	SoftDeleteFeeStructure(ctx context.Context, tenantID, id uuid.UUID) error
+	ReplaceFeeStructureItems(ctx context.Context, tenantID, feeStructureID uuid.UUID, items []model.FeeStructureItem) error
+	ListFeeStructureItems(ctx context.Context, tenantID, feeStructureID uuid.UUID) ([]model.FeeStructureItem, error)
+
+	CreateFeeAssignment(ctx context.Context, assignment *model.StudentFeeAssignment) error
+	GetFeeAssignment(ctx context.Context, tenantID, id uuid.UUID) (*model.StudentFeeAssignment, error)
+	ListFeeAssignments(ctx context.Context, tenantID uuid.UUID, filter model.FeeAssignmentFilter, params model.PaginationParams) (*model.PaginatedResult[model.StudentFeeAssignment], error)
+	ListStudentsForAssignment(ctx context.Context, assignment *model.StudentFeeAssignment, onlyStudentIDs []uuid.UUID) ([]model.Student, error)
+
+	ListActiveConcessions(ctx context.Context, tenantID, studentID, academicYearID uuid.UUID, asOf time.Time) ([]model.Concession, error)
+	NextInvoiceSequence(ctx context.Context, tenantID, academicYearID uuid.UUID, prefix string) (int64, error)
+	CreateInvoice(ctx context.Context, invoice *model.Invoice) error
+	CreateInvoiceItems(ctx context.Context, items []model.InvoiceItem) error
+	GetInvoice(ctx context.Context, tenantID, id uuid.UUID) (*model.Invoice, error)
+	GetInvoiceByGenerationKey(ctx context.Context, tenantID uuid.UUID, generationKey string) (*model.Invoice, error)
+	ListInvoices(ctx context.Context, tenantID uuid.UUID, filter model.InvoiceFilter, params model.PaginationParams) (*model.PaginatedResult[model.Invoice], error)
+	ListInvoiceItems(ctx context.Context, tenantID, invoiceID uuid.UUID) ([]model.InvoiceItem, error)
+	ListStudentInvoices(ctx context.Context, tenantID, studentID uuid.UUID) ([]model.Invoice, error)
 }

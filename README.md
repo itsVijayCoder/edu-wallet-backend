@@ -139,6 +139,36 @@ Student list supports `academic_year_id`, `class_id`, `section_id`, `status`, an
 
 Student import preview accepts multipart `file`, raw `text/csv`, or JSON `{ "filename": "students.csv", "csv": "..." }`. Commit accepts `{ "import_id": "..." }` and runs transactionally.
 
+### Fees, Billing, And Ledgers (requires selected tenant token + `fees.manage`)
+
+| Method | Endpoint                                  | Description                  |
+|--------|-------------------------------------------|------------------------------|
+| POST   | `/api/v1/admin/fee-heads`                 | Create fee head              |
+| GET    | `/api/v1/admin/fee-heads`                 | List/search fee heads        |
+| GET    | `/api/v1/admin/fee-heads/:id`             | Get fee head by ID           |
+| PATCH  | `/api/v1/admin/fee-heads/:id`             | Update fee head              |
+| DELETE | `/api/v1/admin/fee-heads/:id`             | Soft delete fee head         |
+| POST   | `/api/v1/admin/fee-structures`            | Create fee structure + items |
+| GET    | `/api/v1/admin/fee-structures`            | List fee structures          |
+| GET    | `/api/v1/admin/fee-structures/:id`        | Get fee structure by ID      |
+| PATCH  | `/api/v1/admin/fee-structures/:id`        | Update fee structure         |
+| DELETE | `/api/v1/admin/fee-structures/:id`        | Soft delete fee structure    |
+| POST   | `/api/v1/admin/fee-assignments`           | Assign fees by class, section, or student |
+| POST   | `/api/v1/admin/invoices/generate`         | Generate dues from an assignment |
+| GET    | `/api/v1/admin/invoices`                  | List invoices                |
+| GET    | `/api/v1/admin/invoices/:id`              | Get invoice with item breakdown |
+| GET    | `/api/v1/admin/students/:id/ledger`       | Read student ledger          |
+
+Invoice generation accepts an `assignment_id`, optional `student_ids`, `issue_date`, `due_date`, and recurring `billing_period_start` / `billing_period_end`. Totals are calculated server-side from fee structure items and active concessions; client-submitted totals are ignored. Repeating the same assignment/student/period generation skips existing invoices through an idempotent generation key.
+
+Invoices store explicit partial-payment rules: `allow_partial_payment` and `minimum_partial_amount_paise`. Student ledger currently includes opening balance and generated invoices; payment, receipt, and adjustment entries are added in the payments phase.
+
+### Parent Dues (requires auth + selected tenant token)
+
+| Method | Endpoint                              | Description             |
+|--------|---------------------------------------|-------------------------|
+| GET    | `/api/v1/parent/children/:id/dues`    | View unpaid child dues  |
+
 ### Admin (requires super_admin or admin role)
 
 | Method | Endpoint                    | Description              |
