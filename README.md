@@ -243,6 +243,72 @@ CSV exports are generated into `export_jobs` for the MVP. The service supports c
 | GET    | `/api/v1/healthz`   | Liveness probe                       |
 | GET    | `/api/v1/readyz`    | Readiness probe (dependency status)  |
 
+## Key API Flow Examples
+
+Create a platform tenant, then select it to receive a tenant-scoped token:
+
+```bash
+curl -s -X POST "$API/api/v1/platform/tenants" \
+  -H "Authorization: Bearer $PLATFORM_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Pilot School",
+    "slug": "pilot-school",
+    "legal_name": "Pilot School",
+    "contact_email": "admin@pilot.example",
+    "owner_user_id": "'"$OWNER_USER_ID"'",
+    "branch": { "name": "Main Campus", "code": "MAIN" }
+  }'
+
+curl -s -X POST "$API/api/v1/auth/select-tenant" \
+  -H "Authorization: Bearer $PLATFORM_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{ "tenant_id": "'"$TENANT_ID"'" }'
+```
+
+Preview and commit pilot student data:
+
+```bash
+curl -s -X POST "$API/api/v1/admin/imports/students/preview" \
+  -H "Authorization: Bearer $TENANT_TOKEN" \
+  -F "file=@docs/fixtures/pilot_students.csv"
+
+curl -s -X POST "$API/api/v1/admin/imports/students/commit" \
+  -H "Authorization: Bearer $TENANT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{ "import_id": "'"$IMPORT_ID"'" }'
+```
+
+Create a parent payment order and verify checkout:
+
+```bash
+curl -s -X POST "$API/api/v1/parent/payments/orders" \
+  -H "Authorization: Bearer $TENANT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "student_id": "'"$STUDENT_ID"'",
+    "invoice_ids": ["'"$INVOICE_ID"'"],
+    "idempotency_key": "pilot-invoice-001"
+  }'
+
+curl -s -X POST "$API/api/v1/parent/payments/verify" \
+  -H "Authorization: Bearer $TENANT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "provider_order_id": "'"$RAZORPAY_ORDER_ID"'",
+    "provider_payment_id": "'"$RAZORPAY_PAYMENT_ID"'",
+    "signature": "'"$RAZORPAY_SIGNATURE"'",
+    "payment_method": "upi"
+  }'
+```
+
+Look up payments by internal ID, gateway order/payment ID, external reference, settlement reference, or student text:
+
+```bash
+curl -s "$API/api/v1/admin/payments?search=$REFERENCE" \
+  -H "Authorization: Bearer $TENANT_TOKEN"
+```
+
 ## Adding Your First Entity
 
 Use the existing User implementation as a reference. For example, to add a `Product` entity:
@@ -268,15 +334,68 @@ Copy `.env.example` to `.env` and adjust values. Key settings:
 | `APP_ENV`            | `development`    | Environment (development/production) |
 | `APP_MODE`           | `api`            | Runtime mode: `api` or `worker`      |
 | `APP_PORT`           | `8080`           | HTTP server port                |
+| `APP_EXTERNAL_URL`   | -                | Public HTTPS base URL in production |
+| `CORS_ALLOWED_ORIGINS` | -              | Comma-separated HTTPS browser origins in production |
 | `WORKER_POLL_INTERVAL` | `5s`           | Reminder job polling interval in worker mode |
 | `DB_HOST`            | `localhost`      | PostgreSQL host                 |
 | `DB_PORT`            | `5432`           | PostgreSQL port                 |
+| `DB_SSL_MODE`        | `disable`        | Must not be `disable` in production |
 | `REDIS_HOST`         | `localhost`      | Redis host                      |
 | `JWT_ACCESS_SECRET`  | -                | JWT signing key (generate with `openssl rand -base64 48`) |
 | `JWT_REFRESH_SECRET` | -                | Refresh token signing key       |
 | `AUTH_PUBLIC_REGISTRATION_ENABLED` | `false` | Enables public registration in production |
-| `RESEND_API_KEY`     | -                | Resend API key (optional, for emails) |
+| `RESEND_API_KEY`     | -                | Required in production for email/reminder delivery |
+| `RESEND_FROM_EMAIL`  | `noreply@example.com` | Must be a real sender address in production |
 | `PAYMENT_PROVIDER`   | `fake`           | Payment provider: `fake` or `razorpay` |
+| `RAZORPAY_KEY_ID`    | -                | Required when `PAYMENT_PROVIDER=razorpay` |
+| `RAZORPAY_KEY_SECRET` | -               | Required when `PAYMENT_PROVIDER=razorpay` |
+| `RAZORPAY_WEBHOOK_SECRET` | -           | Required when `PAYMENT_PROVIDER=razorpay` |
+
+Production validation fails fast when required settings are missing, wildcard CORS is configured, production URLs are not HTTPS, JWT secrets are reused, DB SSL is disabled, or Razorpay/Resend settings are placeholders.
+
+## Operations
+
+Run the API server with:
+
+```bash
+APP_MODE=api ./bin/eduwallet
+```
+
+Run reminder retries and queued notification jobs with:
+
+```bash
+APP_MODE=worker WORKER_POLL_INTERVAL=5s ./bin/eduwallet
+```
+
+The worker handles `SIGINT` and `SIGTERM`, finishes the current batch, and exits cleanly. External provider calls use timeouts; Razorpay order creation retries transient network, `429`, and `5xx` failures with bounded backoff.
+
+Request body limits are enforced on high-risk routes: auth JSON payloads, payment order/verify payloads, offline payment payloads, student imports, and Razorpay webhooks. Razorpay webhooks are verified against the raw request body before processing and are idempotent by provider event ID.
+
+### Migrations And Rollback
+
+```bash
+make migrate-up          # Apply all pending migrations
+make migrate-version     # Inspect current migration version
+make migrate-down        # Roll back one migration
+```
+
+For production rollouts, take a database backup before `make migrate-up`. Roll back only the most recent migration with `make migrate-down`; financial tables use immutable records, so do not manually delete payments, receipts, gateway webhooks, ledger events, or audit logs.
+
+### Pilot Seed Fixture
+
+Use `docs/fixtures/pilot_students.csv` with the student import preview/commit flow after creating the tenant, academic year `2026-27`, class `10`, and section `A`.
+
+### Launch Checklist
+
+- `APP_ENV=production` starts successfully with all production env vars set.
+- `CORS_ALLOWED_ORIGINS` contains only the real HTTPS frontend origins.
+- Razorpay test/live keys and webhook secret are configured in the deployment secret store.
+- Resend sender domain is verified and `RESEND_FROM_EMAIL` uses that domain.
+- `make migrate-up`, `make test`, `make vet`, `make lint`, and `make build` pass.
+- `make test-e2e` passes in an environment with Docker.
+- Razorpay webhook replay returns `duplicate` and does not create an extra payment or receipt.
+- A 500-row student import preview and commit completes successfully.
+- Cross-tenant reads for students, receipts, and payments return `404` or an empty tenant-scoped result.
 
 ## Testing
 

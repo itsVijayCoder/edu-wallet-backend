@@ -56,6 +56,8 @@ type RazorpayPaymentProvider struct {
 	webhookSecret string
 	baseURL       string
 	client        *http.Client
+	maxAttempts   int
+	retryBackoff  time.Duration
 }
 
 func NewRazorpayPaymentProvider(keyID, keySecret, webhookSecret, baseURL string, client *http.Client) *RazorpayPaymentProvider {
@@ -64,6 +66,10 @@ func NewRazorpayPaymentProvider(keyID, keySecret, webhookSecret, baseURL string,
 	}
 	if client == nil {
 		client = &http.Client{Timeout: 10 * time.Second}
+	} else if client.Timeout == 0 {
+		clientCopy := *client
+		clientCopy.Timeout = 10 * time.Second
+		client = &clientCopy
 	}
 	return &RazorpayPaymentProvider{
 		keyID:         strings.TrimSpace(keyID),
@@ -71,6 +77,8 @@ func NewRazorpayPaymentProvider(keyID, keySecret, webhookSecret, baseURL string,
 		webhookSecret: strings.TrimSpace(webhookSecret),
 		baseURL:       strings.TrimRight(baseURL, "/"),
 		client:        client,
+		maxAttempts:   3,
+		retryBackoff:  200 * time.Millisecond,
 	}
 }
 
@@ -92,24 +100,47 @@ func (p *RazorpayPaymentProvider) CreateOrder(ctx context.Context, req PaymentOr
 	if err != nil {
 		return nil, fmt.Errorf("marshal razorpay order: %w", err)
 	}
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, p.baseURL+"/orders", bytes.NewReader(payload))
-	if err != nil {
-		return nil, fmt.Errorf("create razorpay request: %w", err)
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.SetBasicAuth(p.keyID, p.keySecret)
+	var respBody []byte
+	var statusCode int
+	for attempt := 1; attempt <= p.maxAttempts; attempt++ {
+		httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, p.baseURL+"/orders", bytes.NewReader(payload))
+		if err != nil {
+			return nil, fmt.Errorf("create razorpay request: %w", err)
+		}
+		httpReq.Header.Set("Content-Type", "application/json")
+		httpReq.SetBasicAuth(p.keyID, p.keySecret)
 
-	resp, err := p.client.Do(httpReq)
-	if err != nil {
-		return nil, fmt.Errorf("create razorpay order: %w", err)
-	}
-	defer resp.Body.Close()
+		resp, err := p.client.Do(httpReq)
+		if err != nil {
+			if attempt < p.maxAttempts && ctx.Err() == nil {
+				if waitErr := sleepWithContext(ctx, retryDelay(p.retryBackoff, attempt)); waitErr != nil {
+					return nil, waitErr
+				}
+				continue
+			}
+			return nil, fmt.Errorf("create razorpay order: %w", err)
+		}
 
-	respBody, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	if err != nil {
-		return nil, fmt.Errorf("read razorpay response: %w", err)
+		statusCode = resp.StatusCode
+		respBody, err = io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+		closeErr := resp.Body.Close()
+		if err != nil {
+			return nil, fmt.Errorf("read razorpay response: %w", err)
+		}
+		if closeErr != nil {
+			return nil, fmt.Errorf("close razorpay response: %w", closeErr)
+		}
+		if statusCode >= http.StatusOK && statusCode < http.StatusMultipleChoices {
+			break
+		}
+		if !shouldRetryPaymentProviderStatus(statusCode) || attempt == p.maxAttempts {
+			return nil, apperror.New("PAYMENT_PROVIDER_ERROR", "razorpay order creation failed", http.StatusBadGateway)
+		}
+		if waitErr := sleepWithContext(ctx, retryDelay(p.retryBackoff, attempt)); waitErr != nil {
+			return nil, waitErr
+		}
 	}
-	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+	if statusCode < http.StatusOK || statusCode >= http.StatusMultipleChoices {
 		return nil, apperror.New("PAYMENT_PROVIDER_ERROR", "razorpay order creation failed", http.StatusBadGateway)
 	}
 
@@ -133,6 +164,31 @@ func (p *RazorpayPaymentProvider) CreateOrder(ctx context.Context, req PaymentOr
 		Status:      defaultString(parsed.Status, "created"),
 		Metadata:    map[string]any{"provider_notes": parsed.Notes},
 	}, nil
+}
+
+func shouldRetryPaymentProviderStatus(status int) bool {
+	return status == http.StatusTooManyRequests || status >= http.StatusInternalServerError
+}
+
+func retryDelay(base time.Duration, attempt int) time.Duration {
+	if base <= 0 {
+		base = 200 * time.Millisecond
+	}
+	if attempt <= 1 {
+		return base
+	}
+	return time.Duration(attempt) * base
+}
+
+func sleepWithContext(ctx context.Context, delay time.Duration) error {
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }
 
 func (p *RazorpayPaymentProvider) VerifyPaymentSignature(req PaymentSignatureVerification) error {

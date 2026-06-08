@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -31,9 +32,9 @@ func TestAcademicStudentImport_E2E(t *testing.T) {
 	require.Len(t, data, 1)
 	assert.Equal(t, studentID.String(), data[0].(map[string]any)["id"])
 
-	csvPayload := fmt.Sprintf(`admission_number,first_name,last_name,academic_year_code,class_code,section_code,roll_number,status,category,guardian_name,guardian_relationship,guardian_phone,guardian_email
+	csvPayload := `admission_number,first_name,last_name,academic_year_code,class_code,section_code,roll_number,status,category,guardian_name,guardian_relationship,guardian_phone,guardian_email
 ADM-200,Meera,Iyer,2026-27,10,A,8,active,general,Kavya Iyer,mother,9000000001,kavya@example.test
-`)
+`
 	w = doRequest(suite.Server, http.MethodPost, "/api/v1/admin/imports/students/preview", map[string]any{
 		"filename": "students.csv",
 		"csv":      csvPayload,
@@ -69,6 +70,53 @@ ADM-200,Meera,Iyer,2026-27,10,A,8,active,general,Kavya Iyer,mother,9000000001,ka
 	otherToken, _ := createTenantSession(t, suite, adminID, "Other School", "other-academic")
 	w = doRequest(suite.Server, http.MethodGet, "/api/v1/admin/students/"+studentID.String(), nil, bearer(otherToken))
 	require.Equal(t, http.StatusNotFound, w.Code)
+}
+
+func TestStudentImportFiveHundredRows_E2E(t *testing.T) {
+	suite := SetupSuite(t)
+	truncateAndReseed(t, suite.Pool, suite.Redis)
+
+	adminID := SeedUser(t, suite.Pool, suite.Hasher, "academic-admin@example.com", "password123", []string{"super_admin"})
+	tenantAccessToken, tenantID := createTenantSession(t, suite, adminID, "Bulk Import School", "bulk-import-school")
+
+	academicYearID := createAcademicYear(t, suite, tenantAccessToken)
+	classID := createClass(t, suite, tenantAccessToken)
+	_ = createSection(t, suite, tenantAccessToken, academicYearID, classID)
+
+	csvPayload := buildBulkStudentCSV(500)
+	w := doRequest(suite.Server, http.MethodPost, "/api/v1/admin/imports/students/preview", map[string]any{
+		"filename": "students-500.csv",
+		"csv":      csvPayload,
+	}, bearer(tenantAccessToken))
+	require.Equal(t, http.StatusCreated, w.Code)
+	body := parseJSON(t, w)
+	preview := body["data"].(map[string]any)
+	require.Equal(t, float64(500), preview["valid_rows"])
+	require.Equal(t, float64(0), preview["invalid_rows"])
+	importID, err := uuid.Parse(preview["import_id"].(string))
+	require.NoError(t, err)
+
+	w = doRequest(suite.Server, http.MethodPost, "/api/v1/admin/imports/students/commit", map[string]string{
+		"import_id": importID.String(),
+	}, bearer(tenantAccessToken))
+	require.Equal(t, http.StatusOK, w.Code)
+	body = parseJSON(t, w)
+	commitData := body["data"].(map[string]any)
+	assert.Equal(t, float64(500), commitData["committed_rows"])
+
+	var studentCount int
+	err = suite.Pool.QueryRow(t.Context(), `SELECT COUNT(*) FROM students WHERE tenant_id = $1`, tenantID).Scan(&studentCount)
+	require.NoError(t, err)
+	assert.Equal(t, 500, studentCount)
+}
+
+func buildBulkStudentCSV(rows int) string {
+	var b strings.Builder
+	b.WriteString("admission_number,first_name,last_name,academic_year_code,class_code,section_code,roll_number,status,category,guardian_name,guardian_relationship,guardian_phone,guardian_email\n")
+	for i := 1; i <= rows; i++ {
+		fmt.Fprintf(&b, "BULK-%03d,Student%03d,Import,2026-27,10,A,%d,active,general,Guardian%03d,parent,91%08d,guardian%03d@example.test\n", i, i, i, i, i, i)
+	}
+	return b.String()
 }
 
 func createTenantSession(t *testing.T, suite *TestSuite, ownerID uuid.UUID, name, slug string) (string, uuid.UUID) {

@@ -97,7 +97,7 @@ func buildSimplePDF(lines []string) []byte {
 	out.WriteString(strconv.Itoa(len(objects) + 1))
 	out.WriteString("\n0000000000 65535 f \n")
 	for i := 1; i < len(offsets); i++ {
-		out.WriteString(fmt.Sprintf("%010d 00000 n \n", offsets[i]))
+		fmt.Fprintf(&out, "%010d 00000 n \n", offsets[i])
 	}
 	out.WriteString("trailer\n<< /Size ")
 	out.WriteString(strconv.Itoa(len(objects) + 1))

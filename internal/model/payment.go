@@ -7,21 +7,27 @@ import (
 )
 
 type PaymentAttempt struct {
-	ID              uuid.UUID      `json:"id"`
-	TenantID        uuid.UUID      `json:"tenant_id"`
-	StudentID       uuid.UUID      `json:"student_id"`
-	Provider        string         `json:"provider"`
-	ProviderOrderID *string        `json:"provider_order_id,omitempty"`
-	IdempotencyKey  *string        `json:"idempotency_key,omitempty"`
-	Status          string         `json:"status"`
-	AmountPaise     int64          `json:"amount_paise"`
-	Currency        string         `json:"currency"`
-	CheckoutURL     string         `json:"checkout_url"`
-	ExpiresAt       *time.Time     `json:"expires_at,omitempty"`
-	CreatedBy       *uuid.UUID     `json:"created_by,omitempty"`
-	Metadata        map[string]any `json:"metadata,omitempty"`
-	CreatedAt       time.Time      `json:"created_at"`
-	UpdatedAt       time.Time      `json:"updated_at"`
+	ID                   uuid.UUID      `json:"id"`
+	TenantID             uuid.UUID      `json:"tenant_id"`
+	StudentID            uuid.UUID      `json:"student_id"`
+	Provider             string         `json:"provider"`
+	ProviderOrderID      *string        `json:"provider_order_id,omitempty"`
+	IdempotencyKey       *string        `json:"idempotency_key,omitempty"`
+	Status               string         `json:"status"`
+	AmountPaise          int64          `json:"amount_paise"`
+	Currency             string         `json:"currency"`
+	CheckoutURL          string         `json:"checkout_url"`
+	ExpiresAt            *time.Time     `json:"expires_at,omitempty"`
+	ProviderRetryCount   int            `json:"provider_retry_count"`
+	ProviderLastError    string         `json:"provider_last_error,omitempty"`
+	ReconciliationStatus string         `json:"reconciliation_status"`
+	ReconciledAt         *time.Time     `json:"reconciled_at,omitempty"`
+	SettlementReference  string         `json:"settlement_reference,omitempty"`
+	SettledAt            *time.Time     `json:"settled_at,omitempty"`
+	CreatedBy            *uuid.UUID     `json:"created_by,omitempty"`
+	Metadata             map[string]any `json:"metadata,omitempty"`
+	CreatedAt            time.Time      `json:"created_at"`
+	UpdatedAt            time.Time      `json:"updated_at"`
 
 	Student     *Student            `json:"student,omitempty"`
 	Allocations []PaymentAllocation `json:"allocations,omitempty"`
@@ -30,26 +36,30 @@ type PaymentAttempt struct {
 }
 
 type Payment struct {
-	ID                 uuid.UUID      `json:"id"`
-	TenantID           uuid.UUID      `json:"tenant_id"`
-	AttemptID          *uuid.UUID     `json:"attempt_id,omitempty"`
-	StudentID          uuid.UUID      `json:"student_id"`
-	Provider           string         `json:"provider"`
-	PaymentMethod      string         `json:"payment_method"`
-	Status             string         `json:"status"`
-	AmountPaise        int64          `json:"amount_paise"`
-	AmountAppliedPaise int64          `json:"amount_applied_paise"`
-	Currency           string         `json:"currency"`
-	GatewayOrderID     *string        `json:"gateway_order_id,omitempty"`
-	GatewayPaymentID   *string        `json:"gateway_payment_id,omitempty"`
-	GatewaySignature   string         `json:"gateway_signature,omitempty"`
-	ExternalReference  string         `json:"external_reference"`
-	PaidAt             *time.Time     `json:"paid_at,omitempty"`
-	VerifiedAt         *time.Time     `json:"verified_at,omitempty"`
-	ReceivedBy         *uuid.UUID     `json:"received_by,omitempty"`
-	Metadata           map[string]any `json:"metadata,omitempty"`
-	CreatedAt          time.Time      `json:"created_at"`
-	UpdatedAt          time.Time      `json:"updated_at"`
+	ID                   uuid.UUID      `json:"id"`
+	TenantID             uuid.UUID      `json:"tenant_id"`
+	AttemptID            *uuid.UUID     `json:"attempt_id,omitempty"`
+	StudentID            uuid.UUID      `json:"student_id"`
+	Provider             string         `json:"provider"`
+	PaymentMethod        string         `json:"payment_method"`
+	Status               string         `json:"status"`
+	AmountPaise          int64          `json:"amount_paise"`
+	AmountAppliedPaise   int64          `json:"amount_applied_paise"`
+	Currency             string         `json:"currency"`
+	GatewayOrderID       *string        `json:"gateway_order_id,omitempty"`
+	GatewayPaymentID     *string        `json:"gateway_payment_id,omitempty"`
+	GatewaySignature     string         `json:"gateway_signature,omitempty"`
+	ExternalReference    string         `json:"external_reference"`
+	PaidAt               *time.Time     `json:"paid_at,omitempty"`
+	VerifiedAt           *time.Time     `json:"verified_at,omitempty"`
+	ReconciliationStatus string         `json:"reconciliation_status"`
+	ReconciledAt         *time.Time     `json:"reconciled_at,omitempty"`
+	SettlementReference  string         `json:"settlement_reference,omitempty"`
+	SettledAt            *time.Time     `json:"settled_at,omitempty"`
+	ReceivedBy           *uuid.UUID     `json:"received_by,omitempty"`
+	Metadata             map[string]any `json:"metadata,omitempty"`
+	CreatedAt            time.Time      `json:"created_at"`
+	UpdatedAt            time.Time      `json:"updated_at"`
 
 	Student     *Student            `json:"student,omitempty"`
 	Attempt     *PaymentAttempt     `json:"attempt,omitempty"`

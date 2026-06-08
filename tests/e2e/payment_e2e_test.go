@@ -109,6 +109,19 @@ func TestPaymentsReceiptsLedger_E2E(t *testing.T) {
 	body = parseJSON(t, w)
 	assert.Equal(t, "duplicate", body["data"].(map[string]any)["status"])
 
+	var replayPaymentCount, replayReceiptCount int
+	err = suite.Pool.QueryRow(t.Context(), `SELECT COUNT(*) FROM payments WHERE tenant_id = $1 AND gateway_payment_id = 'pay_webhook_001'`, tenantID).Scan(&replayPaymentCount)
+	require.NoError(t, err)
+	err = suite.Pool.QueryRow(t.Context(), `
+		SELECT COUNT(*)
+		FROM receipts r
+		JOIN payments p ON p.tenant_id = r.tenant_id AND p.id = r.payment_id
+		WHERE r.tenant_id = $1 AND p.gateway_payment_id = 'pay_webhook_001'
+	`, tenantID).Scan(&replayReceiptCount)
+	require.NoError(t, err)
+	assert.Equal(t, 1, replayPaymentCount)
+	assert.Equal(t, 1, replayReceiptCount)
+
 	w = doRequest(suite.Server, http.MethodGet, "/api/v1/admin/invoices/"+juneInvoiceID.String(), nil, bearer(tenantAccessToken))
 	require.Equal(t, http.StatusOK, w.Code)
 	body = parseJSON(t, w)

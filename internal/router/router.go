@@ -12,6 +12,14 @@ import (
 	"github.com/itsVijayCoder/edu-wallet-backend/pkg/jwt"
 )
 
+const (
+	authBodyLimitBytes       = 16 * 1024
+	paymentBodyLimitBytes    = 32 * 1024
+	importBodyLimitBytes     = 6 * 1024 * 1024
+	webhookBodyLimitBytes    = 1 * 1024 * 1024
+	offlinePaymentLimitBytes = 64 * 1024
+)
+
 // Handlers aggregates all handler structs for dependency injection into the router.
 type Handlers struct {
 	Health   *handler.HealthHandler
@@ -40,6 +48,7 @@ func New(log *slog.Logger, cfg RouterConfig, tokenMgr jwt.TokenManager, rdb *red
 	}
 
 	r := gin.New()
+	r.MaxMultipartMemory = importBodyLimitBytes
 
 	// --- Global middleware chain ---
 	r.Use(
@@ -60,18 +69,18 @@ func New(log *slog.Logger, cfg RouterConfig, tokenMgr jwt.TokenManager, rdb *red
 		// Auth routes.
 		auth := v1.Group("/auth")
 		{
-			auth.POST("/login", middleware.RateLimit(rdb, 5, time.Minute), h.Auth.Login)
-			auth.POST("/register", middleware.RateLimit(rdb, 5, time.Minute), h.Auth.Register)
+			auth.POST("/login", middleware.BodySizeLimit(authBodyLimitBytes), middleware.RateLimit(rdb, 5, time.Minute), h.Auth.Login)
+			auth.POST("/register", middleware.BodySizeLimit(authBodyLimitBytes), middleware.RateLimit(rdb, 5, time.Minute), h.Auth.Register)
 			auth.POST("/refresh", h.Auth.Refresh)
-			auth.POST("/select-tenant", middleware.Auth(tokenMgr), h.Auth.SelectTenant)
+			auth.POST("/select-tenant", middleware.BodySizeLimit(authBodyLimitBytes), middleware.RateLimit(rdb, 20, time.Minute), middleware.Auth(tokenMgr), h.Auth.SelectTenant)
 			auth.POST("/logout", middleware.Auth(tokenMgr), h.Auth.Logout)
-			auth.POST("/forgot-password", middleware.RateLimit(rdb, 3, time.Hour), h.Auth.ForgotPassword)
-			auth.POST("/reset-password", h.Auth.ResetPassword)
+			auth.POST("/forgot-password", middleware.BodySizeLimit(authBodyLimitBytes), middleware.RateLimit(rdb, 3, time.Hour), h.Auth.ForgotPassword)
+			auth.POST("/reset-password", middleware.BodySizeLimit(authBodyLimitBytes), middleware.RateLimit(rdb, 5, 15*time.Minute), h.Auth.ResetPassword)
 		}
 
 		webhooks := v1.Group("/webhooks")
 		{
-			webhooks.POST("/razorpay", h.Payment.RazorpayWebhook)
+			webhooks.POST("/razorpay", middleware.BodySizeLimit(webhookBodyLimitBytes), middleware.RateLimit(rdb, 120, time.Minute), h.Payment.RazorpayWebhook)
 		}
 
 		// Platform routes are reserved for platform super admins.
@@ -156,8 +165,8 @@ func New(log *slog.Logger, cfg RouterConfig, tokenMgr jwt.TokenManager, rdb *red
 			{
 				imports.GET("", h.Academic.ListImports)
 				imports.GET("/students/template", h.Academic.StudentImportTemplate)
-				imports.POST("/students/preview", h.Academic.PreviewStudentImport)
-				imports.POST("/students/commit", h.Academic.CommitStudentImport)
+				imports.POST("/students/preview", middleware.BodySizeLimit(importBodyLimitBytes), h.Academic.PreviewStudentImport)
+				imports.POST("/students/commit", middleware.BodySizeLimit(authBodyLimitBytes), h.Academic.CommitStudentImport)
 			}
 
 			adminTenant.GET("/students/:id/ledger", middleware.PermissionGuard("fees.manage"), h.Billing.GetStudentLedger)
@@ -192,7 +201,7 @@ func New(log *slog.Logger, cfg RouterConfig, tokenMgr jwt.TokenManager, rdb *red
 				invoices.GET("/:id", h.Billing.GetInvoice)
 			}
 
-			adminTenant.POST("/offline-payments", middleware.PermissionGuard("payments.manage"), h.Payment.CreateOfflinePayment)
+			adminTenant.POST("/offline-payments", middleware.PermissionGuard("payments.manage"), middleware.BodySizeLimit(offlinePaymentLimitBytes), h.Payment.CreateOfflinePayment)
 
 			payments := adminTenant.Group("/payments", middleware.PermissionGuard("payments.manage"))
 			{
@@ -253,8 +262,8 @@ func New(log *slog.Logger, cfg RouterConfig, tokenMgr jwt.TokenManager, rdb *red
 		parent := v1.Group("/parent", middleware.Auth(tokenMgr), middleware.RequireTenant())
 		{
 			parent.GET("/children/:id/dues", h.Billing.GetParentChildDues)
-			parent.POST("/payments/orders", h.Payment.CreatePaymentOrder)
-			parent.POST("/payments/verify", h.Payment.VerifyPayment)
+			parent.POST("/payments/orders", middleware.BodySizeLimit(paymentBodyLimitBytes), middleware.RateLimit(rdb, 30, time.Minute), h.Payment.CreatePaymentOrder)
+			parent.POST("/payments/verify", middleware.BodySizeLimit(paymentBodyLimitBytes), middleware.RateLimit(rdb, 60, time.Minute), h.Payment.VerifyPayment)
 			parent.GET("/receipts", h.Payment.ListParentReceipts)
 			parent.GET("/receipts/:id/download", h.Payment.DownloadParentReceipt)
 		}

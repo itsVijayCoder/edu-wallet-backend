@@ -12,11 +12,21 @@ import (
 // In non-development mode, allowedOrigins must not be empty.
 func CORS(appEnv string, allowedOrigins []string) gin.HandlerFunc {
 	isDev := appEnv == "development"
+	isProduction := appEnv == "production"
 
 	// Build the origin lookup set.
 	originSet := make(map[string]bool, len(allowedOrigins))
+	allowWildcard := false
 	for _, o := range allowedOrigins {
-		originSet[strings.TrimRight(o, "/")] = true
+		origin := strings.TrimSpace(strings.TrimRight(o, "/"))
+		if origin == "" {
+			continue
+		}
+		if origin == "*" && !isProduction {
+			allowWildcard = true
+			continue
+		}
+		originSet[origin] = true
 	}
 
 	return func(c *gin.Context) {
@@ -24,6 +34,8 @@ func CORS(appEnv string, allowedOrigins []string) gin.HandlerFunc {
 
 		allowed := false
 		switch {
+		case allowWildcard && origin != "":
+			allowed = true
 		case len(originSet) > 0 && originSet[origin]:
 			allowed = true
 		case isDev && len(originSet) == 0 && isLocalhost(origin):
@@ -44,7 +56,7 @@ func CORS(appEnv string, allowedOrigins []string) gin.HandlerFunc {
 			c.Header("Access-Control-Allow-Origin", origin)
 		}
 
-		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Request-ID, X-API-Key")
 		c.Header("Access-Control-Expose-Headers", "X-Request-ID, Retry-After, X-RateLimit-Remaining, X-RateLimit-Reset")
 		c.Header("Access-Control-Allow-Credentials", "true")

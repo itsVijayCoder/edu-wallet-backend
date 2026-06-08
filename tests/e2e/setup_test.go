@@ -43,7 +43,7 @@ var (
 func TestMain(m *testing.M) {
 	flag.Parse()
 	if testing.Short() {
-		fmt.Fprintln(os.Stdout, "skipping e2e tests in short mode")
+		_, _ = fmt.Fprintln(os.Stdout, "skipping e2e tests in short mode")
 		os.Exit(0)
 	}
 

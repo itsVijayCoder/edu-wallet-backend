@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -74,26 +75,93 @@ func Load() (*Config, error) {
 }
 
 func validate(cfg *Config) error {
-	// JWT secret entropy check
 	if len(cfg.JWT.AccessSecret) < 32 || strings.Contains(cfg.JWT.AccessSecret, "change-me") {
 		return fmt.Errorf("JWT_ACCESS_SECRET must be at least 32 characters and not a placeholder")
 	}
 	if len(cfg.JWT.RefreshSecret) < 32 || strings.Contains(cfg.JWT.RefreshSecret, "change-me") {
 		return fmt.Errorf("JWT_REFRESH_SECRET must be at least 32 characters and not a placeholder")
 	}
-
-	// SSL enforcement in production
-	if cfg.App.Env == "production" && cfg.DB.SSLMode == "disable" {
-		return fmt.Errorf("DB_SSL_MODE=disable is not allowed in production")
-	}
-	if cfg.App.Env == "production" && strings.EqualFold(cfg.Payments.Provider, "razorpay") {
-		if cfg.Payments.RazorpayKeyID == "" || cfg.Payments.RazorpayKeySecret == "" || cfg.Payments.RazorpayWebhookSecret == "" {
-			return fmt.Errorf("razorpay payment provider requires RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, and RAZORPAY_WEBHOOK_SECRET")
-		}
-	}
 	if cfg.App.Mode != "api" && cfg.App.Mode != "worker" {
 		return fmt.Errorf("APP_MODE must be api or worker")
 	}
 
+	if isProduction(cfg.App.Env) {
+		if err := validateProduction(cfg); err != nil {
+			return err
+		}
+	}
+
 	return nil
+}
+
+func validateProduction(cfg *Config) error {
+	if cfg.JWT.AccessSecret == cfg.JWT.RefreshSecret {
+		return fmt.Errorf("JWT_ACCESS_SECRET and JWT_REFRESH_SECRET must be different in production")
+	}
+	if strings.EqualFold(cfg.DB.SSLMode, "disable") {
+		return fmt.Errorf("DB_SSL_MODE=disable is not allowed in production")
+	}
+	if strings.TrimSpace(cfg.App.ExternalURL) == "" {
+		return fmt.Errorf("APP_EXTERNAL_URL is required in production")
+	}
+	if err := validatePublicHTTPSURL("APP_EXTERNAL_URL", cfg.App.ExternalURL); err != nil {
+		return err
+	}
+	if len(cfg.App.CORSOrigins) == 0 {
+		return fmt.Errorf("CORS_ALLOWED_ORIGINS is required in production")
+	}
+	validOrigins := 0
+	for _, origin := range cfg.App.CORSOrigins {
+		origin = strings.TrimSpace(strings.TrimRight(origin, "/"))
+		if origin == "" {
+			continue
+		}
+		validOrigins++
+		if origin == "*" {
+			return fmt.Errorf("CORS_ALLOWED_ORIGINS cannot contain * in production")
+		}
+		if err := validatePublicHTTPSURL("CORS_ALLOWED_ORIGINS", origin); err != nil {
+			return err
+		}
+	}
+	if validOrigins == 0 {
+		return fmt.Errorf("CORS_ALLOWED_ORIGINS must include at least one origin in production")
+	}
+	if strings.TrimSpace(cfg.Resend.APIKey) == "" {
+		return fmt.Errorf("RESEND_API_KEY is required in production")
+	}
+	if strings.TrimSpace(cfg.Resend.FromEmail) == "" || strings.Contains(strings.ToLower(cfg.Resend.FromEmail), "example.com") {
+		return fmt.Errorf("RESEND_FROM_EMAIL must be a real sender address in production")
+	}
+	if !strings.EqualFold(cfg.Payments.Provider, "razorpay") {
+		return fmt.Errorf("PAYMENT_PROVIDER must be razorpay in production")
+	}
+	if cfg.Payments.RazorpayKeyID == "" || cfg.Payments.RazorpayKeySecret == "" || cfg.Payments.RazorpayWebhookSecret == "" {
+		return fmt.Errorf("razorpay payment provider requires RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, and RAZORPAY_WEBHOOK_SECRET")
+	}
+	if strings.EqualFold(cfg.Payments.RazorpayKeyID, "change-me") ||
+		strings.EqualFold(cfg.Payments.RazorpayKeySecret, "change-me") ||
+		strings.EqualFold(cfg.Payments.RazorpayWebhookSecret, "change-me") {
+		return fmt.Errorf("razorpay credentials cannot be placeholders in production")
+	}
+	return nil
+}
+
+func validatePublicHTTPSURL(name, raw string) error {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return fmt.Errorf("%s must be a valid absolute URL", name)
+	}
+	if parsed.Scheme != "https" {
+		return fmt.Errorf("%s must use https in production", name)
+	}
+	host := strings.ToLower(parsed.Hostname())
+	if host == "localhost" || strings.HasPrefix(host, "127.") || host == "::1" {
+		return fmt.Errorf("%s cannot use localhost in production", name)
+	}
+	return nil
+}
+
+func isProduction(env string) bool {
+	return strings.EqualFold(strings.TrimSpace(env), "production")
 }

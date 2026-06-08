@@ -619,7 +619,9 @@ func readCSVUpload(c *gin.Context) (string, []byte, error) {
 		if err != nil {
 			return "", nil, apperror.New("IMPORT_FILE_REQUIRED", "CSV file is required", http.StatusBadRequest)
 		}
-		defer file.Close()
+		defer func() {
+			_ = file.Close()
+		}()
 		payload, err := readLimited(file)
 		if err != nil {
 			return "", nil, err

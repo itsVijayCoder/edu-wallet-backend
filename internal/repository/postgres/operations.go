@@ -17,8 +17,6 @@ import (
 
 var _ repository.OperationsRepository = (*operationsRepository)(nil)
 
-const reminderJobType = "reminder.send"
-
 type operationsRepository struct {
 	db database.DBTX
 }

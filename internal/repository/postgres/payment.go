@@ -639,7 +639,9 @@ func (r *paymentRepository) withReceiptChildren(ctx context.Context, receipt *mo
 const paymentAttemptSelect = `SELECT
 		pa.id, pa.tenant_id, pa.student_id, pa.provider, pa.provider_order_id,
 		pa.idempotency_key, pa.status, pa.amount_paise, pa.currency, pa.checkout_url,
-		pa.expires_at, pa.created_by, pa.metadata, pa.created_at, pa.updated_at,
+		pa.expires_at, pa.provider_retry_count, pa.provider_last_error,
+		pa.reconciliation_status, pa.reconciled_at, pa.settlement_reference,
+		pa.settled_at, pa.created_by, pa.metadata, pa.created_at, pa.updated_at,
 		s.id, s.admission_number, s.first_name, s.last_name, s.status
 	FROM payment_attempts pa
 	JOIN students s ON s.tenant_id = pa.tenant_id AND s.id = pa.student_id`
@@ -648,7 +650,8 @@ const paymentSelect = `SELECT
 		p.id, p.tenant_id, p.attempt_id, p.student_id, p.provider, p.payment_method,
 		p.status, p.amount_paise, p.amount_applied_paise, p.currency, p.gateway_order_id,
 		p.gateway_payment_id, p.gateway_signature, p.external_reference, p.paid_at,
-		p.verified_at, p.received_by, p.metadata, p.created_at, p.updated_at,
+		p.verified_at, p.reconciliation_status, p.reconciled_at, p.settlement_reference,
+		p.settled_at, p.received_by, p.metadata, p.created_at, p.updated_at,
 		s.id, s.admission_number, s.first_name, s.last_name, s.status
 	FROM payments p
 	JOIN students s ON s.tenant_id = p.tenant_id AND s.id = p.student_id`
@@ -777,6 +780,12 @@ func scanPaymentAttemptScanner(row rowScanner) (*model.PaymentAttempt, error) {
 		&item.Currency,
 		&item.CheckoutURL,
 		&item.ExpiresAt,
+		&item.ProviderRetryCount,
+		&item.ProviderLastError,
+		&item.ReconciliationStatus,
+		&item.ReconciledAt,
+		&item.SettlementReference,
+		&item.SettledAt,
 		&item.CreatedBy,
 		&metadata,
 		&item.CreatedAt,
@@ -815,6 +824,10 @@ func scanPaymentScanner(row rowScanner) (*model.Payment, error) {
 		&item.ExternalReference,
 		&item.PaidAt,
 		&item.VerifiedAt,
+		&item.ReconciliationStatus,
+		&item.ReconciledAt,
+		&item.SettlementReference,
+		&item.SettledAt,
 		&item.ReceivedBy,
 		&metadata,
 		&item.CreatedAt,
@@ -1065,7 +1078,7 @@ func paymentWhere(tenantID uuid.UUID, filter model.PaymentFilter) (string, []any
 	}
 	if strings.TrimSpace(filter.Search) != "" {
 		args = append(args, "%"+strings.ToLower(strings.TrimSpace(filter.Search))+"%")
-		clauses = append(clauses, fmt.Sprintf("(lower(coalesce(p.gateway_payment_id, '')) LIKE $%d OR lower(p.external_reference) LIKE $%d OR lower(s.admission_number) LIKE $%d OR lower(s.first_name) LIKE $%d OR lower(s.last_name) LIKE $%d)", len(args), len(args), len(args), len(args), len(args)))
+		clauses = append(clauses, fmt.Sprintf("(lower(p.id::text) LIKE $%d OR lower(coalesce(p.gateway_order_id, '')) LIKE $%d OR lower(coalesce(p.gateway_payment_id, '')) LIKE $%d OR lower(p.external_reference) LIKE $%d OR lower(p.settlement_reference) LIKE $%d OR lower(s.admission_number) LIKE $%d OR lower(s.first_name) LIKE $%d OR lower(s.last_name) LIKE $%d)", len(args), len(args), len(args), len(args), len(args), len(args), len(args), len(args)))
 	}
 	return "WHERE " + strings.Join(clauses, " AND "), args
 }

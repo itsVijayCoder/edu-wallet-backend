@@ -1,0 +1,6 @@
+admission_number,first_name,last_name,academic_year_code,class_code,section_code,roll_number,status,category,guardian_name,guardian_relationship,guardian_phone,guardian_email
+PILOT-001,Aarav,Sharma,2026-27,10,A,1,active,general,Riya Sharma,mother,9000000001,riya.sharma@example.test
+PILOT-002,Meera,Iyer,2026-27,10,A,2,active,scholarship,Kavya Iyer,mother,9000000002,kavya.iyer@example.test
+PILOT-003,Vihaan,Patel,2026-27,10,A,3,active,sibling,Dev Patel,father,9000000003,dev.patel@example.test
+PILOT-004,Ananya,Rao,2026-27,10,A,4,active,staff_child,Nisha Rao,mother,9000000004,nisha.rao@example.test
+PILOT-005,Reyansh,Gupta,2026-27,10,A,5,active,general,Amit Gupta,father,9000000005,amit.gupta@example.test
