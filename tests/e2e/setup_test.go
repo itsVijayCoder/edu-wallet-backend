@@ -22,6 +22,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 
+	"github.com/itsVijayCoder/edu-wallet-backend/internal/database"
 	"github.com/itsVijayCoder/edu-wallet-backend/internal/handler"
 	"github.com/itsVijayCoder/edu-wallet-backend/internal/repository/postgres"
 	"github.com/itsVijayCoder/edu-wallet-backend/internal/router"
@@ -160,12 +161,15 @@ func SetupSuite(t *testing.T) *TestSuite {
 	tenantRepo := postgres.NewTenantRepository(pgPool)
 	membershipRepo := postgres.NewTenantMembershipRepository(pgPool)
 	auditRepo := postgres.NewAuditRepository(pgPool)
+	academicRepo := postgres.NewAcademicRepository(pgPool)
+	transactor := database.NewTransactor(pgPool)
 
 	// Services - use a no-op email service for e2e tests
 	emailSvc := &noopEmailService{}
 	authSvc := service.NewAuthService(userRepo, h, tokenMgr, rdb, 7*24*time.Hour, emailSvc, log, true, membershipRepo)
 	userSvc := service.NewUserService(userRepo, roleRepo, h, rdb)
 	tenantSvc := service.NewTenantService(tenantRepo, membershipRepo, roleRepo, auditRepo)
+	academicSvc := service.NewAcademicService(academicRepo, postgres.NewAcademicRepository, transactor, auditRepo)
 
 	// Router
 	r := router.New(log, router.RouterConfig{
@@ -174,10 +178,11 @@ func SetupSuite(t *testing.T) *TestSuite {
 		ExternalURL: "http://localhost:0",
 		CORSOrigins: []string{"*"},
 	}, tokenMgr, rdb, router.Handlers{
-		Health: handler.NewHealthHandler(pgPool, rdb),
-		Auth:   handler.NewAuthHandler(authSvc),
-		User:   handler.NewAdminUserHandler(userSvc),
-		Tenant: handler.NewTenantHandler(tenantSvc),
+		Health:   handler.NewHealthHandler(pgPool, rdb),
+		Auth:     handler.NewAuthHandler(authSvc),
+		User:     handler.NewAdminUserHandler(userSvc),
+		Tenant:   handler.NewTenantHandler(tenantSvc),
+		Academic: handler.NewAcademicHandler(academicSvc),
 	})
 
 	return &TestSuite{
@@ -236,7 +241,11 @@ func truncateAndReseed(t *testing.T, pool *pgxpool.Pool, rdb *redis.Client) {
 			('tenant.read', 'Read Tenant', 'tenant', 'Read current tenant profile'),
 			('tenant.update', 'Update Tenant', 'tenant', 'Update current tenant profile'),
 			('branches.create', 'Create Branches', 'tenant', 'Create tenant branches'),
-			('users.manage', 'Manage Users', 'tenant', 'Create and manage tenant users')
+			('users.manage', 'Manage Users', 'tenant', 'Create and manage tenant users'),
+			('academic.manage', 'Manage Academic Setup', 'tenant', 'Create and update academic years, classes, and sections'),
+			('students.manage', 'Manage Students', 'tenant', 'Create, update, and list tenant students'),
+			('guardians.manage', 'Manage Guardians', 'tenant', 'Create, update, and list tenant guardians'),
+			('imports.manage', 'Manage Imports', 'tenant', 'Preview and commit student imports')
 		ON CONFLICT (code) DO UPDATE
 		SET name = EXCLUDED.name,
 			category = EXCLUDED.category,
@@ -252,7 +261,16 @@ func truncateAndReseed(t *testing.T, pool *pgxpool.Pool, rdb *redis.Client) {
 		INSERT INTO role_permissions (role_id, permission_id)
 		SELECT r.id, p.id
 		FROM roles r
-		JOIN permissions p ON p.code IN ('tenant.read', 'tenant.update', 'branches.create', 'users.manage')
+		JOIN permissions p ON p.code IN (
+			'tenant.read',
+			'tenant.update',
+			'branches.create',
+			'users.manage',
+			'academic.manage',
+			'students.manage',
+			'guardians.manage',
+			'imports.manage'
+		)
 		WHERE r.slug = 'admin'
 		ON CONFLICT DO NOTHING;
 	`)

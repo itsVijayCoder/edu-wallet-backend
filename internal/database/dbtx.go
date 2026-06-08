@@ -31,6 +31,25 @@ type DBTX interface {
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 }
 
+// Transactor runs a unit of work inside a database transaction.
+type Transactor interface {
+	WithinTx(ctx context.Context, fn func(DBTX) error) error
+}
+
+type pgxTransactor struct {
+	pool *pgxpool.Pool
+}
+
+func NewTransactor(pool *pgxpool.Pool) Transactor {
+	return &pgxTransactor{pool: pool}
+}
+
+func (t *pgxTransactor) WithinTx(ctx context.Context, fn func(DBTX) error) error {
+	return WithTx(ctx, t.pool, func(tx pgx.Tx) error {
+		return fn(tx)
+	})
+}
+
 // WithTx executes fn inside a database transaction.
 // It automatically rolls back on error and commits on success.
 func WithTx(ctx context.Context, pool *pgxpool.Pool, fn func(tx pgx.Tx) error) error {

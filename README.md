@@ -89,6 +89,56 @@ API is available at `http://localhost:8080`
 | GET    | `/api/v1/admin/tenant`      | Get current tenant       |
 | PATCH  | `/api/v1/admin/tenant`      | Update current tenant    |
 
+### Academic Setup (requires selected tenant token + `academic.manage`)
+
+| Method | Endpoint                              | Description                |
+|--------|---------------------------------------|----------------------------|
+| POST   | `/api/v1/admin/academic-years`        | Create academic year       |
+| GET    | `/api/v1/admin/academic-years`        | List academic years        |
+| GET    | `/api/v1/admin/academic-years/:id`    | Get academic year by ID    |
+| PATCH  | `/api/v1/admin/academic-years/:id`    | Update academic year       |
+| DELETE | `/api/v1/admin/academic-years/:id`    | Soft delete academic year  |
+| POST   | `/api/v1/admin/classes`               | Create class               |
+| GET    | `/api/v1/admin/classes`               | List classes               |
+| GET    | `/api/v1/admin/classes/:id`           | Get class by ID            |
+| PATCH  | `/api/v1/admin/classes/:id`           | Update class               |
+| DELETE | `/api/v1/admin/classes/:id`           | Soft delete class          |
+| POST   | `/api/v1/admin/sections`              | Create section             |
+| GET    | `/api/v1/admin/sections`              | List sections              |
+| GET    | `/api/v1/admin/sections/:id`          | Get section by ID          |
+| PATCH  | `/api/v1/admin/sections/:id`          | Update section             |
+| DELETE | `/api/v1/admin/sections/:id`          | Soft delete section        |
+
+### Students And Guardians (requires selected tenant token)
+
+| Method | Endpoint                                           | Permission          | Description               |
+|--------|----------------------------------------------------|---------------------|---------------------------|
+| POST   | `/api/v1/admin/students`                           | `students.manage`   | Create student            |
+| GET    | `/api/v1/admin/students`                           | `students.manage`   | List/search students      |
+| GET    | `/api/v1/admin/students/:id`                       | `students.manage`   | Get student by ID         |
+| PATCH  | `/api/v1/admin/students/:id`                       | `students.manage`   | Update student            |
+| DELETE | `/api/v1/admin/students/:id`                       | `students.manage`   | Soft delete student       |
+| POST   | `/api/v1/admin/students/:id/guardians`             | `students.manage`   | Link guardian to student  |
+| DELETE | `/api/v1/admin/students/:id/guardians/:guardian_id`| `students.manage`   | Unlink guardian           |
+| POST   | `/api/v1/admin/guardians`                          | `guardians.manage`  | Create guardian           |
+| GET    | `/api/v1/admin/guardians`                          | `guardians.manage`  | List/search guardians     |
+| GET    | `/api/v1/admin/guardians/:id`                      | `guardians.manage`  | Get guardian by ID        |
+| PATCH  | `/api/v1/admin/guardians/:id`                      | `guardians.manage`  | Update guardian           |
+| DELETE | `/api/v1/admin/guardians/:id`                      | `guardians.manage`  | Soft delete guardian      |
+
+Student list supports `academic_year_id`, `class_id`, `section_id`, `status`, and `search` filters.
+
+### Student Imports (requires selected tenant token + `imports.manage`)
+
+| Method | Endpoint                                      | Description                    |
+|--------|-----------------------------------------------|--------------------------------|
+| GET    | `/api/v1/admin/imports`                       | List import history            |
+| GET    | `/api/v1/admin/imports/students/template`     | Download student CSV template  |
+| POST   | `/api/v1/admin/imports/students/preview`      | Validate and store preview     |
+| POST   | `/api/v1/admin/imports/students/commit`       | Commit a clean preview         |
+
+Student import preview accepts multipart `file`, raw `text/csv`, or JSON `{ "filename": "students.csv", "csv": "..." }`. Commit accepts `{ "import_id": "..." }` and runs transactionally.
+
 ### Admin (requires super_admin or admin role)
 
 | Method | Endpoint                    | Description              |

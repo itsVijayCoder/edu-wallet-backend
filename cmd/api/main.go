@@ -74,6 +74,8 @@ func run() error {
 	tenantRepo := postgres.NewTenantRepository(pool)
 	membershipRepo := postgres.NewTenantMembershipRepository(pool)
 	auditRepo := postgres.NewAuditRepository(pool)
+	academicRepo := postgres.NewAcademicRepository(pool)
+	transactor := database.NewTransactor(pool)
 	// --- ADD YOUR REPOSITORIES HERE ---
 
 	// --- Services ---
@@ -91,6 +93,7 @@ func run() error {
 	)
 	userSvc := service.NewUserService(userRepo, roleRepo, h, rdb)
 	tenantSvc := service.NewTenantService(tenantRepo, membershipRepo, roleRepo, auditRepo)
+	academicSvc := service.NewAcademicService(academicRepo, postgres.NewAcademicRepository, transactor, auditRepo)
 	// --- ADD YOUR SERVICES HERE ---
 
 	// --- Router ---
@@ -100,10 +103,11 @@ func run() error {
 		ExternalURL: cfg.App.ExternalURL,
 		CORSOrigins: cfg.App.CORSOrigins,
 	}, tokenMgr, rdb, router.Handlers{
-		Health: handler.NewHealthHandler(pool, rdb),
-		Auth:   handler.NewAuthHandler(authSvc),
-		User:   handler.NewAdminUserHandler(userSvc),
-		Tenant: handler.NewTenantHandler(tenantSvc),
+		Health:   handler.NewHealthHandler(pool, rdb),
+		Auth:     handler.NewAuthHandler(authSvc),
+		User:     handler.NewAdminUserHandler(userSvc),
+		Tenant:   handler.NewTenantHandler(tenantSvc),
+		Academic: handler.NewAcademicHandler(academicSvc),
 		// --- ADD YOUR HANDLERS HERE ---
 	})
 

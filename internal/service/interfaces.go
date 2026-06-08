@@ -47,3 +47,42 @@ type TenantService interface {
 	GetCurrent(ctx context.Context, tenantID uuid.UUID) (*dto.TenantResponse, error)
 	UpdateCurrent(ctx context.Context, actorID, tenantID uuid.UUID, req dto.UpdateTenantRequest) (*dto.TenantResponse, error)
 }
+
+type AcademicService interface {
+	CreateAcademicYear(ctx context.Context, actorID, tenantID uuid.UUID, req dto.CreateAcademicYearRequest) (*dto.AcademicYearResponse, error)
+	ListAcademicYears(ctx context.Context, tenantID uuid.UUID, filter model.AcademicYearFilter, params model.PaginationParams) (*model.PaginatedResult[dto.AcademicYearResponse], error)
+	GetAcademicYear(ctx context.Context, tenantID, id uuid.UUID) (*dto.AcademicYearResponse, error)
+	UpdateAcademicYear(ctx context.Context, actorID, tenantID, id uuid.UUID, req dto.UpdateAcademicYearRequest) (*dto.AcademicYearResponse, error)
+	DeleteAcademicYear(ctx context.Context, actorID, tenantID, id uuid.UUID) error
+
+	CreateClass(ctx context.Context, actorID, tenantID uuid.UUID, req dto.CreateClassRequest) (*dto.ClassResponse, error)
+	ListClasses(ctx context.Context, tenantID uuid.UUID, filter model.ClassFilter, params model.PaginationParams) (*model.PaginatedResult[dto.ClassResponse], error)
+	GetClass(ctx context.Context, tenantID, id uuid.UUID) (*dto.ClassResponse, error)
+	UpdateClass(ctx context.Context, actorID, tenantID, id uuid.UUID, req dto.UpdateClassRequest) (*dto.ClassResponse, error)
+	DeleteClass(ctx context.Context, actorID, tenantID, id uuid.UUID) error
+
+	CreateSection(ctx context.Context, actorID, tenantID uuid.UUID, req dto.CreateSectionRequest) (*dto.SectionResponse, error)
+	ListSections(ctx context.Context, tenantID uuid.UUID, filter model.SectionFilter, params model.PaginationParams) (*model.PaginatedResult[dto.SectionResponse], error)
+	GetSection(ctx context.Context, tenantID, id uuid.UUID) (*dto.SectionResponse, error)
+	UpdateSection(ctx context.Context, actorID, tenantID, id uuid.UUID, req dto.UpdateSectionRequest) (*dto.SectionResponse, error)
+	DeleteSection(ctx context.Context, actorID, tenantID, id uuid.UUID) error
+
+	CreateGuardian(ctx context.Context, actorID, tenantID uuid.UUID, req dto.CreateGuardianRequest) (*dto.GuardianResponse, error)
+	ListGuardians(ctx context.Context, tenantID uuid.UUID, filter model.GuardianFilter, params model.PaginationParams) (*model.PaginatedResult[dto.GuardianResponse], error)
+	GetGuardian(ctx context.Context, tenantID, id uuid.UUID) (*dto.GuardianResponse, error)
+	UpdateGuardian(ctx context.Context, actorID, tenantID, id uuid.UUID, req dto.UpdateGuardianRequest) (*dto.GuardianResponse, error)
+	DeleteGuardian(ctx context.Context, actorID, tenantID, id uuid.UUID) error
+
+	CreateStudent(ctx context.Context, actorID, tenantID uuid.UUID, req dto.CreateStudentRequest) (*dto.StudentResponse, error)
+	ListStudents(ctx context.Context, tenantID uuid.UUID, filter model.StudentFilter, params model.PaginationParams) (*model.PaginatedResult[dto.StudentResponse], error)
+	GetStudent(ctx context.Context, tenantID, id uuid.UUID) (*dto.StudentResponse, error)
+	UpdateStudent(ctx context.Context, actorID, tenantID, id uuid.UUID, req dto.UpdateStudentRequest) (*dto.StudentResponse, error)
+	DeleteStudent(ctx context.Context, actorID, tenantID, id uuid.UUID) error
+	LinkStudentGuardian(ctx context.Context, actorID, tenantID, studentID uuid.UUID, req dto.StudentGuardianRequest) (*dto.StudentResponse, error)
+	UnlinkStudentGuardian(ctx context.Context, actorID, tenantID, studentID, guardianID uuid.UUID) (*dto.StudentResponse, error)
+
+	StudentImportTemplate() string
+	PreviewStudentImport(ctx context.Context, actorID, tenantID uuid.UUID, filename string, csvData []byte) (*dto.StudentImportPreviewResponse, error)
+	CommitStudentImport(ctx context.Context, actorID, tenantID uuid.UUID, req dto.StudentImportCommitRequest) (*dto.StudentImportCommitResponse, error)
+	ListImports(ctx context.Context, tenantID uuid.UUID, filter model.ImportFilter, params model.PaginationParams) (*model.PaginatedResult[dto.ImportResponse], error)
+}

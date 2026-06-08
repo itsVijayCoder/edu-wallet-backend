@@ -14,10 +14,11 @@ import (
 
 // Handlers aggregates all handler structs for dependency injection into the router.
 type Handlers struct {
-	Health *handler.HealthHandler
-	Auth   *handler.AuthHandler
-	User   *handler.AdminUserHandler
-	Tenant *handler.TenantHandler
+	Health   *handler.HealthHandler
+	Auth     *handler.AuthHandler
+	User     *handler.AdminUserHandler
+	Tenant   *handler.TenantHandler
+	Academic *handler.AcademicHandler
 }
 
 // RouterConfig holds router-level configuration.
@@ -95,6 +96,61 @@ func New(log *slog.Logger, cfg RouterConfig, tokenMgr jwt.TokenManager, rdb *red
 		{
 			adminTenant.GET("/tenant", middleware.PermissionGuard("tenant.read"), h.Tenant.AdminGet)
 			adminTenant.PATCH("/tenant", middleware.PermissionGuard("tenant.update"), h.Tenant.AdminUpdate)
+
+			academicYears := adminTenant.Group("/academic-years", middleware.PermissionGuard("academic.manage"))
+			{
+				academicYears.POST("", h.Academic.CreateAcademicYear)
+				academicYears.GET("", h.Academic.ListAcademicYears)
+				academicYears.GET("/:id", h.Academic.GetAcademicYear)
+				academicYears.PATCH("/:id", h.Academic.UpdateAcademicYear)
+				academicYears.DELETE("/:id", h.Academic.DeleteAcademicYear)
+			}
+
+			classes := adminTenant.Group("/classes", middleware.PermissionGuard("academic.manage"))
+			{
+				classes.POST("", h.Academic.CreateClass)
+				classes.GET("", h.Academic.ListClasses)
+				classes.GET("/:id", h.Academic.GetClass)
+				classes.PATCH("/:id", h.Academic.UpdateClass)
+				classes.DELETE("/:id", h.Academic.DeleteClass)
+			}
+
+			sections := adminTenant.Group("/sections", middleware.PermissionGuard("academic.manage"))
+			{
+				sections.POST("", h.Academic.CreateSection)
+				sections.GET("", h.Academic.ListSections)
+				sections.GET("/:id", h.Academic.GetSection)
+				sections.PATCH("/:id", h.Academic.UpdateSection)
+				sections.DELETE("/:id", h.Academic.DeleteSection)
+			}
+
+			students := adminTenant.Group("/students", middleware.PermissionGuard("students.manage"))
+			{
+				students.POST("", h.Academic.CreateStudent)
+				students.GET("", h.Academic.ListStudents)
+				students.GET("/:id", h.Academic.GetStudent)
+				students.PATCH("/:id", h.Academic.UpdateStudent)
+				students.DELETE("/:id", h.Academic.DeleteStudent)
+				students.POST("/:id/guardians", h.Academic.LinkStudentGuardian)
+				students.DELETE("/:id/guardians/:guardian_id", h.Academic.UnlinkStudentGuardian)
+			}
+
+			guardians := adminTenant.Group("/guardians", middleware.PermissionGuard("guardians.manage"))
+			{
+				guardians.POST("", h.Academic.CreateGuardian)
+				guardians.GET("", h.Academic.ListGuardians)
+				guardians.GET("/:id", h.Academic.GetGuardian)
+				guardians.PATCH("/:id", h.Academic.UpdateGuardian)
+				guardians.DELETE("/:id", h.Academic.DeleteGuardian)
+			}
+
+			imports := adminTenant.Group("/imports", middleware.PermissionGuard("imports.manage"))
+			{
+				imports.GET("", h.Academic.ListImports)
+				imports.GET("/students/template", h.Academic.StudentImportTemplate)
+				imports.POST("/students/preview", h.Academic.PreviewStudentImport)
+				imports.POST("/students/commit", h.Academic.CommitStudentImport)
+			}
 		}
 
 		// --- ADD YOUR ROUTES HERE ---
