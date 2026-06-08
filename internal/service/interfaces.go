@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -121,4 +122,35 @@ type PaymentService interface {
 	ListParentReceipts(ctx context.Context, tenantID uuid.UUID, filter model.ReceiptFilter, params model.PaginationParams) (*model.PaginatedResult[dto.ReceiptResponse], error)
 	DownloadParentReceipt(ctx context.Context, tenantID, id uuid.UUID) (*dto.ReceiptDownloadResponse, error)
 	ListPaymentEvents(ctx context.Context, tenantID uuid.UUID, filter model.PaymentEventFilter, params model.PaginationParams) (*model.PaginatedResult[dto.PaymentEventResponse], error)
+}
+
+type OperationsService interface {
+	CreateReminderTemplate(ctx context.Context, actorID, tenantID uuid.UUID, req dto.CreateReminderTemplateRequest) (*dto.ReminderTemplateResponse, error)
+	ListReminderTemplates(ctx context.Context, tenantID uuid.UUID, filter model.ReminderTemplateFilter, params model.PaginationParams) (*model.PaginatedResult[dto.ReminderTemplateResponse], error)
+	GetReminderTemplate(ctx context.Context, tenantID, id uuid.UUID) (*dto.ReminderTemplateResponse, error)
+	UpdateReminderTemplate(ctx context.Context, actorID, tenantID, id uuid.UUID, req dto.UpdateReminderTemplateRequest) (*dto.ReminderTemplateResponse, error)
+	DeleteReminderTemplate(ctx context.Context, actorID, tenantID, id uuid.UUID) error
+
+	CreateReminderRule(ctx context.Context, actorID, tenantID uuid.UUID, req dto.CreateReminderRuleRequest) (*dto.ReminderRuleResponse, error)
+	ListReminderRules(ctx context.Context, tenantID uuid.UUID, filter model.ReminderRuleFilter, params model.PaginationParams) (*model.PaginatedResult[dto.ReminderRuleResponse], error)
+	GetReminderRule(ctx context.Context, tenantID, id uuid.UUID) (*dto.ReminderRuleResponse, error)
+	UpdateReminderRule(ctx context.Context, actorID, tenantID, id uuid.UUID, req dto.UpdateReminderRuleRequest) (*dto.ReminderRuleResponse, error)
+	DeleteReminderRule(ctx context.Context, actorID, tenantID, id uuid.UUID) error
+
+	SendReminders(ctx context.Context, actorID, tenantID uuid.UUID, req dto.SendReminderRequest) (*dto.SendReminderResponse, error)
+	ListReminderLogs(ctx context.Context, tenantID uuid.UUID, filter model.ReminderLogFilter, params model.PaginationParams) (*model.PaginatedResult[dto.ReminderLogResponse], error)
+	ProcessDueReminderJobs(ctx context.Context, tenantID uuid.UUID, limit int) (*dto.SendReminderResponse, error)
+	ProcessDueReminderJobsForAllTenants(ctx context.Context, limit int) (*dto.SendReminderResponse, error)
+
+	GetDashboard(ctx context.Context, tenantID uuid.UUID, asOf time.Time) (*dto.DashboardResponse, error)
+	ListCollectionReport(ctx context.Context, tenantID uuid.UUID, filter model.ReportFilter, params model.PaginationParams) (*model.PaginatedResult[dto.CollectionReportRowResponse], error)
+	ListDefaulterReport(ctx context.Context, tenantID uuid.UUID, filter model.ReportFilter, params model.PaginationParams) (*model.PaginatedResult[dto.DefaulterReportRowResponse], error)
+	ListDueReport(ctx context.Context, tenantID uuid.UUID, filter model.ReportFilter, params model.PaginationParams) (*model.PaginatedResult[dto.DueReportRowResponse], error)
+	ListFeeHeadCollectionReport(ctx context.Context, tenantID uuid.UUID, filter model.ReportFilter, params model.PaginationParams) (*model.PaginatedResult[dto.FeeHeadCollectionRowResponse], error)
+	ListPaymentMethodReport(ctx context.Context, tenantID uuid.UUID, filter model.ReportFilter, params model.PaginationParams) (*model.PaginatedResult[dto.PaymentMethodReportRowResponse], error)
+
+	CreateExport(ctx context.Context, actorID, tenantID uuid.UUID, req dto.CreateExportRequest) (*dto.ExportJobResponse, error)
+	ListExports(ctx context.Context, tenantID uuid.UUID, filter model.ExportJobFilter, params model.PaginationParams) (*model.PaginatedResult[dto.ExportJobResponse], error)
+	GetExport(ctx context.Context, tenantID, id uuid.UUID) (*dto.ExportJobResponse, error)
+	DownloadExport(ctx context.Context, tenantID, id uuid.UUID) (*dto.ExportDownloadResponse, error)
 }

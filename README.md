@@ -186,6 +186,40 @@ Order creation accepts `student_id`, `invoice_ids`, optional `amount_paise`, and
 
 Webhook and payment verification paths are idempotent by provider event/payment IDs. Successful payments atomically update invoice balances, create payment allocations, generate one receipt per payment, and record payment events/audit logs.
 
+### Reminders, Reports, And Exports
+
+Reminder endpoints require selected tenant token + `reminders.manage`. Report endpoints require `reports.view`. Export endpoints require `exports.manage`.
+
+| Method | Endpoint                                      | Description                          |
+|--------|-----------------------------------------------|--------------------------------------|
+| POST   | `/api/v1/admin/reminder-templates`            | Create reminder template             |
+| GET    | `/api/v1/admin/reminder-templates`            | List reminder templates              |
+| GET    | `/api/v1/admin/reminder-templates/:id`        | Get reminder template                |
+| PATCH  | `/api/v1/admin/reminder-templates/:id`        | Update reminder template             |
+| DELETE | `/api/v1/admin/reminder-templates/:id`        | Soft delete reminder template        |
+| POST   | `/api/v1/admin/reminder-rules`                | Create reminder rule                 |
+| GET    | `/api/v1/admin/reminder-rules`                | List reminder rules                  |
+| GET    | `/api/v1/admin/reminder-rules/:id`            | Get reminder rule                    |
+| PATCH  | `/api/v1/admin/reminder-rules/:id`            | Update reminder rule                 |
+| DELETE | `/api/v1/admin/reminder-rules/:id`            | Soft delete reminder rule            |
+| POST   | `/api/v1/admin/reminders/send`                | Queue targeted reminders and optionally process now |
+| GET    | `/api/v1/admin/reminder-logs`                 | List reminder delivery logs          |
+| GET    | `/api/v1/admin/dashboard`                     | Collection and due summary           |
+| GET    | `/api/v1/admin/reports/collections`           | Date-range collection report         |
+| GET    | `/api/v1/admin/reports/defaulters`            | Student defaulter report             |
+| GET    | `/api/v1/admin/reports/dues`                  | Class/section-wise due report        |
+| GET    | `/api/v1/admin/reports/fee-heads`             | Fee-head-wise collection report      |
+| GET    | `/api/v1/admin/reports/payment-methods`       | Payment-mode report                  |
+| GET    | `/api/v1/admin/reports/offline-payments`      | Offline collection report            |
+| POST   | `/api/v1/admin/exports`                       | Generate CSV export                  |
+| GET    | `/api/v1/admin/exports`                       | List export jobs                     |
+| GET    | `/api/v1/admin/exports/:id`                   | Get export job status                |
+| GET    | `/api/v1/admin/exports/:id/download`          | Download generated CSV               |
+
+Reminder sends create durable `jobs`, `reminder_logs`, and `notification_logs`. Inline processing is enabled by default for `POST /reminders/send`; background retry processing is available by running the same binary with `APP_MODE=worker`.
+
+CSV exports are generated into `export_jobs` for the MVP. The service supports collection, defaulter, dues, payment-method, fee-head, offline-payment, and receipt-register export types.
+
 ### Parent Dues (requires auth + selected tenant token)
 
 | Method | Endpoint                              | Description             |
@@ -232,7 +266,9 @@ Copy `.env.example` to `.env` and adjust values. Key settings:
 | Variable             | Default          | Description                     |
 |----------------------|------------------|---------------------------------|
 | `APP_ENV`            | `development`    | Environment (development/production) |
+| `APP_MODE`           | `api`            | Runtime mode: `api` or `worker`      |
 | `APP_PORT`           | `8080`           | HTTP server port                |
+| `WORKER_POLL_INTERVAL` | `5s`           | Reminder job polling interval in worker mode |
 | `DB_HOST`            | `localhost`      | PostgreSQL host                 |
 | `DB_PORT`            | `5432`           | PostgreSQL port                 |
 | `REDIS_HOST`         | `localhost`      | Redis host                      |
@@ -240,6 +276,7 @@ Copy `.env.example` to `.env` and adjust values. Key settings:
 | `JWT_REFRESH_SECRET` | -                | Refresh token signing key       |
 | `AUTH_PUBLIC_REGISTRATION_ENABLED` | `false` | Enables public registration in production |
 | `RESEND_API_KEY`     | -                | Resend API key (optional, for emails) |
+| `PAYMENT_PROVIDER`   | `fake`           | Payment provider: `fake` or `razorpay` |
 
 ## Testing
 

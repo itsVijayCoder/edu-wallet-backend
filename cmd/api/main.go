@@ -78,6 +78,7 @@ func run() error {
 	academicRepo := postgres.NewAcademicRepository(pool)
 	billingRepo := postgres.NewBillingRepository(pool)
 	paymentRepo := postgres.NewPaymentRepository(pool)
+	operationsRepo := postgres.NewOperationsRepository(pool)
 	transactor := database.NewTransactor(pool)
 	// --- ADD YOUR REPOSITORIES HERE ---
 
@@ -101,7 +102,19 @@ func run() error {
 	paymentRenderer := service.NewPDFReceiptRenderer()
 	paymentSvc := service.NewPaymentService(paymentRepo, postgres.NewPaymentRepository, academicRepo, transactor, auditRepo, paymentProvider, paymentRenderer)
 	billingSvc := service.NewBillingService(billingRepo, postgres.NewBillingRepository, academicRepo, transactor, auditRepo, paymentRepo)
+	notificationProvider := service.NewNotificationProvider(emailClient)
+	operationsSvc := service.NewOperationsService(operationsRepo, postgres.NewOperationsRepository, transactor, auditRepo, notificationProvider)
 	// --- ADD YOUR SERVICES HERE ---
+
+	if strings.EqualFold(cfg.App.Mode, "worker") {
+		defer pool.Close()
+		defer func() {
+			if err := rdb.Close(); err != nil {
+				log.Error("redis close error", slog.String("error", err.Error()))
+			}
+		}()
+		return runOperationsWorker(log, cfg.App.WorkerPollInterval, operationsSvc)
+	}
 
 	// --- Router ---
 	r := router.New(log, router.RouterConfig{
@@ -117,6 +130,7 @@ func run() error {
 		Academic: handler.NewAcademicHandler(academicSvc),
 		Billing:  handler.NewBillingHandler(billingSvc),
 		Payment:  handler.NewPaymentHandler(paymentSvc),
+		Ops:      handler.NewOperationsHandler(operationsSvc),
 		// --- ADD YOUR HANDLERS HERE ---
 	})
 
@@ -175,4 +189,28 @@ func paymentProviderFromConfig(cfg *config.Config) service.PaymentProvider {
 		)
 	}
 	return service.NewFakePaymentProvider("fake", cfg.Payments.FakeSigningSecret)
+}
+
+func runOperationsWorker(log *slog.Logger, pollInterval time.Duration, operationsSvc service.OperationsService) error {
+	if pollInterval <= 0 {
+		pollInterval = 5 * time.Second
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	log.Info("starting eduwallet worker", "poll_interval", pollInterval.String())
+	ticker := time.NewTicker(pollInterval)
+	defer ticker.Stop()
+
+	for {
+		if _, err := operationsSvc.ProcessDueReminderJobsForAllTenants(ctx, 25); err != nil && ctx.Err() == nil {
+			log.Error("worker reminder job batch failed", slog.String("error", err.Error()))
+		}
+		select {
+		case <-ctx.Done():
+			log.Info("eduwallet worker stopped")
+			return nil
+		case <-ticker.C:
+		}
+	}
 }

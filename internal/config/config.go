@@ -22,11 +22,13 @@ type Config struct {
 }
 
 type AppConfig struct {
-	Env         string   `env:"APP_ENV"          envDefault:"development"`
-	Port        int      `env:"APP_PORT"         envDefault:"8080"`
-	Name        string   `env:"APP_NAME"         envDefault:"eduwallet"`
-	ExternalURL string   `env:"APP_EXTERNAL_URL"`
-	CORSOrigins []string `env:"CORS_ALLOWED_ORIGINS" envSeparator:","`
+	Env                string        `env:"APP_ENV"          envDefault:"development"`
+	Mode               string        `env:"APP_MODE"         envDefault:"api"`
+	Port               int           `env:"APP_PORT"         envDefault:"8080"`
+	Name               string        `env:"APP_NAME"         envDefault:"eduwallet"`
+	ExternalURL        string        `env:"APP_EXTERNAL_URL"`
+	CORSOrigins        []string      `env:"CORS_ALLOWED_ORIGINS" envSeparator:","`
+	WorkerPollInterval time.Duration `env:"WORKER_POLL_INTERVAL" envDefault:"5s"`
 }
 
 type AuthConfig struct {
@@ -88,6 +90,9 @@ func validate(cfg *Config) error {
 		if cfg.Payments.RazorpayKeyID == "" || cfg.Payments.RazorpayKeySecret == "" || cfg.Payments.RazorpayWebhookSecret == "" {
 			return fmt.Errorf("razorpay payment provider requires RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, and RAZORPAY_WEBHOOK_SECRET")
 		}
+	}
+	if cfg.App.Mode != "api" && cfg.App.Mode != "worker" {
+		return fmt.Errorf("APP_MODE must be api or worker")
 	}
 
 	return nil

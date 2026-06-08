@@ -65,6 +65,8 @@ type BillingRepositoryFactory func(db database.DBTX) BillingRepository
 
 type PaymentRepositoryFactory func(db database.DBTX) PaymentRepository
 
+type OperationsRepositoryFactory func(db database.DBTX) OperationsRepository
+
 // AcademicRepository defines tenant-scoped academic setup, student, guardian, and import operations.
 type AcademicRepository interface {
 	CreateAcademicYear(ctx context.Context, academicYear *model.AcademicYear) error
@@ -188,4 +190,49 @@ type PaymentRepository interface {
 
 	CreatePaymentEvent(ctx context.Context, event *model.PaymentEvent) error
 	ListPaymentEvents(ctx context.Context, tenantID uuid.UUID, filter model.PaymentEventFilter, params model.PaginationParams) (*model.PaginatedResult[model.PaymentEvent], error)
+}
+
+// OperationsRepository defines tenant-scoped reminders, notification logs, reports, jobs, and exports.
+type OperationsRepository interface {
+	CreateReminderTemplate(ctx context.Context, template *model.ReminderTemplate) error
+	GetReminderTemplate(ctx context.Context, tenantID, id uuid.UUID) (*model.ReminderTemplate, error)
+	GetReminderTemplateByCode(ctx context.Context, tenantID uuid.UUID, code string) (*model.ReminderTemplate, error)
+	ListReminderTemplates(ctx context.Context, tenantID uuid.UUID, filter model.ReminderTemplateFilter, params model.PaginationParams) (*model.PaginatedResult[model.ReminderTemplate], error)
+	UpdateReminderTemplate(ctx context.Context, template *model.ReminderTemplate) error
+	SoftDeleteReminderTemplate(ctx context.Context, tenantID, id uuid.UUID) error
+
+	CreateReminderRule(ctx context.Context, rule *model.ReminderRule) error
+	GetReminderRule(ctx context.Context, tenantID, id uuid.UUID) (*model.ReminderRule, error)
+	GetReminderRuleByCode(ctx context.Context, tenantID uuid.UUID, code string) (*model.ReminderRule, error)
+	ListReminderRules(ctx context.Context, tenantID uuid.UUID, filter model.ReminderRuleFilter, params model.PaginationParams) (*model.PaginatedResult[model.ReminderRule], error)
+	UpdateReminderRule(ctx context.Context, rule *model.ReminderRule) error
+	SoftDeleteReminderRule(ctx context.Context, tenantID, id uuid.UUID) error
+
+	ListReminderCandidates(ctx context.Context, tenantID uuid.UUID, filter model.ReminderCandidateFilter) ([]model.ReminderCandidate, error)
+	CreateJob(ctx context.Context, job *model.Job) error
+	GetJob(ctx context.Context, tenantID, id uuid.UUID) (*model.Job, error)
+	ListTenantsWithDueJobs(ctx context.Context, jobType string, limit int) ([]uuid.UUID, error)
+	ClaimDueJobs(ctx context.Context, tenantID uuid.UUID, jobType, workerID string, limit int) ([]model.Job, error)
+	MarkJobSucceeded(ctx context.Context, tenantID, id uuid.UUID) error
+	MarkJobFailed(ctx context.Context, tenantID, id uuid.UUID, lastError string, retryAt *time.Time) error
+
+	CreateReminderLog(ctx context.Context, log *model.ReminderLog) error
+	GetReminderLog(ctx context.Context, tenantID, id uuid.UUID) (*model.ReminderLog, error)
+	ListReminderLogs(ctx context.Context, tenantID uuid.UUID, filter model.ReminderLogFilter, params model.PaginationParams) (*model.PaginatedResult[model.ReminderLog], error)
+	UpdateReminderLogDelivery(ctx context.Context, log *model.ReminderLog) error
+	CreateNotificationLog(ctx context.Context, log *model.NotificationLog) error
+
+	GetDashboardSummary(ctx context.Context, tenantID uuid.UUID, asOf time.Time, recentLimit int) (*model.DashboardSummary, error)
+	ListCollectionReport(ctx context.Context, tenantID uuid.UUID, filter model.ReportFilter, params model.PaginationParams) (*model.PaginatedResult[model.CollectionReportRow], error)
+	ListDefaulterReport(ctx context.Context, tenantID uuid.UUID, filter model.ReportFilter, params model.PaginationParams) (*model.PaginatedResult[model.DefaulterReportRow], error)
+	ListDueReport(ctx context.Context, tenantID uuid.UUID, filter model.ReportFilter, params model.PaginationParams) (*model.PaginatedResult[model.DueReportRow], error)
+	ListFeeHeadCollectionReport(ctx context.Context, tenantID uuid.UUID, filter model.ReportFilter, params model.PaginationParams) (*model.PaginatedResult[model.FeeHeadCollectionRow], error)
+	ListPaymentMethodReport(ctx context.Context, tenantID uuid.UUID, filter model.ReportFilter, params model.PaginationParams) (*model.PaginatedResult[model.PaymentMethodReportRow], error)
+
+	CreateExportJob(ctx context.Context, job *model.ExportJob) error
+	GetExportJob(ctx context.Context, tenantID, id uuid.UUID) (*model.ExportJob, error)
+	ListExportJobs(ctx context.Context, tenantID uuid.UUID, filter model.ExportJobFilter, params model.PaginationParams) (*model.PaginatedResult[model.ExportJob], error)
+	MarkExportJobProcessing(ctx context.Context, tenantID, id uuid.UUID) error
+	CompleteExportJob(ctx context.Context, job *model.ExportJob) error
+	FailExportJob(ctx context.Context, tenantID, id uuid.UUID, message string) error
 }

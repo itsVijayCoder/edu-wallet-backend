@@ -164,6 +164,7 @@ func SetupSuite(t *testing.T) *TestSuite {
 	academicRepo := postgres.NewAcademicRepository(pgPool)
 	billingRepo := postgres.NewBillingRepository(pgPool)
 	paymentRepo := postgres.NewPaymentRepository(pgPool)
+	operationsRepo := postgres.NewOperationsRepository(pgPool)
 	transactor := database.NewTransactor(pgPool)
 
 	// Services - use a no-op email service for e2e tests
@@ -175,6 +176,7 @@ func SetupSuite(t *testing.T) *TestSuite {
 	paymentProvider := service.NewFakePaymentProvider("fake", "test_payment_secret")
 	paymentSvc := service.NewPaymentService(paymentRepo, postgres.NewPaymentRepository, academicRepo, transactor, auditRepo, paymentProvider, service.NewPDFReceiptRenderer())
 	billingSvc := service.NewBillingService(billingRepo, postgres.NewBillingRepository, academicRepo, transactor, auditRepo, paymentRepo)
+	operationsSvc := service.NewOperationsService(operationsRepo, postgres.NewOperationsRepository, transactor, auditRepo, service.NewNotificationProvider(nil))
 
 	// Router
 	r := router.New(log, router.RouterConfig{
@@ -190,6 +192,7 @@ func SetupSuite(t *testing.T) *TestSuite {
 		Academic: handler.NewAcademicHandler(academicSvc),
 		Billing:  handler.NewBillingHandler(billingSvc),
 		Payment:  handler.NewPaymentHandler(paymentSvc),
+		Ops:      handler.NewOperationsHandler(operationsSvc),
 	})
 
 	return &TestSuite{
@@ -254,7 +257,10 @@ func truncateAndReseed(t *testing.T, pool *pgxpool.Pool, rdb *redis.Client) {
 			('guardians.manage', 'Manage Guardians', 'tenant', 'Create, update, and list tenant guardians'),
 			('imports.manage', 'Manage Imports', 'tenant', 'Preview and commit student imports'),
 			('fees.manage', 'Manage Fees', 'tenant', 'Create fee setup, assignments, and generated invoices'),
-			('payments.manage', 'Manage Payments', 'tenant', 'Record payments, process webhooks, and manage receipts')
+			('payments.manage', 'Manage Payments', 'tenant', 'Record payments, process webhooks, and manage receipts'),
+			('reminders.manage', 'Manage Reminders', 'tenant', 'Create reminder templates, rules, and send reminders'),
+			('reports.view', 'View Reports', 'tenant', 'View dashboard and financial reports'),
+			('exports.manage', 'Manage Exports', 'tenant', 'Create and download report exports')
 		ON CONFLICT (code) DO UPDATE
 		SET name = EXCLUDED.name,
 			category = EXCLUDED.category,
@@ -280,7 +286,10 @@ func truncateAndReseed(t *testing.T, pool *pgxpool.Pool, rdb *redis.Client) {
 			'guardians.manage',
 			'imports.manage',
 			'fees.manage',
-			'payments.manage'
+			'payments.manage',
+			'reminders.manage',
+			'reports.view',
+			'exports.manage'
 		)
 		WHERE r.slug = 'admin'
 		ON CONFLICT DO NOTHING;

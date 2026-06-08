@@ -21,6 +21,7 @@ type Handlers struct {
 	Academic *handler.AcademicHandler
 	Billing  *handler.BillingHandler
 	Payment  *handler.PaymentHandler
+	Ops      *handler.OperationsHandler
 }
 
 // RouterConfig holds router-level configuration.
@@ -207,6 +208,46 @@ func New(log *slog.Logger, cfg RouterConfig, tokenMgr jwt.TokenManager, rdb *red
 			}
 
 			adminTenant.GET("/payment-events", middleware.PermissionGuard("payments.manage"), h.Payment.ListPaymentEvents)
+
+			reminderTemplates := adminTenant.Group("/reminder-templates", middleware.PermissionGuard("reminders.manage"))
+			{
+				reminderTemplates.POST("", h.Ops.CreateReminderTemplate)
+				reminderTemplates.GET("", h.Ops.ListReminderTemplates)
+				reminderTemplates.GET("/:id", h.Ops.GetReminderTemplate)
+				reminderTemplates.PATCH("/:id", h.Ops.UpdateReminderTemplate)
+				reminderTemplates.DELETE("/:id", h.Ops.DeleteReminderTemplate)
+			}
+
+			reminderRules := adminTenant.Group("/reminder-rules", middleware.PermissionGuard("reminders.manage"))
+			{
+				reminderRules.POST("", h.Ops.CreateReminderRule)
+				reminderRules.GET("", h.Ops.ListReminderRules)
+				reminderRules.GET("/:id", h.Ops.GetReminderRule)
+				reminderRules.PATCH("/:id", h.Ops.UpdateReminderRule)
+				reminderRules.DELETE("/:id", h.Ops.DeleteReminderRule)
+			}
+
+			adminTenant.POST("/reminders/send", middleware.PermissionGuard("reminders.manage"), h.Ops.SendReminders)
+			adminTenant.GET("/reminder-logs", middleware.PermissionGuard("reminders.manage"), h.Ops.ListReminderLogs)
+
+			adminTenant.GET("/dashboard", middleware.PermissionGuard("reports.view"), h.Ops.GetDashboard)
+			reports := adminTenant.Group("/reports", middleware.PermissionGuard("reports.view"))
+			{
+				reports.GET("/collections", h.Ops.CollectionsReport)
+				reports.GET("/defaulters", h.Ops.DefaultersReport)
+				reports.GET("/dues", h.Ops.DuesReport)
+				reports.GET("/fee-heads", h.Ops.FeeHeadsReport)
+				reports.GET("/payment-methods", h.Ops.PaymentMethodsReport)
+				reports.GET("/offline-payments", h.Ops.OfflinePaymentsReport)
+			}
+
+			exports := adminTenant.Group("/exports", middleware.PermissionGuard("exports.manage"))
+			{
+				exports.POST("", h.Ops.CreateExport)
+				exports.GET("", h.Ops.ListExports)
+				exports.GET("/:id", h.Ops.GetExport)
+				exports.GET("/:id/download", h.Ops.DownloadExport)
+			}
 		}
 
 		parent := v1.Group("/parent", middleware.Auth(tokenMgr), middleware.RequireTenant())
