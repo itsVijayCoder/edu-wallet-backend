@@ -84,6 +84,9 @@ func validate(cfg *Config) error {
 	if cfg.App.Mode != "api" && cfg.App.Mode != "worker" {
 		return fmt.Errorf("APP_MODE must be api or worker")
 	}
+	if cfg.DB.DatabaseURL == "" && cfg.DB.Password == "" {
+		return fmt.Errorf("either DATABASE_URL or DB_PASSWORD must be provided")
+	}
 
 	if isProduction(cfg.App.Env) {
 		if err := validateProduction(cfg); err != nil {
@@ -98,8 +101,11 @@ func validateProduction(cfg *Config) error {
 	if cfg.JWT.AccessSecret == cfg.JWT.RefreshSecret {
 		return fmt.Errorf("JWT_ACCESS_SECRET and JWT_REFRESH_SECRET must be different in production")
 	}
-	if strings.EqualFold(cfg.DB.SSLMode, "disable") {
-		return fmt.Errorf("DB_SSL_MODE=disable is not allowed in production")
+	if cfg.DB.DatabaseURL == "" && strings.EqualFold(cfg.DB.SSLMode, "disable") {
+		return fmt.Errorf("DB_SSL_MODE=disable is not allowed in production when using individual database credentials")
+	}
+	if cfg.DB.DatabaseURL != "" && strings.Contains(strings.ToLower(cfg.DB.DatabaseURL), "sslmode=disable") {
+		return fmt.Errorf("sslmode=disable is not allowed in production DATABASE_URL")
 	}
 	if strings.TrimSpace(cfg.App.ExternalURL) == "" {
 		return fmt.Errorf("APP_EXTERNAL_URL is required in production")
