@@ -1,9 +1,10 @@
 include .env
 export
 
-BINARY   := bin/eduwallet
-DB_DSN   := postgresql://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=$(DB_SSL_MODE)
-MIGRATE  := migrate -database "$(DB_DSN)" -path migrations
+BINARY     := bin/eduwallet
+MIGRATE_BIN := bin/eduwallet-migrate
+DB_DSN     := postgresql://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=$(DB_SSL_MODE)
+MIGRATE    := migrate -database "$(DB_DSN)" -path migrations
 
 ## ─── Development ─────────────────────────────────────────────
 
@@ -59,26 +60,38 @@ vet: ## Run go vet
 	go vet ./...
 
 ## ─── Migrations ──────────────────────────────────────────────
+##
+## Migration targets use the bundled cmd/migrate binary, so the external
+## `migrate` CLI is no longer required. The DSN is resolved from .env via
+## config.Load (DATABASE_URL takes precedence over the DB_* vars).
+
+.PHONY: migrate
+migrate: ## Build the migrate binary
+	CGO_ENABLED=0 go build -ldflags="-w -s" -o $(MIGRATE_BIN) ./cmd/migrate
 
 .PHONY: migrate-up
-migrate-up: ## Apply all pending migrations
-	$(MIGRATE) up
+migrate-up: migrate ## Apply all pending migrations
+	$(MIGRATE_BIN) up
 
 .PHONY: migrate-down
-migrate-down: ## Roll back last migration
-	$(MIGRATE) down 1
+migrate-down: migrate ## Roll back last migration (usage: make migrate-down n=3)
+	$(MIGRATE_BIN) down $(n)
 
 .PHONY: migrate-create
-migrate-create: ## Create new migration (usage: make migrate-create name=create_foo_table)
-	$(MIGRATE) create -ext sql -dir migrations -seq $(name)
+migrate-create: migrate ## Create new migration (usage: make migrate-create name=create_foo_table)
+	$(MIGRATE_BIN) create $(name)
 
 .PHONY: migrate-version
-migrate-version: ## Print current migration version
-	$(MIGRATE) version
+migrate-version: migrate ## Print current migration version
+	$(MIGRATE_BIN) version
 
 .PHONY: migrate-force
-migrate-force: ## Force migration version (usage: make migrate-force version=1)
-	$(MIGRATE) force $(version)
+migrate-force: migrate ## Force migration version (usage: make migrate-force version=1)
+	$(MIGRATE_BIN) force $(version)
+
+.PHONY: migrate-goto
+migrate-goto: migrate ## Migrate to version (usage: make migrate-goto version=5)
+	$(MIGRATE_BIN) goto $(version)
 
 ## ─── Docker ──────────────────────────────────────────────────
 
