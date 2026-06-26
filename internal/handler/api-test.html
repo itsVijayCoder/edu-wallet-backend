@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>EduWallet API Test Guide</title>
+  <link rel="icon" href="data:,">
   <style>
     :root {
       color-scheme: light;
@@ -382,6 +383,10 @@
       border-bottom: 1px solid var(--line);
     }
 
+    .phase summary:hover .phase-head {
+      background: #f8fafc;
+    }
+
     details:not([open]) .phase-head {
       border-bottom: 0;
     }
@@ -403,6 +408,21 @@
       place-items: center;
       font-weight: 800;
       flex: 0 0 auto;
+    }
+
+    .chevron {
+      width: 12px;
+      height: 12px;
+      border-right: 2px solid #64748b;
+      border-bottom: 2px solid #64748b;
+      transform: rotate(45deg);
+      transition: transform 160ms ease;
+      margin-left: 2px;
+      flex: 0 0 auto;
+    }
+
+    details[open] .chevron {
+      transform: rotate(225deg);
     }
 
     .phase h2 {
@@ -619,6 +639,142 @@
       border: 0;
     }
 
+    .endpoint-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .endpoint-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 190px 180px 104px;
+      gap: 12px;
+      align-items: start;
+      border: 1px solid #e5e7eb;
+      border-radius: var(--radius);
+      background: #ffffff;
+      padding: 12px;
+    }
+
+    .endpoint-card:hover {
+      border-color: #cbd5e1;
+      box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+    }
+
+    .endpoint-primary {
+      min-width: 0;
+      display: grid;
+      gap: 8px;
+    }
+
+    .endpoint-route {
+      display: grid;
+      grid-template-columns: 68px minmax(0, 1fr);
+      gap: 10px;
+      align-items: start;
+    }
+
+    .endpoint-path {
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.45;
+      color: #0f172a;
+      overflow-wrap: anywhere;
+      word-break: normal;
+    }
+
+    .endpoint-summary {
+      font-weight: 800;
+      color: #111827;
+    }
+
+    .endpoint-notes {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .endpoint-sample {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      color: #475569;
+      font-size: 12px;
+    }
+
+    .endpoint-sample code {
+      font-size: 11px;
+      max-width: 100%;
+    }
+
+    .endpoint-auth,
+    .endpoint-notes-cell {
+      color: #475569;
+      font-size: 13px;
+      min-width: 0;
+    }
+
+    .endpoint-auth strong,
+    .endpoint-notes-cell strong {
+      display: block;
+      color: #334155;
+      font-size: 11px;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+    }
+
+    .status-select {
+      min-width: 150px;
+      width: 100%;
+      background: #ffffff;
+      color: #111827;
+      border-color: #cbd5e1;
+      font-weight: 750;
+    }
+
+    .status-select.pending {
+      border-color: #cbd5e1;
+      color: #475569;
+    }
+
+    .status-select.completed {
+      border-color: #86efac;
+      color: #166534;
+      background: #f0fdf4;
+    }
+
+    .status-select.failed {
+      border-color: #fecdd3;
+      color: #9f1239;
+      background: #fff1f2;
+    }
+
+    .endpoint-actions {
+      display: grid;
+      gap: 8px;
+    }
+
+    .guide-button {
+      width: 100%;
+    }
+
+    .modal-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      align-items: start;
+    }
+
+    .modal-grid.full {
+      grid-template-columns: 1fr;
+    }
+
+    .copy-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
     .note-input {
       min-width: 180px;
       min-height: 34px;
@@ -695,8 +851,14 @@
 
       .setup,
       .toolbar,
-      .guidance {
+      .guidance,
+      .endpoint-card,
+      .modal-grid {
         grid-template-columns: 1fr;
+      }
+
+      .endpoint-route {
+        grid-template-columns: 62px minmax(0, 1fr);
       }
     }
 
@@ -1240,10 +1402,10 @@
 
     function renderNav() {
       elements.nav.innerHTML = "";
-      phases.forEach((phase, index) => {
+      phases.forEach((phase) => {
         const a = document.createElement("a");
         a.href = "#" + phase.id;
-        a.innerHTML = `<span>${escapeHTML(index + 1 + ". " + phase.title.replace(/^[0-9]+\\.\\s*/, ""))}</span><span class="mini" id="nav-${phase.id}">0%</span>`;
+        a.innerHTML = `<span>${escapeHTML(phase.title)}</span><span class="mini" id="nav-${phase.id}">0%</span>`;
         elements.nav.appendChild(a);
       });
     }
@@ -1292,6 +1454,7 @@
           <summary>
             <div class="phase-head">
               <div class="phase-title">
+                <span class="chevron" aria-hidden="true"></span>
                 <div class="phase-index">${phaseIndex + 1}</div>
                 <div>
                   <h2>${escapeHTML(phase.title)}</h2>
@@ -1318,23 +1481,8 @@
               </div>
             </div>
             <pre>${escapeHTML(guide.snippet)}</pre>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Method</th>
-                    <th>Path</th>
-                    <th>Auth / Permission</th>
-                    <th>What To Verify</th>
-                    <th>Status</th>
-                    <th>Notes</th>
-                    <th>Detail</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${filtered.map((endpoint) => rowHTML(phase, endpoint)).join("")}
-                </tbody>
-              </table>
+            <div class="endpoint-list">
+              ${filtered.map((endpoint) => rowHTML(phase, endpoint)).join("")}
             </div>
           </div>
         `;
@@ -1350,39 +1498,51 @@
       const id = itemID(phase.id, endpointIndex);
       const item = getItem(id);
       const status = item.status;
+      const sample = sampleFor(endpoint);
       return `
-        <tr data-row-id="${id}" data-status="${status}">
-          <td><span class="method ${escapeHTML(endpoint.method)}">${escapeHTML(endpoint.method)}</span></td>
-          <td><div class="path">${escapeHTML(endpoint.path)}</div>${endpoint.schema ? `<div><code>${escapeHTML(endpoint.schema)}</code></div>` : ""}</td>
-          <td class="auth">${escapeHTML(endpoint.auth)}</td>
-          <td><strong>${escapeHTML(endpoint.summary)}</strong><br><span class="small">${escapeHTML(endpoint.notes)}</span></td>
-          <td>
-            <div class="status-control" role="radiogroup" aria-label="Status for ${escapeHTML(endpoint.path)}">
-              ${statusOption(id, "pending", "Pending", status)}
-              ${statusOption(id, "completed", "Done", status)}
-              ${statusOption(id, "failed", "Failed", status)}
+        <article class="endpoint-card" data-row-id="${id}" data-status="${status}">
+          <div class="endpoint-primary">
+            <div class="endpoint-route">
+              <span class="method ${escapeHTML(endpoint.method)}">${escapeHTML(endpoint.method)}</span>
+              <div>
+                <div class="endpoint-path">${escapeHTML(endpoint.path)}</div>
+                ${endpoint.schema ? `<div><code>${escapeHTML(endpoint.schema)}</code></div>` : ""}
+              </div>
             </div>
-          </td>
-          <td><input class="note-input" data-note-id="${id}" type="text" value="${escapeAttr(item.note)}" placeholder="request_id, bug ID, evidence"></td>
-          <td><button type="button" data-detail-id="${id}">Open</button></td>
-        </tr>
-      `;
-    }
-
-    function statusOption(id, value, label, current) {
-      return `
-        <label class="${value === current ? "selected" : ""}">
-          <input type="radio" name="status-${id}" data-status-id="${id}" value="${value}" ${value === current ? "checked" : ""}>
-          ${escapeHTML(label)}
-        </label>
+            <div>
+              <div class="endpoint-summary">${escapeHTML(endpoint.summary)}</div>
+              <div class="endpoint-notes">${escapeHTML(endpoint.notes)}</div>
+            </div>
+            <div class="endpoint-sample">
+              <span>Sample:</span>
+              <code>${escapeHTML(sample.preview)}</code>
+            </div>
+          </div>
+          <div class="endpoint-auth">
+            <strong>Auth / Permission</strong>
+            ${escapeHTML(endpoint.auth)}
+          </div>
+          <div class="endpoint-notes-cell">
+            <strong>Status And Evidence</strong>
+            <select class="status-select ${escapeHTML(status)}" data-status-id="${id}" aria-label="Status for ${escapeHTML(endpoint.path)}">
+              <option value="pending" ${status === "pending" ? "selected" : ""}>Pending</option>
+              <option value="completed" ${status === "completed" ? "selected" : ""}>Completed</option>
+              <option value="failed" ${status === "failed" ? "selected" : ""}>Failed</option>
+            </select>
+            <input class="note-input" data-note-id="${id}" type="text" value="${escapeAttr(item.note)}" placeholder="request_id, bug ID, evidence">
+          </div>
+          <div class="endpoint-actions">
+            <button class="guide-button" type="button" data-detail-id="${id}">Open guide</button>
+          </div>
+        </article>
       `;
     }
 
     function bindRowEvents() {
-      document.querySelectorAll("[data-status-id]").forEach((input) => {
-        input.addEventListener("change", () => {
-          const item = getItem(input.dataset.statusId);
-          item.status = input.value;
+      document.querySelectorAll("[data-status-id]").forEach((select) => {
+        select.addEventListener("change", () => {
+          const item = getItem(select.dataset.statusId);
+          item.status = select.value;
           item.updatedAt = new Date().toISOString();
           saveState();
           renderNav();
@@ -1411,29 +1571,37 @@
       }
       const { phase, endpoint, index } = located;
       const item = getItem(id);
+      const sample = sampleFor(endpoint);
+      const criteria = successCriteriaFor(endpoint);
       elements.modalTitle.textContent = endpoint.summary;
       elements.modalBody.innerHTML = `
-        <div class="guide-box">
-          <h3>Route</h3>
-          <p><span class="method ${escapeHTML(endpoint.method)}">${escapeHTML(endpoint.method)}</span> <code>${escapeHTML(endpoint.path)}</code></p>
-          <p class="small">Phase: ${escapeHTML(phase.title)}<br>Auth: ${escapeHTML(endpoint.auth)}${endpoint.schema ? `<br>Request schema: ${escapeHTML(endpoint.schema)}` : ""}</p>
+        <div class="modal-grid">
+          <div class="guide-box">
+            <h3>Route</h3>
+            <p><span class="method ${escapeHTML(endpoint.method)}">${escapeHTML(endpoint.method)}</span> <code>${escapeHTML(endpoint.path)}</code></p>
+            <p class="small">Phase: ${escapeHTML(phase.title)}<br>Auth: ${escapeHTML(endpoint.auth)}${endpoint.schema ? `<br>Request schema: ${escapeHTML(endpoint.schema)}` : ""}</p>
+          </div>
+          <div class="guide-box">
+            <h3>Use This When</h3>
+            <p class="small">${escapeHTML(usageHintFor(endpoint))}</p>
+          </div>
         </div>
-        <div class="guide-box">
-          <h3>What Senior QA Should Verify</h3>
-          <ul>
-            <li>${escapeHTML(endpoint.notes)}</li>
-            <li>HTTP status matches the expected success or failure case.</li>
-            <li>Response uses the standard envelope with <code>success</code> and <code>request_id</code>.</li>
-            <li>Created or updated IDs are stored for downstream phases.</li>
-            <li>Wrong token or wrong tenant should not expose cross-tenant data.</li>
-          </ul>
+        <div class="modal-grid">
+          <div class="guide-box">
+            <h3>Sample Values</h3>
+            <pre>${escapeHTML(sample.body)}</pre>
+          </div>
+          <div class="guide-box">
+            <h3>Success Criteria</h3>
+            <ul>${criteria.map((item) => `<li>${escapeHTML(item)}</li>`).join("")}</ul>
+          </div>
         </div>
         <div class="guide-box">
           <h3>cURL Skeleton</h3>
           <pre>${escapeHTML(curlSkeleton(endpoint))}</pre>
         </div>
         <div class="guide-box">
-          <h3>Tester Notes</h3>
+          <h3>Tester Notes And Evidence</h3>
           <textarea id="modalNote">${escapeHTML(item.note)}</textarea>
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
             <button type="button" data-modal-status="${id}" data-value="completed" class="primary">Mark Completed</button>
@@ -1468,12 +1636,553 @@
       elements.modalBody.innerHTML = "";
     }
 
+    function sampleFor(endpoint) {
+      if (endpoint.method === "GET" || endpoint.method === "DELETE" || endpoint.method === "NOAUTH" || endpoint.method === "TENANT" || endpoint.method === "AUTHZ" || endpoint.method === "DUP" || endpoint.method === "DATE" || endpoint.method === "PAY" || endpoint.method === "IDEMP" || endpoint.method === "CLEAN") {
+        return sampleForReadOrCheck(endpoint);
+      }
+
+      const run = state.meta.runId || "20260626170000";
+      const samples = {
+        LoginRequest: {
+          email: "admin@eduwallet.in",
+          password: "<super-admin-password>"
+        },
+        RefreshRequest: {
+          refresh_token: "<refresh_token_from_login>"
+        },
+        ForgotPasswordRequest: {
+          email: `not-existing-${run}@example.com`
+        },
+        ResetPasswordRequest: {
+          token: "<reset-token-from-email-or-log>",
+          new_password: "NewStrongPass123!"
+        },
+        RegisterRequest: {
+          email: `public-${run}@example.com`,
+          password: "PublicPass123!",
+          first_name: "Public",
+          last_name: "Tester"
+        },
+        SelectTenantRequest: {
+          tenant_id: "$TENANT_ID"
+        },
+        CreateUserRequest: {
+          email: `platform-admin-${run}@example.com`,
+          password: "PlatformPass123!",
+          first_name: "Platform",
+          last_name: "Admin",
+          roles: ["super_admin"]
+        },
+        UpdateUserRequest: {
+          first_name: "Platform QA",
+          status: "active",
+          roles: ["super_admin"]
+        },
+        CreateTenantRequest: {
+          name: `QA Public School ${run}`,
+          slug: `qa-school-${run}`,
+          legal_name: "QA Public School Trust",
+          domain: `qa-${run}.eduwallet.test`,
+          contact_email: `qa-school-${run}@example.com`,
+          status: "active",
+          owner_user_id: "$SUPER_USER_ID",
+          address: {
+            line1: "1 QA Road",
+            city: "Chennai",
+            state: "Tamil Nadu",
+            postal_code: "600001",
+            country: "India"
+          },
+          branch: {
+            name: "Main Campus",
+            code: `MAIN-${run}`,
+            status: "active",
+            address: {
+              city: "Chennai",
+              state: "Tamil Nadu",
+              country: "India"
+            }
+          }
+        },
+        UpdateTenantRequest: {
+          legal_name: "QA Public School Updated Trust",
+          contact_phone: "+919999000099"
+        },
+        CreateBranchRequest: {
+          name: "North Branch",
+          code: `NORTH-${run}`,
+          status: "active",
+          address: {
+            line1: "2 QA Road",
+            city: "Chennai",
+            state: "Tamil Nadu",
+            postal_code: "600002",
+            country: "India"
+          }
+        },
+        CreateTenantUserRequest: {
+          email: `tenant-admin-${run}@example.com`,
+          password: "TenantAdmin123!",
+          first_name: "Tenant",
+          last_name: "Admin",
+          role: "admin"
+        },
+        CreateAcademicYearRequest: {
+          name: "Academic Year 2026-27",
+          code: `AY2026-${run}`,
+          start_date: "2026-06-01",
+          end_date: "2027-05-31",
+          status: "active",
+          is_active: true
+        },
+        UpdateAcademicYearRequest: {
+          name: "Academic Year 2026-2027",
+          status: "active",
+          is_active: true
+        },
+        CreateClassRequest: {
+          name: "Grade 1",
+          code: `G1-${run}`,
+          sort_order: 1,
+          status: "active"
+        },
+        UpdateClassRequest: {
+          sort_order: 2,
+          status: "active"
+        },
+        CreateSectionRequest: {
+          academic_year_id: "$ACADEMIC_YEAR_ID",
+          class_id: "$CLASS_ID",
+          branch_id: "$BRANCH_ID",
+          name: "A",
+          code: `A-${run}`,
+          capacity: 40,
+          status: "active"
+        },
+        UpdateSectionRequest: {
+          capacity: 45,
+          status: "active"
+        },
+        CreateGuardianRequest: {
+          name: "Ravi Kumar",
+          relationship: "father",
+          phone: "+919999100001",
+          email: `guardian-${run}@example.com`,
+          preferred_language: "en",
+          communication_opt_in: true
+        },
+        UpdateGuardianRequest: {
+          preferred_language: "ta",
+          communication_opt_in: true
+        },
+        StudentGuardianRequest: {
+          guardian_id: "$GUARDIAN_ID",
+          relationship: "father",
+          is_primary: true
+        },
+        CreateStudentRequest: {
+          academic_year_id: "$ACADEMIC_YEAR_ID",
+          class_id: "$CLASS_ID",
+          section_id: "$SECTION_ID",
+          branch_id: "$BRANCH_ID",
+          admission_number: `ADM-${run}-001`,
+          first_name: "Ananya",
+          last_name: "Kumar",
+          roll_number: "1",
+          status: "active",
+          category: "general",
+          guardians: [{
+            guardian_id: "$GUARDIAN_ID",
+            relationship: "father",
+            is_primary: true
+          }]
+        },
+        UpdateStudentRequest: {
+          roll_number: "01",
+          category: "general",
+          status: "active"
+        },
+        StudentImportUploadRequest: {
+          filename: `students-${run}.csv`,
+          csv: "admission_number,first_name,last_name,roll_number,academic_year_code,class_code,section_code,category\\nADM-IMPORT-001,Kavin,Rao,2,$ACADEMIC_YEAR_CODE,$CLASS_CODE,$SECTION_CODE,general"
+        },
+        StudentImportCommitRequest: {
+          import_id: "$IMPORT_ID"
+        },
+        CreateFeeHeadRequest: {
+          name: "Tuition Fee",
+          code: `TUITION-${run}`,
+          category: "tuition",
+          status: "active",
+          taxable: false,
+          tax_rate_bps: 0
+        },
+        UpdateFeeHeadRequest: {
+          description: "Updated tuition fee",
+          status: "active"
+        },
+        CreateFeeStructureRequest: {
+          academic_year_id: "$ACADEMIC_YEAR_ID",
+          name: "Grade 1 Term Fee",
+          code: `G1-TERM-${run}`,
+          billing_cycle: "term",
+          status: "active",
+          allow_partial_payment: true,
+          minimum_partial_amount_paise: 50000,
+          due_day: 10,
+          items: [{
+            fee_head_id: "$TUITION_HEAD_ID",
+            name: "Term Tuition",
+            amount_paise: 150000,
+            optional: false
+          }]
+        },
+        UpdateFeeStructureRequest: {
+          description: "Updated Grade 1 term billing",
+          allow_partial_payment: true,
+          minimum_partial_amount_paise: 50000
+        },
+        CreateFeeAssignmentRequest: {
+          fee_structure_id: "$FEE_STRUCTURE_ID",
+          assignment_type: "section",
+          academic_year_id: "$ACADEMIC_YEAR_ID",
+          section_id: "$SECTION_ID",
+          effective_from: "2026-06-01",
+          status: "active"
+        },
+        GenerateInvoicesRequest: {
+          assignment_id: "$ASSIGNMENT_ID",
+          issue_date: "2026-06-05",
+          due_date: "2026-06-10",
+          billing_period_start: "2026-06-01",
+          billing_period_end: "2026-08-31",
+          student_ids: ["$STUDENT_ID"]
+        },
+        CreateOfflinePaymentRequest: {
+          student_id: "$STUDENT_ID",
+          payment_method: "cash",
+          allocations: [{
+            invoice_id: "$INVOICE_ID",
+            amount_paise: 50000
+          }],
+          received_on: "2026-06-06",
+          reference_number: `CASH-${run}-001`,
+          clearance_status: "cleared"
+        },
+        CreatePaymentOrderRequest: {
+          student_id: "$STUDENT_ID",
+          invoice_ids: ["$INVOICE_ID"],
+          amount_paise: 50000,
+          idempotency_key: `checkout-${run}-$STUDENT_ID`
+        },
+        VerifyPaymentRequest: {
+          provider_order_id: "$PROVIDER_ORDER_ID",
+          provider_payment_id: `pay_${run}`,
+          signature: "$PAYMENT_SIGNATURE",
+          payment_method: "upi"
+        },
+        RazorpayWebhookRequest: {
+          event: "payment.captured",
+          payload: {
+            payment: {
+              entity: {
+                order_id: "$WEBHOOK_PROVIDER_ORDER_ID",
+                id: `pay_webhook_${run}`,
+                amount: 50000,
+                currency: "INR",
+                status: "captured",
+                method: "upi",
+                captured: true
+              }
+            }
+          }
+        },
+        CreateReminderTemplateRequest: {
+          name: "Due Reminder",
+          code: `DUE-${run}`,
+          channel: "email",
+          subject: "Fee reminder",
+          body: "Dear guardian, {{student_name}} has due amount {{amount_due}} for invoice {{invoice_number}}.",
+          tone: "polite",
+          status: "active"
+        },
+        UpdateReminderTemplateRequest: {
+          subject: "Updated fee reminder",
+          tone: "formal"
+        },
+        CreateReminderRuleRequest: {
+          template_id: "$TEMPLATE_ID",
+          name: "Before Due Reminder",
+          code: `BEFORE-DUE-${run}`,
+          channel: "email",
+          trigger_type: "before_due",
+          offset_days: 2,
+          target_statuses: ["unpaid", "partial", "overdue"],
+          status: "active",
+          max_attempts: 3
+        },
+        UpdateReminderRuleRequest: {
+          offset_days: 1,
+          max_attempts: 2
+        },
+        SendReminderRequest: {
+          rule_id: "$RULE_ID",
+          template_id: "$TEMPLATE_ID",
+          channel: "email",
+          invoice_ids: ["$INVOICE_ID"],
+          process_now: true
+        },
+        CreateExportRequest: {
+          export_type: "collections",
+          format: "csv",
+          from: "2026-06-01",
+          to: "2026-06-30"
+        }
+      };
+
+      const body = samples[endpoint.schema] || { note: "No request body. Use the route parameters and headers shown in cURL." };
+      return {
+        preview: previewFor(endpoint, body),
+        body: JSON.stringify(body, null, 2)
+      };
+    }
+
+    function sampleForReadOrCheck(endpoint) {
+      if (endpoint.kind === "check") {
+        const run = state.meta.runId || "20260626170000";
+        const checkSamples = {
+          NOAUTH: "No JSON body. Send the request without Authorization header and expect a structured auth error.",
+          TENANT: "No JSON body. Use the normal login token, not TENANT_ACCESS, and expect TENANT_REQUIRED.",
+          AUTHZ: "No JSON body. Login/select tenant as a different parent and use another student's child ID.",
+          DATE: "No JSON body. Keep the invalid query exactly as shown in the route.",
+          CLEAN: "Manual cleanup checklist. Delete only records created with this Run ID, and verify list endpoints no longer return them."
+        };
+        if (endpoint.method === "DUP" && endpoint.path.includes("/platform/tenants")) {
+          return {
+            preview: "Repeat tenant slug",
+            body: JSON.stringify({
+              name: `QA Public School ${run}`,
+              slug: `qa-school-${run}`,
+              contact_email: `qa-school-${run}@example.com`,
+              status: "active"
+            }, null, 2)
+          };
+        }
+        if (endpoint.method === "DUP" && endpoint.path.includes("/admin/students")) {
+          return {
+            preview: "Repeat admission_number",
+            body: JSON.stringify({
+              academic_year_id: "$ACADEMIC_YEAR_ID",
+              class_id: "$CLASS_ID",
+              section_id: "$SECTION_ID",
+              branch_id: "$BRANCH_ID",
+              admission_number: `ADM-${run}-001`,
+              first_name: "Duplicate",
+              last_name: "Student",
+              status: "active"
+            }, null, 2)
+          };
+        }
+        if (endpoint.method === "PAY") {
+          return {
+            preview: endpoint.summary,
+            body: JSON.stringify({
+              student_id: "$STUDENT_ID",
+              invoice_ids: ["$INVOICE_ID"],
+              amount_paise: endpoint.summary.toLowerCase().includes("partial") ? 1 : 999999999,
+              idempotency_key: `negative-${endpoint.summary.toLowerCase().replaceAll(" ", "-")}-${run}`
+            }, null, 2)
+          };
+        }
+        if (endpoint.method === "IDEMP") {
+          return {
+            preview: "Repeat X-Razorpay-Event-Id",
+            body: JSON.stringify({
+              event: "payment.captured",
+              payload: {
+                payment: {
+                  entity: {
+                    order_id: "$WEBHOOK_PROVIDER_ORDER_ID",
+                    id: `pay_duplicate_${run}`,
+                    amount: 50000,
+                    currency: "INR",
+                    status: "captured"
+                  }
+                }
+              }
+            }, null, 2)
+          };
+        }
+        return {
+          preview: checkSamples[endpoint.method] || endpoint.method,
+          body: checkSamples[endpoint.method] || "Use the route, auth mode, and notes shown for this negative check."
+        };
+      }
+
+      const query = querySampleFor(endpoint);
+      const body = query
+        ? `No JSON body.\nSuggested query/path values:\n${query}`
+        : "No JSON body. Use required path IDs and bearer token if the route is protected.";
+      return {
+        preview: query || "No body",
+        body
+      };
+    }
+
+    function querySampleFor(endpoint) {
+      if (endpoint.path.includes("/invoices") && endpoint.method === "GET") {
+        return "?student_id=$STUDENT_ID&academic_year_id=$ACADEMIC_YEAR_ID&class_id=$CLASS_ID&section_id=$SECTION_ID&status=unpaid";
+      }
+      if (endpoint.path.includes("/fee-structures") && endpoint.method === "GET") {
+        return "?academic_year_id=$ACADEMIC_YEAR_ID&status=active";
+      }
+      if (endpoint.path.includes("/students") && endpoint.method === "GET" && !endpoint.path.includes("{id}")) {
+        return "?academic_year_id=$ACADEMIC_YEAR_ID&class_id=$CLASS_ID&section_id=$SECTION_ID&search=Ananya";
+      }
+      if (endpoint.path.includes("/sections") && endpoint.method === "GET" && !endpoint.path.includes("{id}")) {
+        return "?academic_year_id=$ACADEMIC_YEAR_ID&class_id=$CLASS_ID";
+      }
+      if (endpoint.path.includes("/payments") && endpoint.method === "GET") {
+        return "?student_id=$STUDENT_ID&provider=offline";
+      }
+      if (endpoint.path.includes("/receipts") && endpoint.method === "GET" && !endpoint.path.includes("download")) {
+        return "?student_id=$STUDENT_ID";
+      }
+      if (endpoint.path.includes("/payment-events")) {
+        return "?student_id=$STUDENT_ID";
+      }
+      if (endpoint.path.includes("/reminder-logs")) {
+        return "?student_id=$STUDENT_ID&invoice_id=$INVOICE_ID";
+      }
+      if (endpoint.path.includes("/dashboard")) {
+        return "?as_of=2026-06-26";
+      }
+      if (endpoint.path.includes("/reports/")) {
+        return "?from=2026-06-01&to=2026-06-30";
+      }
+      if (endpoint.path.includes("/exports") && endpoint.method === "GET" && !endpoint.path.includes("{id}")) {
+        return "?export_type=collections";
+      }
+      if (endpoint.path.includes("/fee-heads") && endpoint.method === "GET" && !endpoint.path.includes("{id}")) {
+        return "?status=active&category=tuition";
+      }
+      if (endpoint.method === "DELETE") {
+        return "Use disposable ID only";
+      }
+      return "";
+    }
+
+    function previewFor(endpoint, body) {
+      if (endpoint.method === "GET" || endpoint.method === "DELETE") {
+        return querySampleFor(endpoint) || "No body";
+      }
+      if (body.email) {
+        return `email=${body.email}`;
+      }
+      if (body.name && body.code) {
+        return `name=${body.name}, code=${body.code}`;
+      }
+      if (body.tenant_id) {
+        return `tenant_id=${body.tenant_id}`;
+      }
+      if (body.student_id) {
+        return `student_id=${body.student_id}`;
+      }
+      if (body.assignment_id) {
+        return `assignment_id=${body.assignment_id}`;
+      }
+      if (body.export_type) {
+        return `export_type=${body.export_type}`;
+      }
+      return endpoint.schema || "Open guide";
+    }
+
+    function usageHintFor(endpoint) {
+      if (endpoint.path.includes("/auth/select-tenant")) {
+        return "Use after platform login or parent login to create a tenant-scoped token. Most admin and parent APIs require this token.";
+      }
+      if (endpoint.path.includes("/platform/tenants")) {
+        return "Use at the start of a test run to create the school or institution record. Capture the tenant and branch IDs.";
+      }
+      if (endpoint.path.includes("/academic-years") || endpoint.path.includes("/classes") || endpoint.path.includes("/sections")) {
+        return "Use before creating students and invoices. Academic year, class, and section IDs are required by student and billing APIs.";
+      }
+      if (endpoint.path.includes("/students") || endpoint.path.includes("/guardians") || endpoint.path.includes("/imports")) {
+        return "Use to create the student data that fee assignment, dues, reminders, and payments depend on.";
+      }
+      if (endpoint.path.includes("/fee-") || endpoint.path.includes("/invoices") || endpoint.path.includes("/ledger")) {
+        return "Use after academic setup and student creation. These APIs create the payable invoice balance.";
+      }
+      if (endpoint.path.includes("/payments") || endpoint.path.includes("/receipts") || endpoint.path.includes("/webhooks")) {
+        return "Use after invoice generation. Verify that balances, receipts, and payment events are updated correctly.";
+      }
+      if (endpoint.path.includes("/reminder") || endpoint.path.includes("/dashboard") || endpoint.path.includes("/reports") || endpoint.path.includes("/exports")) {
+        return "Use after invoices and payments exist so the operational views have meaningful data.";
+      }
+      if (endpoint.kind === "check") {
+        return "Use as a negative or cleanup check after the happy path is complete.";
+      }
+      return "Use in the phase order shown in the left index. Capture IDs from success responses for later phases.";
+    }
+
+    function successCriteriaFor(endpoint) {
+      if (endpoint.kind === "check") {
+        return [
+          "The API returns the expected structured error or cleanup result.",
+          "The response includes request_id so the issue can be traced.",
+          "No unrelated tenant, invoice, balance, receipt, or user data is changed."
+        ];
+      }
+      const criteria = [
+        "HTTP status is expected for the action and response has success=true.",
+        "Response includes request_id.",
+        "No cross-tenant or unauthorized data is visible."
+      ];
+      if (endpoint.method === "POST") {
+        criteria.push("Created resource ID or token is present and stored for the next phase.");
+      }
+      if (endpoint.method === "GET") {
+        criteria.push("Returned data matches the IDs, filters, pagination, or file type requested.");
+      }
+      if (endpoint.method === "PATCH" || endpoint.method === "PUT") {
+        criteria.push("Updated fields in the response match the request body.");
+      }
+      if (endpoint.method === "DELETE") {
+        criteria.push("Use only disposable records; a follow-up get/list confirms the record is removed or inactive.");
+      }
+      if (endpoint.path.includes("/download")) {
+        criteria.push("Downloaded file opens and has the expected PDF or CSV content.");
+      }
+      if (endpoint.path.includes("/webhooks")) {
+        criteria.push("A duplicate event ID does not apply payment twice.");
+      }
+      if (endpoint.path.includes("/payments") || endpoint.path.includes("/offline-payments")) {
+        criteria.push("Invoice balance, receipt, ledger, and payment-events reflect the payment.");
+      }
+      return criteria;
+    }
+
     function curlSkeleton(endpoint) {
       const base = state.meta.baseUrl || defaultBaseUrl();
-      const url = `${base}${endpoint.path.replaceAll("{id}", "$ID").replaceAll("{guardian_id}", "$GUARDIAN_ID")}`;
-      const auth = endpoint.auth === "Public" ? "" : " \\\n  -H \"Authorization: Bearer $TOKEN\"";
-      const content = endpoint.method === "GET" || endpoint.method === "DELETE" ? "" : " \\\n  -H \"Content-Type: application/json\" \\\n  -d '{...}'";
-      return `curl -sS -X ${endpoint.method} \"${url}\"${auth}${content} | jq`;
+      if (endpoint.kind === "check" && endpoint.method === "CLEAN") {
+        return "Manual cleanup: run the DELETE endpoints for disposable users, academic records, fee records, and reminders created with this Run ID. Then verify the matching list endpoints.";
+      }
+      const query = endpoint.method === "GET" ? querySampleFor(endpoint) : "";
+      const rawPath = endpoint.path.includes("?") || !query ? endpoint.path : `${endpoint.path}${query}`;
+      const url = `${base}${rawPath.replaceAll("{id}", "$ID").replaceAll("{guardian_id}", "$GUARDIAN_ID")}`;
+      const httpMethod = endpoint.kind === "check" ? checkHTTPMethod(endpoint) : endpoint.method;
+      const auth = endpoint.auth === "Public" || endpoint.method === "NOAUTH" ? "" : " \\\n  -H \"Authorization: Bearer $TOKEN\"";
+      const sample = sampleFor(endpoint);
+      const hasBody = !sample.body.startsWith("No JSON body") && !sample.body.startsWith("Manual cleanup");
+      const content = httpMethod === "GET" || httpMethod === "DELETE" || !hasBody ? "" : ` \\\n  -H "Content-Type: application/json" \\\n  -d '${sample.body.replaceAll("'", "'\\''")}'`;
+      return `curl -sS -X ${httpMethod} \"${url}\"${auth}${content} | jq`;
+    }
+
+    function checkHTTPMethod(endpoint) {
+      if (endpoint.method === "NOAUTH" || endpoint.method === "TENANT" || endpoint.method === "AUTHZ" || endpoint.method === "DATE") {
+        return "GET";
+      }
+      return "POST";
     }
 
     function updateScore() {
