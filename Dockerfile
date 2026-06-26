@@ -23,6 +23,8 @@ WORKDIR /app
 COPY --from=builder /bin/api ./api
 COPY --from=builder /bin/eduwallet-migrate ./eduwallet-migrate
 COPY --from=builder /src/migrations ./migrations
+COPY render-start.sh ./render-start.sh
+RUN chmod +x render-start.sh
 
 EXPOSE 8080
 

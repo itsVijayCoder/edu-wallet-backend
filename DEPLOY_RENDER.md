@@ -172,22 +172,32 @@ Only switch `APP_ENV` to `production` once you have **all** of these:
 
 The Dockerfile already bundles `./eduwallet-migrate` and the `migrations/` folder inside the image. Below are **two free-plan-safe methods** to run migrations.
 
-### Method A — Override the Docker Start Command (Recommended, automatic)
+### Method A — Start Script (Recommended, automatic)
 
-Instead of using Pre-Deploy, override the container's **start command** so it runs migrations **then** starts the API on every boot. This works on the free plan because the "Docker Command" field is available on all tiers.
+Instead of using Pre-Deploy, use a start script that runs migrations **then** starts the API on every boot. This works on the free plan because the "Docker Command" field is available on all tiers.
+
+The repo includes `render-start.sh` at the root, and the `Dockerfile` copies it into the image. The script contents:
+
+```sh
+#!/bin/sh
+set -e
+./eduwallet-migrate up
+exec ./api
+```
 
 1. On the web service → **Settings** → find **Docker Command**
 2. Set it to:
    ```
-   sh -c './eduwallet-migrate up && exec ./api'
+   ./render-start.sh
    ```
 3. Save.
 
 **How this works:**
-- `sh -c '...'` — runs the command string through a shell (needed for `&&`)
 - `./eduwallet-migrate up` — applies all pending migrations; if there are none, it logs `no new migrations to apply` and exits 0 (the code treats `migrate.ErrNoChange` as success — see `cmd/migrate/main.go:139`)
-- `&&` — only starts the API if migrations succeeded
+- `set -e` — if migrations fail, the script exits immediately and the API does **not** start (fail-fast — don't serve traffic against a half-migrated schema)
 - `exec ./api` — replaces the shell process with the API so `SIGTERM` reaches Go directly for graceful shutdown (`cmd/api/main.go:179`)
+
+> **Why a script and not an inline command?** Render's Docker Command field does not reliably handle shell quoting (e.g., `sh -c '...'` gets mangled, producing `sh: ...: not found`). A script file sidesteps all quoting issues.
 
 **Why this is safe:**
 - `migrate up` is **idempotent** — running it when all migrations are already applied is a no-op that completes in milliseconds.
@@ -280,8 +290,8 @@ The worker (`APP_MODE=worker`) runs the reminder-email loop (`cmd/api/main.go:21
 
 1. Render Dashboard → **New +** → **Background Worker**
 2. Select the same repo, **Runtime: Docker**
-3. **Docker Command**: `sh -c './eduwallet-migrate up && exec ./api'`
-   (Same as the API — runs migrations then starts the worker binary. `APP_MODE=worker` makes it run the worker loop instead of the HTTP server.)
+3. **Docker Command**: `./render-start.sh`
+   (Same script as the API — runs migrations then starts the binary. `APP_MODE=worker` makes it run the worker loop instead of the HTTP server.)
 4. **Environment** — copy the **exact same** env vars as the API service, but change:
    - `APP_MODE` = `worker`
    - Remove `APP_PORT` / `APP_EXTERNAL_URL` / `CORS_ALLOWED_ORIGINS` (not needed)
@@ -349,7 +359,7 @@ The app started but can't reach the DB/Redis. Verify:
 
 ### Migrations didn't run / tables missing
 
-- If using **Method A**: confirm the **Docker Command** is `sh -c './eduwallet-migrate up && exec ./api'`. Check the deploy logs for `migrations applied successfully` right after the start command runs.
+- If using **Method A**: confirm the **Docker Command** is `./render-start.sh`. Check the deploy logs for `migrations applied successfully` right after the start command runs.
 - If using **Method B**: run `./bin/eduwallet-migrate version` locally (with the external URL) to check the current schema version.
 - Common migration error: `dirty=true` — a previous migration failed partway. Run `./bin/eduwallet-migrate force <version>` (with external URL) to clear the dirty flag, then `./bin/eduwallet-migrate up`.
 

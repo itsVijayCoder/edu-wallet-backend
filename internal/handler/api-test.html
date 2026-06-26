@@ -1471,6 +1471,9 @@
     function renderPhases() {
       const query = elements.search.value.trim().toLowerCase();
       const statusFilter = elements.statusFilter.value;
+      const hashPhaseID = window.location.hash.replace("#", "");
+      const validHashPhaseID = !query && phases.some((phase) => phase.id === hashPhaseID) ? hashPhaseID : "";
+      let openedPhaseID = "";
       elements.phases.innerHTML = "";
 
       phases.forEach((phase, phaseIndex) => {
@@ -1504,7 +1507,11 @@
         const phaseEl = document.createElement("details");
         phaseEl.className = "panel phase";
         phaseEl.id = phase.id;
-        phaseEl.open = phaseIndex < 3 || Boolean(query);
+        const shouldOpen = validHashPhaseID === phase.id || (!openedPhaseID && !validHashPhaseID);
+        phaseEl.open = shouldOpen;
+        if (shouldOpen) {
+          openedPhaseID = phase.id;
+        }
 
         const metrics = phaseMetrics(phase);
         const guide = guidance[phase.group];
@@ -1548,7 +1555,43 @@
       });
 
       bindRowEvents();
+      bindAccordionEvents();
       updateScore();
+    }
+
+    function bindAccordionEvents() {
+      document.querySelectorAll("details.phase").forEach((phaseEl) => {
+        phaseEl.addEventListener("toggle", () => {
+          if (!phaseEl.open) {
+            return;
+          }
+          document.querySelectorAll("details.phase").forEach((other) => {
+            if (other !== phaseEl) {
+              other.open = false;
+            }
+          });
+        });
+      });
+
+      document.querySelectorAll(".phase-nav a").forEach((link) => {
+        link.onclick = (event) => {
+          event.preventDefault();
+          const phaseID = link.getAttribute("href").slice(1);
+          openPhase(phaseID);
+          history.replaceState(null, "", "#" + phaseID);
+        };
+      });
+    }
+
+    function openPhase(phaseID) {
+      const target = document.getElementById(phaseID);
+      if (!target) {
+        return;
+      }
+      document.querySelectorAll("details.phase").forEach((phaseEl) => {
+        phaseEl.open = phaseEl === target;
+      });
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
     }
 
     function rowHTML(phase, endpoint) {
