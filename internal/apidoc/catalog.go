@@ -461,6 +461,7 @@ func reportFilterParams() []Parameter {
 
 var endpointCatalog = []Endpoint{
 	endpoint(http.MethodGet, "/api/v1/docs", "Docs", "Open Swagger UI"),
+	endpoint(http.MethodGet, "/api/v1/docs/api-test", "Docs", "Open API tester guide"),
 	endpoint(http.MethodGet, "/api/v1/docs/openapi.json", "Docs", "Download OpenAPI JSON"),
 	endpoint(http.MethodGet, "/api/v1/docs/swagger.json", "Docs", "Download Swagger-compatible JSON"),
 

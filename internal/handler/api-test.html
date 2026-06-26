@@ -1,0 +1,1657 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EduWallet API Test Guide</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f8fb;
+      --surface: #ffffff;
+      --surface-2: #f9fafb;
+      --text: #111827;
+      --muted: #5b6472;
+      --line: #d8dee8;
+      --strong-line: #b8c2d2;
+      --accent: #166534;
+      --accent-2: #0f766e;
+      --danger: #b42318;
+      --warning: #b7791f;
+      --pending: #64748b;
+      --shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+      --radius: 8px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    a {
+      color: #075985;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .app {
+      min-height: 100vh;
+    }
+
+    .top {
+      background: #0f172a;
+      color: #f8fafc;
+      border-bottom: 1px solid #020617;
+    }
+
+    .top-inner,
+    .main {
+      width: min(1440px, calc(100vw - 32px));
+      margin: 0 auto;
+    }
+
+    .top-inner {
+      padding: 22px 0 18px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .brand-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+      flex-wrap: wrap;
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: 28px;
+      line-height: 1.15;
+      font-weight: 750;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: #cbd5e1;
+      max-width: 900px;
+    }
+
+    .top-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: flex-end;
+    }
+
+    .button,
+    button,
+    .file-label {
+      border: 1px solid var(--strong-line);
+      background: var(--surface);
+      color: var(--text);
+      border-radius: 7px;
+      padding: 9px 12px;
+      font: 650 13px/1.2 var(--sans);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 36px;
+    }
+
+    .button.dark {
+      background: #1e293b;
+      color: #f8fafc;
+      border-color: #334155;
+    }
+
+    .button.primary,
+    button.primary {
+      background: #166534;
+      color: #ffffff;
+      border-color: #14532d;
+    }
+
+    .button.danger,
+    button.danger {
+      background: #fff1f2;
+      color: #991b1b;
+      border-color: #fecdd3;
+    }
+
+    .button:hover,
+    button:hover,
+    .file-label:hover {
+      filter: brightness(0.98);
+      text-decoration: none;
+    }
+
+    .button:focus-visible,
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible,
+    textarea:focus-visible,
+    summary:focus-visible {
+      outline: 3px solid rgba(14, 116, 144, 0.28);
+      outline-offset: 2px;
+    }
+
+    .setup {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr 1fr;
+      gap: 12px;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+
+    label {
+      font-size: 12px;
+      color: #cbd5e1;
+      font-weight: 700;
+    }
+
+    .main label {
+      color: var(--muted);
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      border: 1px solid #334155;
+      border-radius: 7px;
+      padding: 10px 11px;
+      min-height: 38px;
+      font: 500 13px/1.2 var(--sans);
+      color: #f8fafc;
+      background: #111827;
+    }
+
+    .main input,
+    .main select,
+    .main textarea {
+      border-color: var(--line);
+      background: #ffffff;
+      color: var(--text);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 96px;
+      font-family: var(--mono);
+      line-height: 1.45;
+    }
+
+    .main {
+      display: grid;
+      grid-template-columns: 340px minmax(0, 1fr);
+      gap: 18px;
+      padding: 18px 0 40px;
+    }
+
+    .side {
+      position: sticky;
+      top: 16px;
+      align-self: start;
+      display: grid;
+      gap: 14px;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .panel.pad {
+      padding: 16px;
+    }
+
+    .panel h2,
+    .panel h3 {
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .score-ring {
+      width: 148px;
+      height: 148px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      margin: 14px auto 10px;
+      background: conic-gradient(var(--accent) var(--score-deg), #e5e7eb 0deg);
+    }
+
+    .score-ring-inner {
+      width: 112px;
+      height: 112px;
+      border-radius: 50%;
+      background: var(--surface);
+      display: grid;
+      place-items: center;
+      text-align: center;
+      border: 1px solid #e5e7eb;
+    }
+
+    .score-value {
+      font-size: 30px;
+      line-height: 1;
+      font-weight: 800;
+    }
+
+    .score-label {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 700;
+      margin-top: 4px;
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .stat {
+      border: 1px solid #e5e7eb;
+      border-radius: 7px;
+      padding: 10px;
+      background: #fbfdff;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 20px;
+      line-height: 1.1;
+    }
+
+    .stat span {
+      display: block;
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 3px;
+      font-weight: 700;
+    }
+
+    .status-completed {
+      color: var(--accent);
+    }
+
+    .status-failed {
+      color: var(--danger);
+    }
+
+    .status-pending {
+      color: var(--pending);
+    }
+
+    .phase-nav {
+      display: grid;
+      gap: 6px;
+      margin-top: 12px;
+    }
+
+    .phase-nav a {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid #e5e7eb;
+      border-radius: 7px;
+      padding: 9px 10px;
+      color: var(--text);
+      background: #ffffff;
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .phase-nav .mini {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .content {
+      min-width: 0;
+      display: grid;
+      gap: 14px;
+    }
+
+    .toolbar {
+      display: grid;
+      grid-template-columns: 1fr 220px;
+      gap: 12px;
+      align-items: end;
+    }
+
+    .toolbar .search input {
+      min-height: 42px;
+    }
+
+    .phase {
+      overflow: hidden;
+    }
+
+    .phase summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 0;
+    }
+
+    .phase summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .phase-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 14px;
+      align-items: center;
+      padding: 16px;
+      background: #ffffff;
+      border-bottom: 1px solid var(--line);
+    }
+
+    details:not([open]) .phase-head {
+      border-bottom: 0;
+    }
+
+    .phase-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .phase-index {
+      width: 32px;
+      height: 32px;
+      border-radius: 7px;
+      background: #e0f2fe;
+      color: #075985;
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      flex: 0 0 auto;
+    }
+
+    .phase h2 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.2;
+    }
+
+    .phase-desc {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .phase-metrics {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .chip {
+      border: 1px solid #e5e7eb;
+      background: #f8fafc;
+      color: #334155;
+      border-radius: 999px;
+      padding: 4px 9px;
+      font-size: 12px;
+      font-weight: 750;
+      white-space: nowrap;
+    }
+
+    .chip.completed {
+      background: #ecfdf3;
+      color: #166534;
+      border-color: #bbf7d0;
+    }
+
+    .chip.failed {
+      background: #fff1f2;
+      color: #9f1239;
+      border-color: #fecdd3;
+    }
+
+    .chip.pending {
+      background: #f1f5f9;
+      color: #475569;
+      border-color: #e2e8f0;
+    }
+
+    .phase-body {
+      padding: 16px;
+      display: grid;
+      gap: 14px;
+      background: #fbfdff;
+    }
+
+    .guidance {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .guide-box {
+      border: 1px solid #e5e7eb;
+      background: #ffffff;
+      border-radius: var(--radius);
+      padding: 13px;
+    }
+
+    .guide-box h3 {
+      margin: 0 0 8px;
+      font-size: 14px;
+    }
+
+    .guide-box ul,
+    .guide-box ol {
+      margin: 0;
+      padding-left: 19px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .guide-box li + li {
+      margin-top: 4px;
+    }
+
+    pre {
+      margin: 0;
+      padding: 12px;
+      border-radius: 7px;
+      border: 1px solid #dbe3ef;
+      background: #0f172a;
+      color: #e2e8f0;
+      overflow-x: auto;
+      font: 12px/1.55 var(--mono);
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid #e5e7eb;
+      border-radius: var(--radius);
+      background: #ffffff;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 900px;
+      font-size: 13px;
+    }
+
+    th,
+    td {
+      text-align: left;
+      border-bottom: 1px solid #edf1f7;
+      padding: 10px 10px;
+      vertical-align: top;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    th {
+      background: #f8fafc;
+      color: #475569;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0;
+      font-weight: 800;
+    }
+
+    .method {
+      display: inline-flex;
+      min-width: 58px;
+      justify-content: center;
+      border-radius: 6px;
+      padding: 3px 7px;
+      font: 800 11px/1.3 var(--mono);
+      color: #ffffff;
+      background: #475569;
+    }
+
+    .method.GET {
+      background: #0369a1;
+    }
+
+    .method.POST {
+      background: #166534;
+    }
+
+    .method.PATCH,
+    .method.PUT {
+      background: #a16207;
+    }
+
+    .method.DELETE {
+      background: #b42318;
+    }
+
+    code {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: #0f172a;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      padding: 2px 5px;
+      border-radius: 5px;
+      word-break: break-word;
+    }
+
+    .path {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: #172033;
+      word-break: break-word;
+    }
+
+    .auth {
+      color: #475569;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .status-control {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      min-width: 210px;
+    }
+
+    .status-control label {
+      color: var(--text);
+      border: 1px solid #dbe3ef;
+      background: #ffffff;
+      padding: 5px 8px;
+      border-radius: 999px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .status-control input {
+      width: 14px;
+      height: 14px;
+      min-height: 0;
+      accent-color: #166534;
+      padding: 0;
+      border: 0;
+    }
+
+    .note-input {
+      min-width: 180px;
+      min-height: 34px;
+      font-size: 12px;
+      color: var(--text);
+      background: #ffffff;
+      border-color: #dbe3ef;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.58);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 20;
+      padding: 16px;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal {
+      width: min(820px, 100%);
+      max-height: min(720px, calc(100vh - 32px));
+      overflow: auto;
+      background: #ffffff;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      box-shadow: 0 24px 64px rgba(15, 23, 42, 0.24);
+    }
+
+    .modal-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      position: sticky;
+      top: 0;
+      background: #ffffff;
+    }
+
+    .modal-body {
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .modal h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .file-input {
+      display: none;
+    }
+
+    @media (max-width: 1080px) {
+      .main {
+        grid-template-columns: 1fr;
+      }
+
+      .side {
+        position: static;
+      }
+
+      .setup,
+      .toolbar,
+      .guidance {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .top-inner,
+      .main {
+        width: min(100vw - 20px, 1440px);
+      }
+
+      h1 {
+        font-size: 24px;
+      }
+
+      .phase-head {
+        grid-template-columns: 1fr;
+      }
+
+      .phase-metrics {
+        justify-content: flex-start;
+      }
+
+      .stat-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media print {
+      body {
+        background: #ffffff;
+      }
+
+      .top-actions,
+      .toolbar,
+      .side,
+      .status-control,
+      .note-input {
+        display: none;
+      }
+
+      .main {
+        display: block;
+        width: 100%;
+      }
+
+      .panel,
+      .phase {
+        box-shadow: none;
+        break-inside: avoid;
+      }
+
+      details.phase {
+        display: block;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="top">
+      <div class="top-inner">
+        <div class="brand-row">
+          <div>
+            <h1>EduWallet API Test Guide</h1>
+            <p class="subtitle">Phase-wise tester workspace for platform onboarding, tenant administration, academics, billing, payments, operations, reports, exports, and authorization checks.</p>
+          </div>
+          <div class="top-actions">
+            <a class="button dark" href="/api/v1/docs" target="_blank" rel="noreferrer">Open Swagger</a>
+            <a class="button dark" href="/api/v1/docs/openapi.json" target="_blank" rel="noreferrer">OpenAPI JSON</a>
+            <button class="primary" id="exportState" type="button">Export Run</button>
+            <label class="file-label" for="importState">Import Run</label>
+            <input class="file-input" id="importState" type="file" accept="application/json">
+          </div>
+        </div>
+        <div class="setup" aria-label="Run settings">
+          <div class="field">
+            <label for="baseUrl">Base API URL</label>
+            <input id="baseUrl" type="text" spellcheck="false" value="/api/v1">
+          </div>
+          <div class="field">
+            <label for="runId">Run ID</label>
+            <input id="runId" type="text" spellcheck="false">
+          </div>
+          <div class="field">
+            <label for="testerName">Tester</label>
+            <input id="testerName" type="text" spellcheck="false" placeholder="QA name">
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="main">
+      <aside class="side" aria-label="Test summary">
+        <section class="panel pad">
+          <h2>Score</h2>
+          <p class="small">Completed endpoints divided by total endpoints. Failed endpoints remain visible and lower pass confidence.</p>
+          <div class="score-ring" id="scoreRing" style="--score-deg: 0deg">
+            <div class="score-ring-inner">
+              <div>
+                <div class="score-value" id="scoreValue">0%</div>
+                <div class="score-label">COMPLETED</div>
+              </div>
+            </div>
+          </div>
+          <div class="stat-grid">
+            <div class="stat">
+              <strong class="status-completed" id="completedCount">0</strong>
+              <span>Completed</span>
+            </div>
+            <div class="stat">
+              <strong class="status-failed" id="failedCount">0</strong>
+              <span>Failed</span>
+            </div>
+            <div class="stat">
+              <strong class="status-pending" id="pendingCount">0</strong>
+              <span>Pending</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel pad">
+          <h2>Phase Index</h2>
+          <nav class="phase-nav" id="phaseNav" aria-label="Phase navigation"></nav>
+        </section>
+
+        <section class="panel pad">
+          <h2>Run Controls</h2>
+          <p class="small">Use reset only when starting a new QA run. Export before reset if you need evidence.</p>
+          <button class="danger" id="resetState" type="button">Reset Status</button>
+        </section>
+      </aside>
+
+      <section class="content">
+        <section class="panel pad">
+          <div class="toolbar">
+            <div class="field search">
+              <label for="search">Search APIs, paths, permissions, notes</label>
+              <input id="search" type="search" placeholder="Example: invoice, webhook, tenant token, DELETE">
+            </div>
+            <div class="field">
+              <label for="statusFilter">Status filter</label>
+              <select id="statusFilter">
+                <option value="all">All statuses</option>
+                <option value="pending">Pending</option>
+                <option value="completed">Completed</option>
+                <option value="failed">Failed</option>
+              </select>
+            </div>
+          </div>
+        </section>
+
+        <div id="phases"></div>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="detailModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal">
+      <div class="modal-head">
+        <h2 id="modalTitle">API Detail</h2>
+        <button type="button" id="closeModal">Close</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+    </div>
+  </div>
+
+  <script>
+    const STORE_KEY = "eduwallet-api-test-guide:v1";
+
+    const guidance = {
+      setup: {
+        before: [
+          "Use the deployed API base URL or /api/v1 when opened from the same backend.",
+          "Keep the superadmin password private. Do not paste tokens into shared screenshots.",
+          "Use a unique Run ID so duplicate slugs, codes, and admission numbers do not collide."
+        ],
+        evidence: [
+          "Capture request body, HTTP status, response request_id, and extracted IDs.",
+          "For failures, record response error.code and exact reproduction data."
+        ],
+        snippet: "export BASE_URL=\"https://eduwallet-api.asthrix.live/api/v1\"\nexport RUN_ID=\"$(date +%Y%m%d%H%M%S)\""
+      },
+      platform: {
+        before: [
+          "Login as superadmin first and store PLATFORM_ACCESS.",
+          "Create the tenant with owner_user_id equal to the superadmin user ID if you want immediate tenant selection.",
+          "Create branches before academic sections if sections need branch_id."
+        ],
+        evidence: [
+          "TENANT_ID, BRANCH_ID, platform user IDs.",
+          "Confirm duplicate tenant slug returns a structured conflict error."
+        ],
+        snippet: "POST /auth/login -> PLATFORM_ACCESS\nPOST /platform/tenants -> TENANT_ID\nPOST /auth/select-tenant -> TENANT_ACCESS"
+      },
+      tenant: {
+        before: [
+          "Use TENANT_ACCESS from /auth/select-tenant for all tenant-scoped /admin routes.",
+          "Create admin, staff, and parent users to test permission boundaries.",
+          "A login token without tenant context should fail tenant APIs with TENANT_REQUIRED."
+        ],
+        evidence: [
+          "TENANT_ACCESS token issuance confirmed.",
+          "Tenant admin can access tenant APIs; parent/staff cannot access restricted APIs."
+        ],
+        snippet: "POST /auth/select-tenant\nAuthorization: Bearer <PLATFORM_ACCESS>\n{\"tenant_id\":\"<TENANT_ID>\"}"
+      },
+      academic: {
+        before: [
+          "Create academic year first, then class, then section.",
+          "Create guardians before students if you want student creation to include guardian links.",
+          "Use disposable academic records for delete tests so the main billing flow is not broken."
+        ],
+        evidence: [
+          "ACADEMIC_YEAR_ID, CLASS_ID, SECTION_ID, GUARDIAN_ID, STUDENT_ID.",
+          "Student detail includes expected guardian links."
+        ],
+        snippet: "Academic Year -> Class -> Section -> Guardian -> Student -> Student Import"
+      },
+      billing: {
+        before: [
+          "Create fee heads before fee structures.",
+          "Fee structure must be active before fee assignment.",
+          "Generate invoices after at least one active student matches the assignment target."
+        ],
+        evidence: [
+          "FEE_HEAD_ID, FEE_STRUCTURE_ID, ASSIGNMENT_ID, INVOICE_ID.",
+          "Student ledger shows invoice debit after generation."
+        ],
+        snippet: "Fee Head -> Fee Structure -> Fee Assignment -> Invoice Generate -> Ledger"
+      },
+      payments: {
+        before: [
+          "Test offline payment first because it does not need gateway checkout.",
+          "For fake provider verification, sign order_id|payment_id with PAYMENT_FAKE_SIGNING_SECRET.",
+          "For webhook testing, create a fresh payment order and do not reuse an already verified order."
+        ],
+        evidence: [
+          "PAYMENT_ID, RECEIPT_ID, downloaded PDF receipt.",
+          "Invoice balance decreases and payment-events list includes payment activity."
+        ],
+        snippet: "openssl dgst -sha256 -hmac \"$PAYMENT_FAKE_SIGNING_SECRET\""
+      },
+      operations: {
+        before: [
+          "Create reminder template before reminder rule.",
+          "Generate invoices/payments before reports and exports so dashboards have rows.",
+          "Download CSV exports and verify row count and content."
+        ],
+        evidence: [
+          "TEMPLATE_ID, RULE_ID, reminder logs.",
+          "Dashboard, reports, export CSV file, and downloaded receipt register."
+        ],
+        snippet: "Template -> Rule -> Send Reminder -> Dashboard -> Reports -> Export"
+      },
+      negative: {
+        before: [
+          "Run these after happy path is complete.",
+          "Use disposable records for destructive tests.",
+          "Each failed validation should return success=false with error.code and request_id."
+        ],
+        evidence: [
+          "Unauthorized, forbidden, duplicate, invalid UUID/date, overpayment, and partial-payment errors.",
+          "Confirm failed cases do not mutate balances, invoices, or receipts."
+        ],
+        snippet: "Missing token -> login token without tenant -> wrong role -> duplicate data -> invalid payment"
+      }
+    };
+
+    const phases = [
+      {
+        id: "phase-auth",
+        group: "setup",
+        title: "1. Health, Docs, And Auth",
+        description: "Confirm the deployment is alive, OpenAPI is visible, and auth lifecycle works.",
+        endpoints: [
+          api("GET", "/healthz", "Public", "Liveness probe", "Expect status ok."),
+          api("GET", "/readyz", "Public", "Readiness probe", "Expect postgres and redis up."),
+          api("GET", "/docs", "Public", "Swagger UI", "Open in browser and verify operations render."),
+          api("GET", "/docs/openapi.json", "Public", "OpenAPI JSON", "Validate info.version and path count."),
+          api("GET", "/docs/swagger.json", "Public", "Swagger-compatible JSON", "Should match OpenAPI routes."),
+          api("GET", "/docs/api-test", "Public", "Tester guide UI", "This page should load after deploy."),
+          api("POST", "/auth/login", "Public", "Login", "Use superadmin credentials; capture tokens and user ID.", "LoginRequest"),
+          api("POST", "/auth/refresh", "Public", "Refresh token", "Use refresh_token from login.", "RefreshRequest"),
+          api("POST", "/auth/forgot-password", "Public", "Forgot password", "Use non-existing email first; should avoid enumeration.", "ForgotPasswordRequest"),
+          api("POST", "/auth/reset-password", "Public", "Reset password", "Only with a real reset token.", "ResetPasswordRequest"),
+          api("POST", "/auth/register", "Public", "Public registration", "Production should reject unless explicitly enabled.", "RegisterRequest"),
+          api("POST", "/auth/logout", "Bearer token", "Logout", "Run at end or with disposable token.")
+        ]
+      },
+      {
+        id: "phase-platform",
+        group: "platform",
+        title: "2. Platform Tenants, Branches, And Users",
+        description: "Create platform users and tenant records before tenant-scoped testing.",
+        endpoints: [
+          api("POST", "/admin/users", "super_admin/admin", "Create platform user", "Create disposable user and platform superadmin.", "CreateUserRequest"),
+          api("GET", "/admin/users", "super_admin/admin", "List users", "Verify pagination and created user."),
+          api("GET", "/admin/users/{id}", "super_admin/admin", "Get user", "Use PLATFORM_USER_ID."),
+          api("PUT", "/admin/users/{id}", "super_admin/admin", "Update user", "Update name/status/roles.", "UpdateUserRequest"),
+          api("DELETE", "/admin/users/{id}", "super_admin/admin", "Delete user", "Only delete disposable user."),
+          api("POST", "/platform/tenants", "super_admin", "Create tenant", "Include owner_user_id for immediate tenant selection.", "CreateTenantRequest"),
+          api("GET", "/platform/tenants", "super_admin", "List tenants", "Verify new tenant in list."),
+          api("GET", "/platform/tenants/{id}", "super_admin", "Get tenant", "Capture branches from response."),
+          api("PATCH", "/platform/tenants/{id}", "super_admin", "Update tenant", "Patch contact/status/metadata.", "UpdateTenantRequest"),
+          api("POST", "/platform/tenants/{id}/branches", "super_admin", "Create branch", "Capture BRANCH_ID.", "CreateBranchRequest")
+        ]
+      },
+      {
+        id: "phase-tenant",
+        group: "tenant",
+        title: "3. Tenant Context And Admin Users",
+        description: "Select tenant context and create role-specific users for permission testing.",
+        endpoints: [
+          api("POST", "/auth/select-tenant", "Bearer login token", "Select tenant", "Capture TENANT_ACCESS; required for tenant APIs.", "SelectTenantRequest"),
+          api("GET", "/admin/tenant", "tenant.read", "Get selected tenant", "Must fail with login token only."),
+          api("PATCH", "/admin/tenant", "tenant.update", "Update selected tenant", "Patch legal name/contact data.", "UpdateTenantRequest"),
+          api("POST", "/admin/tenant/users", "users.manage", "Create tenant user", "Create admin, staff, parents, student roles.", "CreateTenantUserRequest")
+        ]
+      },
+      {
+        id: "phase-academic",
+        group: "academic",
+        title: "4. Academic Setup, Students, Guardians, Imports",
+        description: "Build academic structure and student records used by billing.",
+        endpoints: [
+          api("POST", "/admin/academic-years", "academic.manage", "Create academic year", "Capture ACADEMIC_YEAR_ID and code.", "CreateAcademicYearRequest"),
+          api("GET", "/admin/academic-years", "academic.manage", "List academic years", "Verify pagination."),
+          api("GET", "/admin/academic-years/{id}", "academic.manage", "Get academic year", "Verify selected record."),
+          api("PATCH", "/admin/academic-years/{id}", "academic.manage", "Update academic year", "Patch active/status fields.", "UpdateAcademicYearRequest"),
+          api("DELETE", "/admin/academic-years/{id}", "academic.manage", "Delete academic year", "Use disposable year only."),
+          api("POST", "/admin/classes", "academic.manage", "Create class", "Capture CLASS_ID and code.", "CreateClassRequest"),
+          api("GET", "/admin/classes", "academic.manage", "List classes", "Filter/search as needed."),
+          api("GET", "/admin/classes/{id}", "academic.manage", "Get class", "Verify selected record."),
+          api("PATCH", "/admin/classes/{id}", "academic.manage", "Update class", "Patch sort_order/status.", "UpdateClassRequest"),
+          api("DELETE", "/admin/classes/{id}", "academic.manage", "Delete class", "Use disposable class only."),
+          api("POST", "/admin/sections", "academic.manage", "Create section", "Requires academic_year_id and class_id.", "CreateSectionRequest"),
+          api("GET", "/admin/sections", "academic.manage", "List sections", "Filter by academic_year_id/class_id."),
+          api("GET", "/admin/sections/{id}", "academic.manage", "Get section", "Verify branch/class/year lookup fields."),
+          api("PATCH", "/admin/sections/{id}", "academic.manage", "Update section", "Patch capacity/status.", "UpdateSectionRequest"),
+          api("DELETE", "/admin/sections/{id}", "academic.manage", "Delete section", "Use disposable section only."),
+          api("POST", "/admin/guardians", "guardians.manage", "Create guardian", "Capture GUARDIAN_ID.", "CreateGuardianRequest"),
+          api("GET", "/admin/guardians", "guardians.manage", "List guardians", "Search by guardian name/email."),
+          api("GET", "/admin/guardians/{id}", "guardians.manage", "Get guardian", "Verify communication opt-in."),
+          api("PATCH", "/admin/guardians/{id}", "guardians.manage", "Update guardian", "Patch language/contact/status.", "UpdateGuardianRequest"),
+          api("DELETE", "/admin/guardians/{id}", "guardians.manage", "Delete guardian", "Use disposable guardian only."),
+          api("POST", "/admin/students", "students.manage", "Create student", "Requires academic_year_id, class_id, section_id.", "CreateStudentRequest"),
+          api("GET", "/admin/students", "students.manage", "List students", "Filter by year/class/section/search."),
+          api("GET", "/admin/students/{id}", "students.manage", "Get student", "Verify guardian links."),
+          api("PATCH", "/admin/students/{id}", "students.manage", "Update student", "Patch roll/category/status.", "UpdateStudentRequest"),
+          api("DELETE", "/admin/students/{id}", "students.manage", "Delete student", "Use disposable student only."),
+          api("POST", "/admin/students/{id}/guardians", "students.manage", "Link student guardian", "Test second guardian link.", "StudentGuardianRequest"),
+          api("DELETE", "/admin/students/{id}/guardians/{guardian_id}", "students.manage", "Unlink student guardian", "Remove second guardian link."),
+          api("GET", "/admin/imports", "imports.manage", "List imports", "Verify preview/commit records."),
+          api("GET", "/admin/imports/students/template", "imports.manage", "Download student import template", "Save CSV template."),
+          api("POST", "/admin/imports/students/preview", "imports.manage", "Preview student import", "Use raw CSV string in JSON body.", "StudentImportUploadRequest"),
+          api("POST", "/admin/imports/students/commit", "imports.manage", "Commit student import", "Only commit when invalid_rows is zero.", "StudentImportCommitRequest")
+        ]
+      },
+      {
+        id: "phase-billing",
+        group: "billing",
+        title: "5. Billing, Invoices, Dues, Ledger",
+        description: "Configure fee catalog, assign it, generate invoices, and verify dues.",
+        endpoints: [
+          api("POST", "/admin/fee-heads", "fees.manage", "Create fee head", "Create tuition and transport heads.", "CreateFeeHeadRequest"),
+          api("GET", "/admin/fee-heads", "fees.manage", "List fee heads", "Filter status/category/search."),
+          api("GET", "/admin/fee-heads/{id}", "fees.manage", "Get fee head", "Verify fee head detail."),
+          api("PATCH", "/admin/fee-heads/{id}", "fees.manage", "Update fee head", "Patch description/status.", "UpdateFeeHeadRequest"),
+          api("DELETE", "/admin/fee-heads/{id}", "fees.manage", "Delete fee head", "Use disposable unused head only."),
+          api("POST", "/admin/fee-structures", "fees.manage", "Create fee structure", "Requires at least one item.", "CreateFeeStructureRequest"),
+          api("GET", "/admin/fee-structures", "fees.manage", "List fee structures", "Filter by academic_year_id/status."),
+          api("GET", "/admin/fee-structures/{id}", "fees.manage", "Get fee structure", "Verify items and fee heads."),
+          api("PATCH", "/admin/fee-structures/{id}", "fees.manage", "Update fee structure", "Patch partial payment/min amount.", "UpdateFeeStructureRequest"),
+          api("DELETE", "/admin/fee-structures/{id}", "fees.manage", "Delete fee structure", "Delete disposable structure before fee head."),
+          api("POST", "/admin/fee-assignments", "fees.manage", "Create fee assignment", "Use class, section, or student target.", "CreateFeeAssignmentRequest"),
+          api("POST", "/admin/invoices/generate", "fees.manage", "Generate invoices", "Capture INVOICE_ID and balance.", "GenerateInvoicesRequest"),
+          api("GET", "/admin/invoices", "fees.manage", "List invoices", "Filter by student/year/class/section/status."),
+          api("GET", "/admin/invoices/{id}", "fees.manage", "Get invoice", "Verify items, balance, status."),
+          api("GET", "/admin/students/{id}/ledger", "fees.manage", "Get student ledger", "Verify invoice debit and later payment credit."),
+          api("GET", "/parent/children/{id}/dues", "Tenant token", "Parent child dues", "Use parent token; also verify authorization isolation.")
+        ]
+      },
+      {
+        id: "phase-payments",
+        group: "payments",
+        title: "6. Payments, Receipts, Webhooks, Events",
+        description: "Record payments, verify gateway paths, download receipts, and inspect events.",
+        endpoints: [
+          api("POST", "/admin/offline-payments", "payments.manage", "Create offline payment", "Start with partial cash payment.", "CreateOfflinePaymentRequest"),
+          api("GET", "/admin/payments", "payments.manage", "List payments", "Filter by student/provider/status."),
+          api("GET", "/admin/payments/{id}", "payments.manage", "Get payment", "Verify allocations and receipt."),
+          api("GET", "/admin/receipts", "payments.manage", "List receipts", "Filter by student/status/date."),
+          api("GET", "/admin/receipts/{id}", "payments.manage", "Get receipt", "Verify receipt amount and allocations."),
+          api("GET", "/admin/receipts/{id}/download", "payments.manage", "Download admin receipt PDF", "Save PDF as evidence."),
+          api("GET", "/admin/payment-events", "payments.manage", "List payment events", "Verify offline and gateway events."),
+          api("POST", "/parent/payments/orders", "Tenant token", "Create payment order", "Use parent token and payable invoice.", "CreatePaymentOrderRequest"),
+          api("POST", "/parent/payments/verify", "Tenant token", "Verify payment", "Use fake or Razorpay signature.", "VerifyPaymentRequest"),
+          api("GET", "/parent/receipts", "Tenant token", "List parent receipts", "Use parent token."),
+          api("GET", "/parent/receipts/{id}/download", "Tenant token", "Download parent receipt PDF", "Save PDF as evidence."),
+          api("POST", "/webhooks/razorpay", "Webhook signature", "Process Razorpay webhook", "Use fresh order and signed raw body.", "RazorpayWebhookRequest")
+        ]
+      },
+      {
+        id: "phase-ops",
+        group: "operations",
+        title: "7. Operations, Reminders, Dashboard, Reports, Exports",
+        description: "Test operational workflows after invoices/payments exist.",
+        endpoints: [
+          api("POST", "/admin/reminder-templates", "reminders.manage", "Create reminder template", "Capture TEMPLATE_ID.", "CreateReminderTemplateRequest"),
+          api("GET", "/admin/reminder-templates", "reminders.manage", "List reminder templates", "Filter channel/status/search."),
+          api("GET", "/admin/reminder-templates/{id}", "reminders.manage", "Get reminder template", "Verify body variables."),
+          api("PATCH", "/admin/reminder-templates/{id}", "reminders.manage", "Update reminder template", "Patch subject/tone/status.", "UpdateReminderTemplateRequest"),
+          api("DELETE", "/admin/reminder-templates/{id}", "reminders.manage", "Delete reminder template", "Delete disposable after rule."),
+          api("POST", "/admin/reminder-rules", "reminders.manage", "Create reminder rule", "Capture RULE_ID.", "CreateReminderRuleRequest"),
+          api("GET", "/admin/reminder-rules", "reminders.manage", "List reminder rules", "Filter channel/trigger/status."),
+          api("GET", "/admin/reminder-rules/{id}", "reminders.manage", "Get reminder rule", "Verify template relation."),
+          api("PATCH", "/admin/reminder-rules/{id}", "reminders.manage", "Update reminder rule", "Patch offset/max attempts.", "UpdateReminderRuleRequest"),
+          api("DELETE", "/admin/reminder-rules/{id}", "reminders.manage", "Delete reminder rule", "Delete before template."),
+          api("POST", "/admin/reminders/send", "reminders.manage", "Send reminders", "Use invoice_ids and process_now.", "SendReminderRequest"),
+          api("GET", "/admin/reminder-logs", "reminders.manage", "List reminder logs", "Filter by student_id/invoice_id/status."),
+          api("GET", "/admin/dashboard", "reports.view", "Dashboard", "Verify totals after invoices/payments."),
+          api("GET", "/admin/reports/collections", "reports.view", "Collections report", "Use from/to range."),
+          api("GET", "/admin/reports/defaulters", "reports.view", "Defaulters report", "Use as_of/year filters."),
+          api("GET", "/admin/reports/dues", "reports.view", "Dues report", "Use as_of/year filters."),
+          api("GET", "/admin/reports/fee-heads", "reports.view", "Fee-head report", "Verify collected amount by head."),
+          api("GET", "/admin/reports/payment-methods", "reports.view", "Payment-method report", "Verify cash/upi/etc."),
+          api("GET", "/admin/reports/offline-payments", "reports.view", "Offline payments report", "Provider defaults to offline."),
+          api("POST", "/admin/exports", "exports.manage", "Create export", "Test all export_type values.", "CreateExportRequest"),
+          api("GET", "/admin/exports", "exports.manage", "List exports", "Filter export_type/status/date."),
+          api("GET", "/admin/exports/{id}", "exports.manage", "Get export", "Verify status/row_count."),
+          api("GET", "/admin/exports/{id}/download", "exports.manage", "Download export CSV", "Open CSV and verify rows.")
+        ]
+      },
+      {
+        id: "phase-negative",
+        group: "negative",
+        title: "8. Negative, Permission, And Cleanup Checks",
+        description: "Record expected failures and destructive tests on disposable records.",
+        endpoints: [
+          check("NOAUTH", "/admin/tenant", "No token", "Missing bearer token", "Expected unauthorized/forbidden."),
+          check("TENANT", "/admin/tenant", "Login token only", "Tenant context missing", "Expected TENANT_REQUIRED."),
+          check("AUTHZ", "/parent/children/{id}/dues", "Wrong parent", "Authorization isolation", "Second parent should not access another child's dues unless MVP intentionally allows it."),
+          check("DUP", "/platform/tenants", "Duplicate slug", "Conflict check", "Recreate same slug and expect conflict."),
+          check("DUP", "/admin/students", "Duplicate admission number", "Conflict check", "Recreate same admission number and expect conflict."),
+          check("DATE", "/admin/reports/collections?from=bad", "Invalid date", "Validation check", "Expected INVALID_QUERY_DATE."),
+          check("PAY", "/parent/payments/orders", "Overpayment", "Payment validation", "Amount above invoice balance must fail."),
+          check("PAY", "/parent/payments/orders", "Partial below minimum", "Partial payment validation", "Amount below minimum_partial_amount_paise must fail."),
+          check("IDEMP", "/webhooks/razorpay", "Duplicate webhook event", "Webhook idempotency", "Same X-Razorpay-Event-Id must not double-apply."),
+          check("CLEAN", "Disposable records", "Cleanup", "Delete disposable users, academic records, fee records, reminders", "Main happy-path records may remain as audit evidence.")
+        ]
+      }
+    ];
+
+    function api(method, path, auth, summary, notes, schema) {
+      return { kind: "api", method, path, auth, summary, notes, schema: schema || "" };
+    }
+
+    function check(method, path, auth, summary, notes) {
+      return { kind: "check", method, path, auth, summary, notes, schema: "" };
+    }
+
+    const state = loadState();
+    const elements = {
+      phases: document.getElementById("phases"),
+      nav: document.getElementById("phaseNav"),
+      scoreRing: document.getElementById("scoreRing"),
+      scoreValue: document.getElementById("scoreValue"),
+      completedCount: document.getElementById("completedCount"),
+      failedCount: document.getElementById("failedCount"),
+      pendingCount: document.getElementById("pendingCount"),
+      search: document.getElementById("search"),
+      statusFilter: document.getElementById("statusFilter"),
+      baseUrl: document.getElementById("baseUrl"),
+      runId: document.getElementById("runId"),
+      testerName: document.getElementById("testerName"),
+      modal: document.getElementById("detailModal"),
+      modalTitle: document.getElementById("modalTitle"),
+      modalBody: document.getElementById("modalBody")
+    };
+
+    init();
+
+    function init() {
+      if (!state.meta.runId) {
+        state.meta.runId = timestampRunId();
+      }
+      if (!state.meta.baseUrl) {
+        state.meta.baseUrl = defaultBaseUrl();
+      }
+      elements.baseUrl.value = state.meta.baseUrl;
+      elements.runId.value = state.meta.runId;
+      elements.testerName.value = state.meta.testerName || "";
+
+      renderNav();
+      renderPhases();
+      updateScore();
+      bindEvents();
+    }
+
+    function bindEvents() {
+      elements.search.addEventListener("input", renderPhases);
+      elements.statusFilter.addEventListener("change", renderPhases);
+
+      elements.baseUrl.addEventListener("input", () => {
+        state.meta.baseUrl = elements.baseUrl.value.trim();
+        saveState();
+      });
+      elements.runId.addEventListener("input", () => {
+        state.meta.runId = elements.runId.value.trim();
+        saveState();
+      });
+      elements.testerName.addEventListener("input", () => {
+        state.meta.testerName = elements.testerName.value.trim();
+        saveState();
+      });
+
+      document.getElementById("resetState").addEventListener("click", () => {
+        if (!confirm("Reset all endpoint statuses and notes for this browser?")) {
+          return;
+        }
+        state.items = {};
+        saveState();
+        renderNav();
+        renderPhases();
+        updateScore();
+      });
+
+      document.getElementById("exportState").addEventListener("click", exportRun);
+      document.getElementById("importState").addEventListener("change", importRun);
+      document.getElementById("closeModal").addEventListener("click", closeModal);
+      elements.modal.addEventListener("click", (event) => {
+        if (event.target === elements.modal) {
+          closeModal();
+        }
+      });
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          closeModal();
+        }
+      });
+    }
+
+    function renderNav() {
+      elements.nav.innerHTML = "";
+      phases.forEach((phase, index) => {
+        const a = document.createElement("a");
+        a.href = "#" + phase.id;
+        a.innerHTML = `<span>${escapeHTML(index + 1 + ". " + phase.title.replace(/^[0-9]+\\.\\s*/, ""))}</span><span class="mini" id="nav-${phase.id}">0%</span>`;
+        elements.nav.appendChild(a);
+      });
+    }
+
+    function renderPhases() {
+      const query = elements.search.value.trim().toLowerCase();
+      const statusFilter = elements.statusFilter.value;
+      elements.phases.innerHTML = "";
+
+      phases.forEach((phase, phaseIndex) => {
+        const filtered = phase.endpoints.filter((endpoint, endpointIndex) => {
+          const id = itemID(phase.id, endpointIndex);
+          const status = getItem(id).status;
+          if (statusFilter !== "all" && status !== statusFilter) {
+            return false;
+          }
+          if (!query) {
+            return true;
+          }
+          const haystack = [
+            phase.title,
+            phase.description,
+            endpoint.method,
+            endpoint.path,
+            endpoint.auth,
+            endpoint.summary,
+            endpoint.notes,
+            endpoint.schema,
+            getItem(id).note
+          ].join(" ").toLowerCase();
+          return haystack.includes(query);
+        });
+
+        if (filtered.length === 0 && query) {
+          return;
+        }
+
+        const phaseEl = document.createElement("details");
+        phaseEl.className = "panel phase";
+        phaseEl.id = phase.id;
+        phaseEl.open = phaseIndex < 3 || Boolean(query);
+
+        const metrics = phaseMetrics(phase);
+        const guide = guidance[phase.group];
+        phaseEl.innerHTML = `
+          <summary>
+            <div class="phase-head">
+              <div class="phase-title">
+                <div class="phase-index">${phaseIndex + 1}</div>
+                <div>
+                  <h2>${escapeHTML(phase.title)}</h2>
+                  <p class="phase-desc">${escapeHTML(phase.description)}</p>
+                </div>
+              </div>
+              <div class="phase-metrics">
+                <span class="chip completed">${metrics.completed} completed</span>
+                <span class="chip failed">${metrics.failed} failed</span>
+                <span class="chip pending">${metrics.pending} pending</span>
+                <span class="chip">${metrics.score}% score</span>
+              </div>
+            </div>
+          </summary>
+          <div class="phase-body">
+            <div class="guidance">
+              <div class="guide-box">
+                <h3>Before Testing</h3>
+                <ul>${guide.before.map((item) => `<li>${escapeHTML(item)}</li>`).join("")}</ul>
+              </div>
+              <div class="guide-box">
+                <h3>Evidence To Capture</h3>
+                <ul>${guide.evidence.map((item) => `<li>${escapeHTML(item)}</li>`).join("")}</ul>
+              </div>
+            </div>
+            <pre>${escapeHTML(guide.snippet)}</pre>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Method</th>
+                    <th>Path</th>
+                    <th>Auth / Permission</th>
+                    <th>What To Verify</th>
+                    <th>Status</th>
+                    <th>Notes</th>
+                    <th>Detail</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${filtered.map((endpoint) => rowHTML(phase, endpoint)).join("")}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `;
+        elements.phases.appendChild(phaseEl);
+      });
+
+      bindRowEvents();
+      updateScore();
+    }
+
+    function rowHTML(phase, endpoint) {
+      const endpointIndex = phase.endpoints.indexOf(endpoint);
+      const id = itemID(phase.id, endpointIndex);
+      const item = getItem(id);
+      const status = item.status;
+      return `
+        <tr data-row-id="${id}" data-status="${status}">
+          <td><span class="method ${escapeHTML(endpoint.method)}">${escapeHTML(endpoint.method)}</span></td>
+          <td><div class="path">${escapeHTML(endpoint.path)}</div>${endpoint.schema ? `<div><code>${escapeHTML(endpoint.schema)}</code></div>` : ""}</td>
+          <td class="auth">${escapeHTML(endpoint.auth)}</td>
+          <td><strong>${escapeHTML(endpoint.summary)}</strong><br><span class="small">${escapeHTML(endpoint.notes)}</span></td>
+          <td>
+            <div class="status-control" role="radiogroup" aria-label="Status for ${escapeHTML(endpoint.path)}">
+              ${statusOption(id, "pending", "Pending", status)}
+              ${statusOption(id, "completed", "Done", status)}
+              ${statusOption(id, "failed", "Failed", status)}
+            </div>
+          </td>
+          <td><input class="note-input" data-note-id="${id}" type="text" value="${escapeAttr(item.note)}" placeholder="request_id, bug ID, evidence"></td>
+          <td><button type="button" data-detail-id="${id}">Open</button></td>
+        </tr>
+      `;
+    }
+
+    function statusOption(id, value, label, current) {
+      return `
+        <label class="${value === current ? "selected" : ""}">
+          <input type="radio" name="status-${id}" data-status-id="${id}" value="${value}" ${value === current ? "checked" : ""}>
+          ${escapeHTML(label)}
+        </label>
+      `;
+    }
+
+    function bindRowEvents() {
+      document.querySelectorAll("[data-status-id]").forEach((input) => {
+        input.addEventListener("change", () => {
+          const item = getItem(input.dataset.statusId);
+          item.status = input.value;
+          item.updatedAt = new Date().toISOString();
+          saveState();
+          renderNav();
+          renderPhases();
+        });
+      });
+
+      document.querySelectorAll("[data-note-id]").forEach((input) => {
+        input.addEventListener("input", () => {
+          const item = getItem(input.dataset.noteId);
+          item.note = input.value;
+          item.updatedAt = new Date().toISOString();
+          saveState();
+        });
+      });
+
+      document.querySelectorAll("[data-detail-id]").forEach((button) => {
+        button.addEventListener("click", () => openDetail(button.dataset.detailId));
+      });
+    }
+
+    function openDetail(id) {
+      const located = findEndpoint(id);
+      if (!located) {
+        return;
+      }
+      const { phase, endpoint, index } = located;
+      const item = getItem(id);
+      elements.modalTitle.textContent = endpoint.summary;
+      elements.modalBody.innerHTML = `
+        <div class="guide-box">
+          <h3>Route</h3>
+          <p><span class="method ${escapeHTML(endpoint.method)}">${escapeHTML(endpoint.method)}</span> <code>${escapeHTML(endpoint.path)}</code></p>
+          <p class="small">Phase: ${escapeHTML(phase.title)}<br>Auth: ${escapeHTML(endpoint.auth)}${endpoint.schema ? `<br>Request schema: ${escapeHTML(endpoint.schema)}` : ""}</p>
+        </div>
+        <div class="guide-box">
+          <h3>What Senior QA Should Verify</h3>
+          <ul>
+            <li>${escapeHTML(endpoint.notes)}</li>
+            <li>HTTP status matches the expected success or failure case.</li>
+            <li>Response uses the standard envelope with <code>success</code> and <code>request_id</code>.</li>
+            <li>Created or updated IDs are stored for downstream phases.</li>
+            <li>Wrong token or wrong tenant should not expose cross-tenant data.</li>
+          </ul>
+        </div>
+        <div class="guide-box">
+          <h3>cURL Skeleton</h3>
+          <pre>${escapeHTML(curlSkeleton(endpoint))}</pre>
+        </div>
+        <div class="guide-box">
+          <h3>Tester Notes</h3>
+          <textarea id="modalNote">${escapeHTML(item.note)}</textarea>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+            <button type="button" data-modal-status="${id}" data-value="completed" class="primary">Mark Completed</button>
+            <button type="button" data-modal-status="${id}" data-value="failed" class="danger">Mark Failed</button>
+            <button type="button" data-modal-status="${id}" data-value="pending">Mark Pending</button>
+          </div>
+        </div>
+      `;
+      document.getElementById("modalNote").addEventListener("input", (event) => {
+        const noteItem = getItem(id);
+        noteItem.note = event.target.value;
+        noteItem.updatedAt = new Date().toISOString();
+        saveState();
+      });
+      document.querySelectorAll("[data-modal-status]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const statusItem = getItem(button.dataset.modalStatus);
+          statusItem.status = button.dataset.value;
+          statusItem.updatedAt = new Date().toISOString();
+          saveState();
+          closeModal();
+          renderNav();
+          renderPhases();
+        });
+      });
+      elements.modal.classList.add("open");
+      elements.modal.dataset.current = `${phase.id}:${index}`;
+    }
+
+    function closeModal() {
+      elements.modal.classList.remove("open");
+      elements.modalBody.innerHTML = "";
+    }
+
+    function curlSkeleton(endpoint) {
+      const base = state.meta.baseUrl || defaultBaseUrl();
+      const url = `${base}${endpoint.path.replaceAll("{id}", "$ID").replaceAll("{guardian_id}", "$GUARDIAN_ID")}`;
+      const auth = endpoint.auth === "Public" ? "" : " \\\n  -H \"Authorization: Bearer $TOKEN\"";
+      const content = endpoint.method === "GET" || endpoint.method === "DELETE" ? "" : " \\\n  -H \"Content-Type: application/json\" \\\n  -d '{...}'";
+      return `curl -sS -X ${endpoint.method} \"${url}\"${auth}${content} | jq`;
+    }
+
+    function updateScore() {
+      const totals = allMetrics();
+      const score = totals.total === 0 ? 0 : Math.round((totals.completed / totals.total) * 100);
+      elements.scoreValue.textContent = `${score}%`;
+      elements.scoreRing.style.setProperty("--score-deg", `${score * 3.6}deg`);
+      elements.completedCount.textContent = totals.completed;
+      elements.failedCount.textContent = totals.failed;
+      elements.pendingCount.textContent = totals.pending;
+
+      phases.forEach((phase) => {
+        const metrics = phaseMetrics(phase);
+        const navItem = document.getElementById("nav-" + phase.id);
+        if (navItem) {
+          navItem.textContent = `${metrics.score}%`;
+        }
+      });
+    }
+
+    function allMetrics() {
+      return phases.reduce((acc, phase) => {
+        const metrics = phaseMetrics(phase);
+        acc.total += metrics.total;
+        acc.completed += metrics.completed;
+        acc.failed += metrics.failed;
+        acc.pending += metrics.pending;
+        return acc;
+      }, { total: 0, completed: 0, failed: 0, pending: 0 });
+    }
+
+    function phaseMetrics(phase) {
+      const metrics = phase.endpoints.reduce((acc, _endpoint, index) => {
+        const status = getItem(itemID(phase.id, index)).status;
+        acc.total += 1;
+        acc[status] += 1;
+        return acc;
+      }, { total: 0, completed: 0, failed: 0, pending: 0 });
+      metrics.score = metrics.total === 0 ? 0 : Math.round((metrics.completed / metrics.total) * 100);
+      return metrics;
+    }
+
+    function itemID(phaseID, endpointIndex) {
+      return `${phaseID}:${endpointIndex}`;
+    }
+
+    function getItem(id) {
+      if (!state.items[id]) {
+        state.items[id] = {
+          status: "pending",
+          note: "",
+          updatedAt: ""
+        };
+      }
+      return state.items[id];
+    }
+
+    function findEndpoint(id) {
+      const [phaseID, indexText] = id.split(":");
+      const phase = phases.find((item) => item.id === phaseID);
+      if (!phase) {
+        return null;
+      }
+      const index = Number(indexText);
+      const endpoint = phase.endpoints[index];
+      if (!endpoint) {
+        return null;
+      }
+      return { phase, endpoint, index };
+    }
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORE_KEY);
+        if (!raw) {
+          return emptyState();
+        }
+        const parsed = JSON.parse(raw);
+        return {
+          meta: parsed.meta || {},
+          items: parsed.items || {}
+        };
+      } catch (_err) {
+        return emptyState();
+      }
+    }
+
+    function emptyState() {
+      return {
+        meta: {},
+        items: {}
+      };
+    }
+
+    function saveState() {
+      localStorage.setItem(STORE_KEY, JSON.stringify(state));
+    }
+
+    function exportRun() {
+      const payload = {
+        exported_at: new Date().toISOString(),
+        app: "eduwallet-api-test-guide",
+        version: 1,
+        meta: state.meta,
+        summary: allMetrics(),
+        items: state.items
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `eduwallet-api-test-run-${state.meta.runId || "run"}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function importRun(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) {
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const parsed = JSON.parse(String(reader.result || "{}"));
+          state.meta = parsed.meta || {};
+          state.items = parsed.items || {};
+          saveState();
+          elements.baseUrl.value = state.meta.baseUrl || defaultBaseUrl();
+          elements.runId.value = state.meta.runId || timestampRunId();
+          elements.testerName.value = state.meta.testerName || "";
+          renderNav();
+          renderPhases();
+          updateScore();
+        } catch (_err) {
+          alert("Could not import this JSON file.");
+        } finally {
+          event.target.value = "";
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function timestampRunId() {
+      const now = new Date();
+      const pad = (value) => String(value).padStart(2, "0");
+      return [
+        now.getFullYear(),
+        pad(now.getMonth() + 1),
+        pad(now.getDate()),
+        pad(now.getHours()),
+        pad(now.getMinutes()),
+        pad(now.getSeconds())
+      ].join("");
+    }
+
+    function defaultBaseUrl() {
+      const path = window.location.pathname;
+      if (path.startsWith("/api/v1/")) {
+        return window.location.origin + "/api/v1";
+      }
+      return "/api/v1";
+    }
+
+    function escapeHTML(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function escapeAttr(value) {
+      return escapeHTML(value);
+    }
+  </script>
+</body>
+</html>

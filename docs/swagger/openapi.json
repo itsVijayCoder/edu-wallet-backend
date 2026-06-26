@@ -8767,6 +8767,27 @@
         ]
       }
     },
+    "/api/v1/docs/api-test": {
+      "get": {
+        "operationId": "get_docs_api_test",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Open API tester guide",
+        "tags": [
+          "Docs"
+        ]
+      }
+    },
     "/api/v1/docs/openapi.json": {
       "get": {
         "operationId": "get_docs_openapi.json",

@@ -92,6 +92,7 @@ Start the API once with those values, confirm login, then set `SUPER_ADMIN_BOOTS
 ## API Endpoints
 
 Interactive Swagger UI is served by the app at `/api/v1/docs`.
+The phase-wise browser tester guide is served by the app at `/api/v1/docs/api-test`.
 
 For a school-owner style walkthrough from first login to receipts, reports, and exports, use `docs/SCHOOL_TEST_JOURNEY.md`.
 

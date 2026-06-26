@@ -85,6 +85,24 @@ func TestDocsEndpointReturnsOpenAPIJSON(t *testing.T) {
 	}
 }
 
+func TestDocsEndpointReturnsAPITestGuideHTML(t *testing.T) {
+	r := newOpenAPITestRouter()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/docs/api-test", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d with body %s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Header().Get("Content-Type"), "text/html") {
+		t.Fatalf("expected HTML content type, got %q", w.Header().Get("Content-Type"))
+	}
+	if !strings.Contains(w.Body.String(), "EduWallet API Test Guide") {
+		t.Fatal("expected tester guide title in HTML response")
+	}
+}
+
 func newOpenAPITestRouter() *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	log := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))

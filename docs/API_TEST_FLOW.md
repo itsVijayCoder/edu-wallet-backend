@@ -1380,6 +1380,7 @@ Try each of these:
 | GET | `/healthz` | 1.1 |
 | GET | `/readyz` | 1.1 |
 | GET | `/docs` | Manual browser check |
+| GET | `/docs/api-test` | Browser tester guide |
 | GET | `/docs/openapi.json` | 1.1 |
 | GET | `/docs/swagger.json` | 1.1 |
 | POST | `/auth/login` | 1.2 |

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	_ "embed"
 	"fmt"
 	"net/http"
 
@@ -8,6 +9,9 @@ import (
 
 	"github.com/itsVijayCoder/edu-wallet-backend/internal/apidoc"
 )
+
+//go:embed api-test.html
+var apiTestHTML []byte
 
 const swaggerUIHTML = `<!doctype html>
 <html lang="en">
@@ -53,6 +57,11 @@ func NewDocsHandler(serverURL string) *DocsHandler {
 // SwaggerUI serves a Swagger UI page backed by the generated OpenAPI JSON.
 func (h *DocsHandler) SwaggerUI(c *gin.Context) {
 	c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(fmt.Sprintf(swaggerUIHTML, h.specPath)))
+}
+
+// APITestGuide serves the phase-wise API tester guide.
+func (h *DocsHandler) APITestGuide(c *gin.Context) {
+	c.Data(http.StatusOK, "text/html; charset=utf-8", apiTestHTML)
 }
 
 // OpenAPIJSON serves the generated OpenAPI JSON document.

@@ -64,6 +64,7 @@ func New(log *slog.Logger, cfg RouterConfig, tokenMgr jwt.TokenManager, rdb *red
 	v1 := r.Group("/api/v1")
 	{
 		v1.GET("/docs", h.Docs.SwaggerUI)
+		v1.GET("/docs/api-test", h.Docs.APITestGuide)
 		v1.GET("/docs/openapi.json", h.Docs.OpenAPIJSON)
 		v1.GET("/docs/swagger.json", h.Docs.OpenAPIJSON)
 
