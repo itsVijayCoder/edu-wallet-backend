@@ -94,6 +94,7 @@ type TenantMembershipBrief struct {
 	TenantID    uuid.UUID `json:"tenant_id"`
 	TenantName  string    `json:"tenant_name"`
 	TenantSlug  string    `json:"tenant_slug"`
+	Status      string    `json:"status"`
 	Role        string    `json:"role"`
 	Permissions []string  `json:"permissions,omitempty"`
 }

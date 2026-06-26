@@ -128,7 +128,7 @@ Recommended frontend flow:
 3. If the user needs a tenant-scoped app area, call `POST /auth/select-tenant` with `tenant_id`.
 4. Replace the stored access token with the tenant access token.
 5. Use the refresh token from the latest auth response.
-6. On `401`, call `POST /auth/refresh` once, update tokens, then retry the failed request.
+6. On `401`, call `POST /auth/refresh` once. If the user is inside a tenant-scoped area, immediately call `POST /auth/select-tenant` again with the active `tenant_id`, update tokens, then retry the failed request.
 7. On repeated `401` or `AUTH_REFRESH_INVALID`, clear session and redirect to login.
 
 Do not call tenant admin or parent APIs with only the login token. They require tenant context.

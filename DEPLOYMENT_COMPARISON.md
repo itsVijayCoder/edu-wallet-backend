@@ -294,9 +294,10 @@ Railway does not automatically run migrations. You have three options:
 3. Open a **shell** into the running container.
 4. Run migrations:
    ```bash
-   ./api migrate
+   ./eduwallet-migrate version
+   ./eduwallet-migrate up
    ```
-   If your binary does not have a migrate command, install and run `golang-migrate` using Railway's injected `DATABASE_URL`:
+   If your deployed image does not yet contain `./eduwallet-migrate`, deploy the current Dockerfile first, or install and run `golang-migrate` using Railway's injected `DATABASE_URL`:
    ```bash
    apk add --no-cache curl
    curl -L https://github.com/golang-migrate/migrate/releases/download/v4.19.1/migrate.linux-amd64.tar.gz | tar xvz
@@ -306,17 +307,18 @@ Railway does not automatically run migrations. You have three options:
 
 #### Option B: Add a Migrate Command to Your Go Binary
 
-Create a small CLI entry in `cmd/migrate/main.go` to run migrations using the same config package. Then add a Railway one-off command.
+Use the existing CLI entry in `cmd/migrate/main.go`. The Docker image copies it to `./eduwallet-migrate`, so a Railway one-off/pre-deploy command can run:
+
+```bash
+./eduwallet-migrate up
+```
 
 #### Option C: Start Command with Migration (Simpler but riskier)
 
 Modify the Dockerfile `CMD` to run migrations before starting the server:
 
 ```dockerfile
-# Add migrate binary to runtime stage
-COPY --from=builder /go/bin/migrate /usr/local/bin/migrate
-
-CMD ["sh", "-c", "migrate -path ./migrations -database \"${DATABASE_URL}\" up && ./api"]
+CMD ["sh", "-c", "./eduwallet-migrate up && ./api"]
 ```
 
 > **Warning:** This can cause issues with zero-downtime deploys if migrations lock tables. Use only for simple deployments.
@@ -394,7 +396,9 @@ jobs:
       - name: Install Railway CLI
         run: npm install -g @railway/cli
       - name: Run migrations
-        run: railway run --service eduwallet-api migrate
+        run: |
+          go build -ldflags="-w -s" -o eduwallet-migrate ./cmd/migrate
+          railway run --service eduwallet-api ./eduwallet-migrate up
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
       - name: Deploy to Railway
@@ -403,7 +407,7 @@ jobs:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 ```
 
-> Note: This assumes you add a `migrate` command to your binary. Adjust accordingly.
+> Note: This runs the migration CLI with Railway's production environment variables before deploying the API service.
 
 Set the `RAILWAY_TOKEN` secret in your GitHub repository settings.
 

@@ -33,7 +33,12 @@ type AppConfig struct {
 }
 
 type AuthConfig struct {
-	PublicRegistrationEnabled bool `env:"AUTH_PUBLIC_REGISTRATION_ENABLED" envDefault:"false"`
+	PublicRegistrationEnabled  bool   `env:"AUTH_PUBLIC_REGISTRATION_ENABLED" envDefault:"false"`
+	SuperAdminBootstrapEnabled bool   `env:"SUPER_ADMIN_BOOTSTRAP_ENABLED" envDefault:"false"`
+	SuperAdminEmail            string `env:"SUPER_ADMIN_EMAIL" envDefault:"admin@eduwallet.in"`
+	SuperAdminPassword         string `env:"SUPER_ADMIN_PASSWORD"`
+	SuperAdminFirstName        string `env:"SUPER_ADMIN_FIRST_NAME" envDefault:"EduWallet"`
+	SuperAdminLastName         string `env:"SUPER_ADMIN_LAST_NAME" envDefault:"Owner"`
 }
 
 type JWTConfig struct {
@@ -87,6 +92,14 @@ func validate(cfg *Config) error {
 	if cfg.DB.DatabaseURL == "" && cfg.DB.Password == "" {
 		return fmt.Errorf("either DATABASE_URL or DB_PASSWORD must be provided")
 	}
+	if cfg.Auth.SuperAdminBootstrapEnabled {
+		if strings.TrimSpace(cfg.Auth.SuperAdminEmail) == "" {
+			return fmt.Errorf("SUPER_ADMIN_EMAIL is required when SUPER_ADMIN_BOOTSTRAP_ENABLED=true")
+		}
+		if len(cfg.Auth.SuperAdminPassword) < 8 {
+			return fmt.Errorf("SUPER_ADMIN_PASSWORD must be at least 8 characters when SUPER_ADMIN_BOOTSTRAP_ENABLED=true")
+		}
+	}
 
 	if isProduction(cfg.App.Env) {
 		if err := validateProduction(cfg); err != nil {
@@ -100,6 +113,9 @@ func validate(cfg *Config) error {
 func validateProduction(cfg *Config) error {
 	if cfg.JWT.AccessSecret == cfg.JWT.RefreshSecret {
 		return fmt.Errorf("JWT_ACCESS_SECRET and JWT_REFRESH_SECRET must be different in production")
+	}
+	if cfg.Auth.SuperAdminBootstrapEnabled && isWeakBootstrapPassword(cfg.Auth.SuperAdminPassword) {
+		return fmt.Errorf("SUPER_ADMIN_PASSWORD must be changed before enabling super admin bootstrap in production")
 	}
 	if cfg.DB.DatabaseURL == "" && strings.EqualFold(cfg.DB.SSLMode, "disable") {
 		return fmt.Errorf("DB_SSL_MODE=disable is not allowed in production when using individual database credentials")
@@ -170,4 +186,13 @@ func validatePublicHTTPSURL(name, raw string) error {
 
 func isProduction(env string) bool {
 	return strings.EqualFold(strings.TrimSpace(env), "production")
+}
+
+func isWeakBootstrapPassword(password string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(password))
+	return normalized == "" ||
+		normalized == "password" ||
+		normalized == "password123" ||
+		normalized == "change-me" ||
+		normalized == "changeme"
 }

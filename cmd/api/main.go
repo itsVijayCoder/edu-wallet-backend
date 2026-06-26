@@ -117,6 +117,27 @@ func run() error {
 		return runOperationsWorker(log, cfg.App.WorkerPollInterval, operationsSvc)
 	}
 
+	if cfg.Auth.SuperAdminBootstrapEnabled {
+		bootstrapCtx, bootstrapCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer bootstrapCancel()
+		superAdmin, err := service.BootstrapSuperAdmin(
+			bootstrapCtx,
+			userRepo,
+			roleRepo,
+			h,
+			service.SuperAdminBootstrapInput{
+				Email:     cfg.Auth.SuperAdminEmail,
+				Password:  cfg.Auth.SuperAdminPassword,
+				FirstName: cfg.Auth.SuperAdminFirstName,
+				LastName:  cfg.Auth.SuperAdminLastName,
+			},
+		)
+		if err != nil {
+			return fmt.Errorf("bootstrap super admin: %w", err)
+		}
+		log.Info("super admin bootstrap completed", "user_id", superAdmin.ID, "email", superAdmin.Email)
+	}
+
 	// --- Router ---
 	r := router.New(log, router.RouterConfig{
 		AppEnv:      cfg.App.Env,

@@ -377,6 +377,7 @@ func (s *authService) membershipsForLogin(ctx context.Context, userID uuid.UUID)
 			TenantID:    membership.TenantID,
 			TenantName:  membership.Tenant.Name,
 			TenantSlug:  membership.Tenant.Slug,
+			Status:      membership.Tenant.Status,
 			Role:        membership.Role.Slug,
 			Permissions: permissionsToCodes(membership.Permissions),
 		})

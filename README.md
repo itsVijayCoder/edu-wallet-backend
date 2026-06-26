@@ -17,7 +17,7 @@ Swagger docs are available at `http://localhost:8080/api/v1/docs`.
 
 ## Bootstrap Super Admin
 
-After `make migrate-up`, the database has one product owner/developer account:
+After `make migrate-up`, a fresh local database has one product owner/developer account:
 
 ```text
 Email: admin@eduwallet.in
@@ -26,6 +26,18 @@ Role: super_admin
 ```
 
 Use this account to create school/college tenant admins and tenants. Rotate this password before using a shared or production database.
+
+For deployed or existing databases, use the opt-in environment bootstrap to upsert or rotate the account:
+
+```env
+SUPER_ADMIN_BOOTSTRAP_ENABLED=true
+SUPER_ADMIN_EMAIL=admin@eduwallet.in
+SUPER_ADMIN_PASSWORD=<strong-password>
+SUPER_ADMIN_FIRST_NAME=EduWallet
+SUPER_ADMIN_LAST_NAME=Owner
+```
+
+Start the API once with those values, confirm login, then set `SUPER_ADMIN_BOOTSTRAP_ENABLED=false` and redeploy/restart.
 
 ## Tech Stack
 

@@ -26,6 +26,18 @@ For local development, the defaults are enough:
 
 For production, use real secrets and HTTPS values. The app will fail fast when production uses wildcard CORS, disabled DB SSL, placeholder Resend sender settings, missing Razorpay secrets, or reused JWT secrets.
 
+For deployed or already-existing databases, bootstrap or rotate the super admin with:
+
+```env
+SUPER_ADMIN_BOOTSTRAP_ENABLED=true
+SUPER_ADMIN_EMAIL=admin@eduwallet.in
+SUPER_ADMIN_PASSWORD=<strong-password>
+SUPER_ADMIN_FIRST_NAME=EduWallet
+SUPER_ADMIN_LAST_NAME=Owner
+```
+
+Start the API once with those values, confirm login, then set `SUPER_ADMIN_BOOTSTRAP_ENABLED=false` and restart/redeploy.
+
 ## 2. Start Dependencies
 
 ```bash
@@ -154,7 +166,7 @@ For a non-technical school tester walkthrough, open `docs/SCHOOL_TEST_JOURNEY.md
 
 High-level flow:
 
-1. Login as `admin@eduwallet.in` with password `password`.
+1. Login as `admin@eduwallet.in` with the local seeded password `password`, or with the deployed password set through `SUPER_ADMIN_PASSWORD`.
 2. Create a school/college admin user.
 3. Create a school/college tenant with that admin as `owner_user_id`.
 4. Login as the school/college admin.

@@ -73,6 +73,19 @@ func TestValidateProductionConfig(t *testing.T) {
 			t.Fatalf("expected external URL error, got %v", err)
 		}
 	})
+
+	t.Run("rejects weak super admin bootstrap password", func(t *testing.T) {
+		t.Parallel()
+		cfg := productionConfig()
+		cfg.Auth.SuperAdminBootstrapEnabled = true
+		cfg.Auth.SuperAdminEmail = "admin@eduwallet.in"
+		cfg.Auth.SuperAdminPassword = "password"
+
+		err := validate(cfg)
+		if err == nil || !strings.Contains(err.Error(), "SUPER_ADMIN_PASSWORD") {
+			t.Fatalf("expected super admin password error, got %v", err)
+		}
+	})
 }
 
 func productionConfig() *Config {
