@@ -138,6 +138,8 @@ type BillingRepository interface {
 	CreateFeeAssignment(ctx context.Context, assignment *model.StudentFeeAssignment) error
 	GetFeeAssignment(ctx context.Context, tenantID, id uuid.UUID) (*model.StudentFeeAssignment, error)
 	ListFeeAssignments(ctx context.Context, tenantID uuid.UUID, filter model.FeeAssignmentFilter, params model.PaginationParams) (*model.PaginatedResult[model.StudentFeeAssignment], error)
+	UpdateFeeAssignment(ctx context.Context, assignment *model.StudentFeeAssignment) error
+	SoftDeleteFeeAssignment(ctx context.Context, tenantID, id uuid.UUID) error
 	ListStudentsForAssignment(ctx context.Context, assignment *model.StudentFeeAssignment, onlyStudentIDs []uuid.UUID) ([]model.Student, error)
 
 	ListActiveConcessions(ctx context.Context, tenantID, studentID, academicYearID uuid.UUID, asOf time.Time) ([]model.Concession, error)

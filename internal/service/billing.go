@@ -429,6 +429,128 @@ func (s *billingService) CreateFeeAssignment(ctx context.Context, actorID, tenan
 	return s.getFeeAssignmentResponse(ctx, tenantID, assignment.ID)
 }
 
+func (s *billingService) ListFeeAssignments(ctx context.Context, tenantID uuid.UUID, filter model.FeeAssignmentFilter, params model.PaginationParams) (*model.PaginatedResult[dto.FeeAssignmentResponse], error) {
+	result, err := s.repo.ListFeeAssignments(ctx, tenantID, filter, params)
+	if err != nil {
+		return nil, fmt.Errorf("list fee assignments: %w", err)
+	}
+	items := make([]dto.FeeAssignmentResponse, len(result.Data))
+	for i := range result.Data {
+		items[i] = feeAssignmentToResponse(&result.Data[i])
+	}
+	return model.NewPaginatedResult(items, result.Total, result.Page, result.PageSize), nil
+}
+
+func (s *billingService) GetFeeAssignment(ctx context.Context, tenantID, id uuid.UUID) (*dto.FeeAssignmentResponse, error) {
+	return s.getFeeAssignmentResponse(ctx, tenantID, id)
+}
+
+func (s *billingService) UpdateFeeAssignment(ctx context.Context, actorID, tenantID, id uuid.UUID, req dto.UpdateFeeAssignmentRequest) (*dto.FeeAssignmentResponse, error) {
+	assignment, err := s.repo.GetFeeAssignment(ctx, tenantID, id)
+	if err != nil {
+		return nil, fmt.Errorf("get fee assignment: %w", err)
+	}
+	if assignment == nil {
+		return nil, apperror.ErrNotFound
+	}
+
+	feeStructureID := assignment.FeeStructureID
+	if req.FeeStructureID != nil {
+		feeStructureID = *req.FeeStructureID
+	}
+	feeStructure, err := s.repo.GetFeeStructure(ctx, tenantID, feeStructureID)
+	if err != nil {
+		return nil, fmt.Errorf("get fee structure: %w", err)
+	}
+	if feeStructure == nil {
+		return nil, apperror.ErrNotFound
+	}
+	if req.FeeStructureID != nil && feeStructure.Status != "active" {
+		return nil, apperror.New("FEE_STRUCTURE_NOT_ACTIVE", "fee structure must be active before assignment", 409)
+	}
+	if req.AcademicYearID != nil && *req.AcademicYearID != feeStructure.AcademicYearID {
+		return nil, apperror.New("ACADEMIC_YEAR_MISMATCH", "assignment academic_year_id must match the fee structure", 400)
+	}
+
+	assignment.FeeStructureID = feeStructure.ID
+	assignment.AcademicYearID = feeStructure.AcademicYearID
+	if req.AssignmentType != nil {
+		assignment.AssignmentType = strings.TrimSpace(*req.AssignmentType)
+	}
+	if req.Status != nil {
+		assignment.Status = strings.TrimSpace(*req.Status)
+	}
+	if req.EffectiveFrom != nil {
+		assignment.EffectiveFrom, err = parseDate(*req.EffectiveFrom)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if req.EffectiveUntil != nil {
+		assignment.EffectiveUntil, err = parseDatePointer(req.EffectiveUntil)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if assignment.EffectiveUntil != nil && assignment.EffectiveUntil.Before(assignment.EffectiveFrom) {
+		return nil, apperror.New("INVALID_DATE_RANGE", "effective_until must be on or after effective_from", 400)
+	}
+	if req.Metadata != nil {
+		assignment.Metadata = normalizeMetadata(req.Metadata)
+	}
+
+	targetReq := dto.CreateFeeAssignmentRequest{
+		FeeStructureID: assignment.FeeStructureID,
+		AssignmentType: assignment.AssignmentType,
+		ClassID:        assignment.ClassID,
+		SectionID:      assignment.SectionID,
+		StudentID:      assignment.StudentID,
+	}
+	if req.ClassID != nil {
+		targetReq.ClassID = req.ClassID
+	}
+	if req.SectionID != nil {
+		targetReq.SectionID = req.SectionID
+	}
+	if req.StudentID != nil {
+		targetReq.StudentID = req.StudentID
+	}
+	assignment.ClassID = nil
+	assignment.SectionID = nil
+	assignment.StudentID = nil
+	if err := s.populateAssignmentTarget(ctx, assignment, targetReq); err != nil {
+		return nil, err
+	}
+
+	if err := s.repo.UpdateFeeAssignment(ctx, assignment); err != nil {
+		return nil, mapPersistenceError(err, "update fee assignment")
+	}
+	if err := s.audit(ctx, tenantID, actorID, "fee_assignment.updated", "fee_assignment", assignment.ID, "fee assignment updated", map[string]any{
+		"fee_structure_id": feeStructure.ID.String(),
+		"assignment_type":  assignment.AssignmentType,
+	}); err != nil {
+		return nil, err
+	}
+	return s.getFeeAssignmentResponse(ctx, tenantID, assignment.ID)
+}
+
+func (s *billingService) DeleteFeeAssignment(ctx context.Context, actorID, tenantID, id uuid.UUID) error {
+	assignment, err := s.repo.GetFeeAssignment(ctx, tenantID, id)
+	if err != nil {
+		return fmt.Errorf("get fee assignment: %w", err)
+	}
+	if assignment == nil {
+		return apperror.ErrNotFound
+	}
+	if err := s.repo.SoftDeleteFeeAssignment(ctx, tenantID, id); err != nil {
+		return fmt.Errorf("delete fee assignment: %w", err)
+	}
+	return s.audit(ctx, tenantID, actorID, "fee_assignment.deleted", "fee_assignment", id, "fee assignment deleted", map[string]any{
+		"fee_structure_id": assignment.FeeStructureID.String(),
+		"assignment_type":  assignment.AssignmentType,
+	})
+}
+
 func (s *billingService) GenerateInvoices(ctx context.Context, actorID, tenantID uuid.UUID, req dto.GenerateInvoicesRequest) (*dto.GenerateInvoicesResponse, error) {
 	generated := []model.Invoice{}
 	skipped := 0
@@ -1229,19 +1351,24 @@ func feeStructureItemToResponse(item *model.FeeStructureItem) dto.FeeStructureIt
 
 func feeAssignmentToResponse(item *model.StudentFeeAssignment) dto.FeeAssignmentResponse {
 	resp := dto.FeeAssignmentResponse{
-		ID:             item.ID,
-		TenantID:       item.TenantID,
-		FeeStructureID: item.FeeStructureID,
-		AcademicYearID: item.AcademicYearID,
-		AssignmentType: item.AssignmentType,
-		ClassID:        item.ClassID,
-		SectionID:      item.SectionID,
-		StudentID:      item.StudentID,
-		Status:         item.Status,
-		EffectiveFrom:  item.EffectiveFrom.Format(dateLayout),
-		Metadata:       item.Metadata,
-		CreatedAt:      item.CreatedAt,
-		UpdatedAt:      item.UpdatedAt,
+		ID:               item.ID,
+		TenantID:         item.TenantID,
+		FeeStructureID:   item.FeeStructureID,
+		FeeStructureName: item.FeeStructureName,
+		AcademicYearID:   item.AcademicYearID,
+		AcademicYearName: item.AcademicYearName,
+		AssignmentType:   item.AssignmentType,
+		ClassID:          item.ClassID,
+		ClassName:        item.ClassName,
+		SectionID:        item.SectionID,
+		SectionName:      item.SectionName,
+		StudentID:        item.StudentID,
+		StudentName:      item.StudentName,
+		Status:           item.Status,
+		EffectiveFrom:    item.EffectiveFrom.Format(dateLayout),
+		Metadata:         item.Metadata,
+		CreatedAt:        item.CreatedAt,
+		UpdatedAt:        item.UpdatedAt,
 	}
 	if item.EffectiveUntil != nil {
 		formatted := item.EffectiveUntil.Format(dateLayout)
@@ -1263,6 +1390,21 @@ func feeAssignmentToResponse(item *model.StudentFeeAssignment) dto.FeeAssignment
 	if item.Student != nil {
 		student := studentBriefToResponse(item.Student)
 		resp.Student = &student
+	}
+	if resp.FeeStructureName == "" && resp.FeeStructure != nil {
+		resp.FeeStructureName = resp.FeeStructure.Name
+	}
+	if resp.AcademicYearName == "" && resp.AcademicYear != nil {
+		resp.AcademicYearName = resp.AcademicYear.Name
+	}
+	if resp.ClassName == "" && resp.Class != nil {
+		resp.ClassName = resp.Class.Name
+	}
+	if resp.SectionName == "" && resp.Section != nil {
+		resp.SectionName = resp.Section.Name
+	}
+	if resp.StudentName == "" && resp.Student != nil {
+		resp.StudentName = strings.TrimSpace(resp.Student.FirstName + " " + resp.Student.LastName)
 	}
 	return resp
 }

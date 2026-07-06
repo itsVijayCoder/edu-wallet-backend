@@ -62,22 +62,27 @@ type FeeStructureItem struct {
 }
 
 type StudentFeeAssignment struct {
-	ID             uuid.UUID      `json:"id"`
-	TenantID       uuid.UUID      `json:"tenant_id"`
-	FeeStructureID uuid.UUID      `json:"fee_structure_id"`
-	AcademicYearID uuid.UUID      `json:"academic_year_id"`
-	AssignmentType string         `json:"assignment_type"`
-	ClassID        *uuid.UUID     `json:"class_id,omitempty"`
-	SectionID      *uuid.UUID     `json:"section_id,omitempty"`
-	StudentID      *uuid.UUID     `json:"student_id,omitempty"`
-	Status         string         `json:"status"`
-	EffectiveFrom  time.Time      `json:"effective_from"`
-	EffectiveUntil *time.Time     `json:"effective_until,omitempty"`
-	CreatedBy      *uuid.UUID     `json:"created_by,omitempty"`
-	Metadata       map[string]any `json:"metadata,omitempty"`
-	CreatedAt      time.Time      `json:"created_at"`
-	UpdatedAt      time.Time      `json:"updated_at"`
-	DeletedAt      *time.Time     `json:"deleted_at,omitempty"`
+	ID               uuid.UUID      `json:"id"`
+	TenantID         uuid.UUID      `json:"tenant_id"`
+	FeeStructureID   uuid.UUID      `json:"fee_structure_id"`
+	FeeStructureName string         `json:"fee_structure_name,omitempty"`
+	AcademicYearID   uuid.UUID      `json:"academic_year_id"`
+	AcademicYearName string         `json:"academic_year_name,omitempty"`
+	AssignmentType   string         `json:"assignment_type"`
+	ClassID          *uuid.UUID     `json:"class_id,omitempty"`
+	ClassName        string         `json:"class_name,omitempty"`
+	SectionID        *uuid.UUID     `json:"section_id,omitempty"`
+	SectionName      string         `json:"section_name,omitempty"`
+	StudentID        *uuid.UUID     `json:"student_id,omitempty"`
+	StudentName      string         `json:"student_name,omitempty"`
+	Status           string         `json:"status"`
+	EffectiveFrom    time.Time      `json:"effective_from"`
+	EffectiveUntil   *time.Time     `json:"effective_until,omitempty"`
+	CreatedBy        *uuid.UUID     `json:"created_by,omitempty"`
+	Metadata         map[string]any `json:"metadata,omitempty"`
+	CreatedAt        time.Time      `json:"created_at"`
+	UpdatedAt        time.Time      `json:"updated_at"`
+	DeletedAt        *time.Time     `json:"deleted_at,omitempty"`
 
 	FeeStructure *FeeStructure `json:"fee_structure,omitempty"`
 	AcademicYear *AcademicYear `json:"academic_year,omitempty"`
@@ -204,6 +209,7 @@ type FeeAssignmentFilter struct {
 	AcademicYearID *uuid.UUID
 	AssignmentType string
 	Status         string
+	Search         string
 }
 
 type InvoiceFilter struct {

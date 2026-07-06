@@ -27,7 +27,37 @@ func TestBillingFeeSetupInvoiceLedger_E2E(t *testing.T) {
 	feeStructureID := createFeeStructure(t, suite, tenantAccessToken, academicYearID, tuitionHeadID, examHeadID)
 	assignmentID := createFeeAssignment(t, suite, tenantAccessToken, feeStructureID, classID)
 
-	w := doRequest(suite.Server, http.MethodPost, "/api/v1/admin/invoices/generate", map[string]any{
+	w := doRequest(suite.Server, http.MethodGet, "/api/v1/admin/fee-assignments?search=Monthly&assignment_type=class&status=active", nil, bearer(tenantAccessToken))
+	require.Equal(t, http.StatusOK, w.Code)
+	body := parseJSON(t, w)
+	assignments := body["data"].([]any)
+	require.Len(t, assignments, 1)
+	assignment := assignments[0].(map[string]any)
+	assert.Equal(t, assignmentID.String(), assignment["id"])
+	assert.Equal(t, "Class 10 Monthly Fee", assignment["fee_structure_name"])
+	assert.Equal(t, "Class 10", assignment["class_name"])
+
+	w = doRequest(suite.Server, http.MethodGet, "/api/v1/admin/fee-assignments/"+assignmentID.String(), nil, bearer(tenantAccessToken))
+	require.Equal(t, http.StatusOK, w.Code)
+	body = parseJSON(t, w)
+	assignment = body["data"].(map[string]any)
+	assert.Equal(t, assignmentID.String(), assignment["id"])
+	assert.Equal(t, "active", assignment["status"])
+
+	w = doRequest(suite.Server, http.MethodPatch, "/api/v1/admin/fee-assignments/"+assignmentID.String(), map[string]any{
+		"status": "inactive",
+	}, bearer(tenantAccessToken))
+	require.Equal(t, http.StatusOK, w.Code)
+	body = parseJSON(t, w)
+	assignment = body["data"].(map[string]any)
+	assert.Equal(t, "inactive", assignment["status"])
+
+	w = doRequest(suite.Server, http.MethodPatch, "/api/v1/admin/fee-assignments/"+assignmentID.String(), map[string]any{
+		"status": "active",
+	}, bearer(tenantAccessToken))
+	require.Equal(t, http.StatusOK, w.Code)
+
+	w = doRequest(suite.Server, http.MethodPost, "/api/v1/admin/invoices/generate", map[string]any{
 		"assignment_id":        assignmentID.String(),
 		"issue_date":           "2026-06-01",
 		"due_date":             "2026-06-10",
@@ -35,7 +65,7 @@ func TestBillingFeeSetupInvoiceLedger_E2E(t *testing.T) {
 		"billing_period_end":   "2026-06-30",
 	}, bearer(tenantAccessToken))
 	require.Equal(t, http.StatusCreated, w.Code)
-	body := parseJSON(t, w)
+	body = parseJSON(t, w)
 	generated := body["data"].(map[string]any)
 	assert.Equal(t, float64(1), generated["generated_count"])
 	assert.Equal(t, float64(0), generated["skipped_count"])
@@ -97,10 +127,16 @@ func TestBillingFeeSetupInvoiceLedger_E2E(t *testing.T) {
 	assert.Equal(t, true, dues["allow_partial"])
 	assert.Equal(t, float64(50000), dues["minimum_payable_paise"])
 
+	disposableAssignmentID := createFeeAssignmentForStudent(t, suite, tenantAccessToken, feeStructureID, studentID)
+	w = doRequest(suite.Server, http.MethodDelete, "/api/v1/admin/fee-assignments/"+disposableAssignmentID.String(), nil, bearer(tenantAccessToken))
+	require.Equal(t, http.StatusOK, w.Code)
+	w = doRequest(suite.Server, http.MethodGet, "/api/v1/admin/fee-assignments/"+disposableAssignmentID.String(), nil, bearer(tenantAccessToken))
+	require.Equal(t, http.StatusNotFound, w.Code)
+
 	var auditCount int
-	err = suite.Pool.QueryRow(t.Context(), `SELECT COUNT(*) FROM audit_logs WHERE tenant_id = $1 AND action IN ('fee_structure.created', 'fee_assignment.created', 'invoices.generated')`, tenantID).Scan(&auditCount)
+	err = suite.Pool.QueryRow(t.Context(), `SELECT COUNT(*) FROM audit_logs WHERE tenant_id = $1 AND action IN ('fee_structure.created', 'fee_assignment.created', 'fee_assignment.updated', 'fee_assignment.deleted', 'invoices.generated')`, tenantID).Scan(&auditCount)
 	require.NoError(t, err)
-	assert.GreaterOrEqual(t, auditCount, 3)
+	assert.GreaterOrEqual(t, auditCount, 6)
 
 	otherToken, _ := createTenantSession(t, suite, adminID, "Other Billing School", "other-billing")
 	w = doRequest(suite.Server, http.MethodGet, "/api/v1/admin/invoices/"+invoiceID.String(), nil, bearer(otherToken))
@@ -160,6 +196,18 @@ func createFeeAssignment(t *testing.T, suite *TestSuite, token string, feeStruct
 		"fee_structure_id": feeStructureID.String(),
 		"assignment_type":  "class",
 		"class_id":         classID.String(),
+		"effective_from":   "2026-04-01",
+	}, bearer(token))
+	require.Equal(t, http.StatusCreated, w.Code)
+	return responseID(t, w)
+}
+
+func createFeeAssignmentForStudent(t *testing.T, suite *TestSuite, token string, feeStructureID, studentID uuid.UUID) uuid.UUID {
+	t.Helper()
+	w := doRequest(suite.Server, http.MethodPost, "/api/v1/admin/fee-assignments", map[string]any{
+		"fee_structure_id": feeStructureID.String(),
+		"assignment_type":  "student",
+		"student_id":       studentID.String(),
 		"effective_from":   "2026-04-01",
 	}, bearer(token))
 	require.Equal(t, http.StatusCreated, w.Code)

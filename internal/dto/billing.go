@@ -131,26 +131,44 @@ type CreateFeeAssignmentRequest struct {
 	Metadata       map[string]any `json:"metadata"`
 }
 
+type UpdateFeeAssignmentRequest struct {
+	FeeStructureID *uuid.UUID     `json:"fee_structure_id"`
+	AssignmentType *string        `json:"assignment_type" binding:"omitempty,oneof=class section student"`
+	AcademicYearID *uuid.UUID     `json:"academic_year_id"`
+	ClassID        *uuid.UUID     `json:"class_id"`
+	SectionID      *uuid.UUID     `json:"section_id"`
+	StudentID      *uuid.UUID     `json:"student_id"`
+	EffectiveFrom  *string        `json:"effective_from"`
+	EffectiveUntil *string        `json:"effective_until"`
+	Status         *string        `json:"status" binding:"omitempty,oneof=active inactive cancelled"`
+	Metadata       map[string]any `json:"metadata"`
+}
+
 type FeeAssignmentResponse struct {
-	ID             uuid.UUID             `json:"id"`
-	TenantID       uuid.UUID             `json:"tenant_id"`
-	FeeStructureID uuid.UUID             `json:"fee_structure_id"`
-	AcademicYearID uuid.UUID             `json:"academic_year_id"`
-	AssignmentType string                `json:"assignment_type"`
-	ClassID        *uuid.UUID            `json:"class_id,omitempty"`
-	SectionID      *uuid.UUID            `json:"section_id,omitempty"`
-	StudentID      *uuid.UUID            `json:"student_id,omitempty"`
-	Status         string                `json:"status"`
-	EffectiveFrom  string                `json:"effective_from"`
-	EffectiveUntil *string               `json:"effective_until,omitempty"`
-	Metadata       map[string]any        `json:"metadata,omitempty"`
-	FeeStructure   *FeeStructureResponse `json:"fee_structure,omitempty"`
-	AcademicYear   *LookupResponse       `json:"academic_year,omitempty"`
-	Class          *LookupResponse       `json:"class,omitempty"`
-	Section        *LookupResponse       `json:"section,omitempty"`
-	Student        *StudentBriefResponse `json:"student,omitempty"`
-	CreatedAt      time.Time             `json:"created_at"`
-	UpdatedAt      time.Time             `json:"updated_at"`
+	ID               uuid.UUID             `json:"id"`
+	TenantID         uuid.UUID             `json:"tenant_id"`
+	FeeStructureID   uuid.UUID             `json:"fee_structure_id"`
+	FeeStructureName string                `json:"fee_structure_name,omitempty"`
+	AcademicYearID   uuid.UUID             `json:"academic_year_id"`
+	AcademicYearName string                `json:"academic_year_name,omitempty"`
+	AssignmentType   string                `json:"assignment_type"`
+	ClassID          *uuid.UUID            `json:"class_id,omitempty"`
+	ClassName        string                `json:"class_name,omitempty"`
+	SectionID        *uuid.UUID            `json:"section_id,omitempty"`
+	SectionName      string                `json:"section_name,omitempty"`
+	StudentID        *uuid.UUID            `json:"student_id,omitempty"`
+	StudentName      string                `json:"student_name,omitempty"`
+	Status           string                `json:"status"`
+	EffectiveFrom    string                `json:"effective_from"`
+	EffectiveUntil   *string               `json:"effective_until,omitempty"`
+	Metadata         map[string]any        `json:"metadata,omitempty"`
+	FeeStructure     *FeeStructureResponse `json:"fee_structure,omitempty"`
+	AcademicYear     *LookupResponse       `json:"academic_year,omitempty"`
+	Class            *LookupResponse       `json:"class,omitempty"`
+	Section          *LookupResponse       `json:"section,omitempty"`
+	Student          *StudentBriefResponse `json:"student,omitempty"`
+	CreatedAt        time.Time             `json:"created_at"`
+	UpdatedAt        time.Time             `json:"updated_at"`
 }
 
 type StudentBriefResponse struct {

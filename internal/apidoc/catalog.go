@@ -435,6 +435,18 @@ func paymentFilterParams() []Parameter {
 	return params
 }
 
+func feeAssignmentFilterParams() []Parameter {
+	params := paginationParams()
+	params = append(params,
+		qString("search", "Search fee structure, class, section, or student details."),
+		qEnum("assignment_type", "Filter by assignment type.", "class", "section", "student"),
+		qEnum("status", "Filter by assignment status.", "active", "inactive", "cancelled"),
+		qUUID("fee_structure_id", "Filter by fee structure."),
+		qUUID("academic_year_id", "Filter by academic year."),
+	)
+	return params
+}
+
 func receiptFilterParams() []Parameter {
 	params := paginationParams()
 	params = append(params,
@@ -546,6 +558,10 @@ var endpointCatalog = []Endpoint{
 	endpoint(http.MethodDelete, "/api/v1/admin/fee-structures/:id", "Billing", "Delete fee structure", secured("fees.manage")),
 
 	endpoint(http.MethodPost, "/api/v1/admin/fee-assignments", "Billing", "Create fee assignment", secured("fees.manage"), body("CreateFeeAssignmentRequest"), created()),
+	endpoint(http.MethodGet, "/api/v1/admin/fee-assignments", "Billing", "List fee assignments", secured("fees.manage"), query(feeAssignmentFilterParams()...)),
+	endpoint(http.MethodGet, "/api/v1/admin/fee-assignments/:id", "Billing", "Get fee assignment", secured("fees.manage")),
+	endpoint(http.MethodPatch, "/api/v1/admin/fee-assignments/:id", "Billing", "Update fee assignment", secured("fees.manage"), body("UpdateFeeAssignmentRequest")),
+	endpoint(http.MethodDelete, "/api/v1/admin/fee-assignments/:id", "Billing", "Delete fee assignment", secured("fees.manage")),
 	endpoint(http.MethodPost, "/api/v1/admin/invoices/generate", "Billing", "Generate invoices", secured("fees.manage"), body("GenerateInvoicesRequest"), created()),
 	endpoint(http.MethodGet, "/api/v1/admin/invoices", "Billing", "List invoices", secured("fees.manage"), query(paginationParams()...)),
 	endpoint(http.MethodGet, "/api/v1/admin/invoices/:id", "Billing", "Get invoice", secured("fees.manage")),
@@ -799,6 +815,38 @@ func schemaComponents() map[string]any {
 			"effective_until":  stringSchema("date"),
 			"status":           enumSchema("active", "inactive", "cancelled"),
 			"metadata":         map[string]any{"type": "object", "additionalProperties": true},
+		}),
+		"UpdateFeeAssignmentRequest": object(nil, map[string]any{
+			"fee_structure_id": uuidSchema(),
+			"assignment_type":  enumSchema("class", "section", "student"),
+			"academic_year_id": uuidSchema(),
+			"class_id":         uuidSchema(),
+			"section_id":       uuidSchema(),
+			"student_id":       uuidSchema(),
+			"effective_from":   stringSchema("date"),
+			"effective_until":  stringSchema("date"),
+			"status":           enumSchema("active", "inactive", "cancelled"),
+			"metadata":         map[string]any{"type": "object", "additionalProperties": true},
+		}),
+		"FeeAssignmentResponse": object(nil, map[string]any{
+			"id":                 uuidSchema(),
+			"fee_structure_id":   uuidSchema(),
+			"fee_structure_name": stringSchema(""),
+			"assignment_type":    enumSchema("class", "section", "student"),
+			"academic_year_id":   uuidSchema(),
+			"academic_year_name": stringSchema(""),
+			"class_id":           uuidSchema(),
+			"class_name":         stringSchema(""),
+			"section_id":         uuidSchema(),
+			"section_name":       stringSchema(""),
+			"student_id":         uuidSchema(),
+			"student_name":       stringSchema(""),
+			"status":             enumSchema("active", "inactive", "cancelled"),
+			"effective_from":     stringSchema("date"),
+			"effective_until":    stringSchema("date"),
+			"metadata":           map[string]any{"type": "object", "additionalProperties": true},
+			"created_at":         stringSchema("date-time"),
+			"updated_at":         stringSchema("date-time"),
 		}),
 		"GenerateInvoicesRequest": object([]string{"assignment_id"}, map[string]any{
 			"assignment_id":        uuidSchema(),

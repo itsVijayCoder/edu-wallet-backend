@@ -103,6 +103,10 @@ type BillingService interface {
 	DeleteFeeStructure(ctx context.Context, actorID, tenantID, id uuid.UUID) error
 
 	CreateFeeAssignment(ctx context.Context, actorID, tenantID uuid.UUID, req dto.CreateFeeAssignmentRequest) (*dto.FeeAssignmentResponse, error)
+	ListFeeAssignments(ctx context.Context, tenantID uuid.UUID, filter model.FeeAssignmentFilter, params model.PaginationParams) (*model.PaginatedResult[dto.FeeAssignmentResponse], error)
+	GetFeeAssignment(ctx context.Context, tenantID, id uuid.UUID) (*dto.FeeAssignmentResponse, error)
+	UpdateFeeAssignment(ctx context.Context, actorID, tenantID, id uuid.UUID, req dto.UpdateFeeAssignmentRequest) (*dto.FeeAssignmentResponse, error)
+	DeleteFeeAssignment(ctx context.Context, actorID, tenantID, id uuid.UUID) error
 	GenerateInvoices(ctx context.Context, actorID, tenantID uuid.UUID, req dto.GenerateInvoicesRequest) (*dto.GenerateInvoicesResponse, error)
 	ListInvoices(ctx context.Context, tenantID uuid.UUID, filter model.InvoiceFilter, params model.PaginationParams) (*model.PaginatedResult[dto.InvoiceResponse], error)
 	GetInvoice(ctx context.Context, tenantID, id uuid.UUID) (*dto.InvoiceResponse, error)

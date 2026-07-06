@@ -307,7 +307,7 @@ func (r *billingRepository) CreateFeeAssignment(ctx context.Context, assignment 
 }
 
 func (r *billingRepository) GetFeeAssignment(ctx context.Context, tenantID, id uuid.UUID) (*model.StudentFeeAssignment, error) {
-	const query = feeAssignmentSelect + ` WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL`
+	const query = feeAssignmentSelect + ` WHERE a.tenant_id = $1 AND a.id = $2 AND a.deleted_at IS NULL`
 	return r.scanFeeAssignment(ctx, query, tenantID, id)
 }
 
@@ -316,7 +316,7 @@ func (r *billingRepository) ListFeeAssignments(ctx context.Context, tenantID uui
 	where, args := feeAssignmentWhere(tenantID, filter)
 
 	var total int64
-	if err := r.db.QueryRow(ctx, `SELECT COUNT(*) FROM student_fee_assignments `+where, args...).Scan(&total); err != nil {
+	if err := r.db.QueryRow(ctx, `SELECT COUNT(*) `+feeAssignmentFrom+` `+where, args...).Scan(&total); err != nil {
 		return nil, err
 	}
 
@@ -326,6 +326,7 @@ func (r *billingRepository) ListFeeAssignments(ctx context.Context, tenantID uui
 	queryArgs = append(queryArgs, params.PageSize, params.Offset())
 
 	sortCol, sortDir := sanitizeSort(params, allowedFeeAssignmentSortColumns, "created_at", "DESC")
+	sortCol = "a." + sortCol
 	query := fmt.Sprintf(`%s %s ORDER BY %s %s LIMIT %s OFFSET %s`, feeAssignmentSelect, where, sortCol, sortDir, limitParam, offsetParam)
 
 	rows, err := r.db.Query(ctx, query, queryArgs...)
@@ -346,6 +347,43 @@ func (r *billingRepository) ListFeeAssignments(ctx context.Context, tenantID uui
 		return nil, err
 	}
 	return model.NewPaginatedResult(items, total, params.Page, params.PageSize), nil
+}
+
+func (r *billingRepository) UpdateFeeAssignment(ctx context.Context, assignment *model.StudentFeeAssignment) error {
+	const query = `UPDATE student_fee_assignments SET
+			fee_structure_id = $1,
+			academic_year_id = $2,
+			assignment_type = $3,
+			class_id = $4,
+			section_id = $5,
+			student_id = $6,
+			status = $7,
+			effective_from = $8,
+			effective_until = $9,
+			metadata = $10,
+			updated_at = NOW()
+		WHERE tenant_id = $11 AND id = $12 AND deleted_at IS NULL
+		RETURNING updated_at`
+
+	return r.db.QueryRow(ctx, query,
+		assignment.FeeStructureID,
+		assignment.AcademicYearID,
+		assignment.AssignmentType,
+		assignment.ClassID,
+		assignment.SectionID,
+		assignment.StudentID,
+		assignment.Status,
+		assignment.EffectiveFrom,
+		assignment.EffectiveUntil,
+		mustJSON(assignment.Metadata),
+		assignment.TenantID,
+		assignment.ID,
+	).Scan(&assignment.UpdatedAt)
+}
+
+func (r *billingRepository) SoftDeleteFeeAssignment(ctx context.Context, tenantID, id uuid.UUID) error {
+	_, err := r.db.Exec(ctx, `UPDATE student_fee_assignments SET deleted_at = NOW(), updated_at = NOW() WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL`, tenantID, id)
+	return err
 }
 
 func (r *billingRepository) ListStudentsForAssignment(ctx context.Context, assignment *model.StudentFeeAssignment, onlyStudentIDs []uuid.UUID) ([]model.Student, error) {
@@ -655,10 +693,19 @@ const feeStructureItemSelect = `SELECT
 	JOIN fee_heads fh ON fh.tenant_id = fsi.tenant_id AND fh.id = fsi.fee_head_id`
 
 const feeAssignmentSelect = `SELECT
-		id, tenant_id, fee_structure_id, academic_year_id, assignment_type, class_id,
-		section_id, student_id, status, effective_from, effective_until, created_by,
-		metadata, created_at, updated_at, deleted_at
-	FROM student_fee_assignments`
+		a.id, a.tenant_id, a.fee_structure_id, fs.name, a.academic_year_id, ay.name,
+		a.assignment_type, a.class_id, COALESCE(c.name, ''), a.section_id, COALESCE(sec.name, ''),
+		a.student_id, COALESCE(NULLIF(trim(concat_ws(' ', s.first_name, s.last_name)), ''), ''),
+		a.status, a.effective_from, a.effective_until, a.created_by, a.metadata,
+		a.created_at, a.updated_at, a.deleted_at
+	` + feeAssignmentFrom
+
+const feeAssignmentFrom = `FROM student_fee_assignments a
+	JOIN fee_structures fs ON fs.tenant_id = a.tenant_id AND fs.id = a.fee_structure_id
+	JOIN academic_years ay ON ay.tenant_id = a.tenant_id AND ay.id = a.academic_year_id
+	LEFT JOIN classes c ON c.tenant_id = a.tenant_id AND c.id = a.class_id
+	LEFT JOIN sections sec ON sec.tenant_id = a.tenant_id AND sec.id = a.section_id
+	LEFT JOIN students s ON s.tenant_id = a.tenant_id AND s.id = a.student_id`
 
 const concessionSelect = `SELECT
 		id, tenant_id, academic_year_id, student_id, fee_head_id, name, code,
@@ -812,11 +859,16 @@ func scanFeeAssignmentScanner(row rowScanner) (*model.StudentFeeAssignment, erro
 		&item.ID,
 		&item.TenantID,
 		&item.FeeStructureID,
+		&item.FeeStructureName,
 		&item.AcademicYearID,
+		&item.AcademicYearName,
 		&item.AssignmentType,
 		&item.ClassID,
+		&item.ClassName,
 		&item.SectionID,
+		&item.SectionName,
 		&item.StudentID,
+		&item.StudentName,
 		&item.Status,
 		&item.EffectiveFrom,
 		&item.EffectiveUntil,
@@ -1004,23 +1056,32 @@ func feeStructureWhere(tenantID uuid.UUID, filter model.FeeStructureFilter) (str
 }
 
 func feeAssignmentWhere(tenantID uuid.UUID, filter model.FeeAssignmentFilter) (string, []any) {
-	clauses := []string{"tenant_id = $1", "deleted_at IS NULL"}
+	clauses := []string{"a.tenant_id = $1", "a.deleted_at IS NULL"}
 	args := []any{tenantID}
 	if filter.FeeStructureID != nil {
 		args = append(args, *filter.FeeStructureID)
-		clauses = append(clauses, fmt.Sprintf("fee_structure_id = $%d", len(args)))
+		clauses = append(clauses, fmt.Sprintf("a.fee_structure_id = $%d", len(args)))
 	}
 	if filter.AcademicYearID != nil {
 		args = append(args, *filter.AcademicYearID)
-		clauses = append(clauses, fmt.Sprintf("academic_year_id = $%d", len(args)))
+		clauses = append(clauses, fmt.Sprintf("a.academic_year_id = $%d", len(args)))
 	}
 	if strings.TrimSpace(filter.AssignmentType) != "" {
 		args = append(args, strings.TrimSpace(filter.AssignmentType))
-		clauses = append(clauses, fmt.Sprintf("assignment_type = $%d", len(args)))
+		clauses = append(clauses, fmt.Sprintf("a.assignment_type = $%d", len(args)))
 	}
 	if strings.TrimSpace(filter.Status) != "" {
 		args = append(args, strings.TrimSpace(filter.Status))
-		clauses = append(clauses, fmt.Sprintf("status = $%d", len(args)))
+		clauses = append(clauses, fmt.Sprintf("a.status = $%d", len(args)))
+	}
+	if strings.TrimSpace(filter.Search) != "" {
+		args = append(args, "%"+strings.ToLower(strings.TrimSpace(filter.Search))+"%")
+		clauses = append(clauses, fmt.Sprintf(`(
+			lower(fs.name) LIKE $%d OR lower(fs.code) LIKE $%d OR
+			lower(c.name) LIKE $%d OR lower(c.code) LIKE $%d OR
+			lower(sec.name) LIKE $%d OR lower(sec.code) LIKE $%d OR
+			lower(s.admission_number) LIKE $%d OR lower(s.first_name) LIKE $%d OR lower(s.last_name) LIKE $%d
+		)`, len(args), len(args), len(args), len(args), len(args), len(args), len(args), len(args), len(args)))
 	}
 	return "WHERE " + strings.Join(clauses, " AND "), args
 }

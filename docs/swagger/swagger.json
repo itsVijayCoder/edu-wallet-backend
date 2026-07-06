@@ -916,6 +916,86 @@
         ],
         "type": "object"
       },
+      "FeeAssignmentResponse": {
+        "properties": {
+          "academic_year_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "academic_year_name": {
+            "type": "string"
+          },
+          "assignment_type": {
+            "enum": [
+              "class",
+              "section",
+              "student"
+            ],
+            "type": "string"
+          },
+          "class_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "class_name": {
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "effective_from": {
+            "format": "date",
+            "type": "string"
+          },
+          "effective_until": {
+            "format": "date",
+            "type": "string"
+          },
+          "fee_structure_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "fee_structure_name": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "section_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "section_name": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "inactive",
+              "cancelled"
+            ],
+            "type": "string"
+          },
+          "student_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "student_name": {
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "ForgotPasswordRequest": {
         "properties": {
           "email": {
@@ -1202,6 +1282,59 @@
         "required": [
           "csv"
         ],
+        "type": "object"
+      },
+      "UpdateFeeAssignmentRequest": {
+        "properties": {
+          "academic_year_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "assignment_type": {
+            "enum": [
+              "class",
+              "section",
+              "student"
+            ],
+            "type": "string"
+          },
+          "class_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "effective_from": {
+            "format": "date",
+            "type": "string"
+          },
+          "effective_until": {
+            "format": "date",
+            "type": "string"
+          },
+          "fee_structure_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "section_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "inactive",
+              "cancelled"
+            ],
+            "type": "string"
+          },
+          "student_id": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
         "type": "object"
       },
       "UpdateUserRequest": {
@@ -2443,6 +2576,152 @@
       }
     },
     "/api/v1/admin/fee-assignments": {
+      "get": {
+        "description": "Requires permission: fees.manage.",
+        "operationId": "get_admin_fee_assignments",
+        "parameters": [
+          {
+            "description": "Page number, starting at 1.",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Items per page.",
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Sort field.",
+            "in": "query",
+            "name": "sort_by",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Sort direction.",
+            "in": "query",
+            "name": "sort_dir",
+            "required": false,
+            "schema": {
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Search fee structure, class, section, or student details.",
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Filter by assignment type.",
+            "in": "query",
+            "name": "assignment_type",
+            "required": false,
+            "schema": {
+              "enum": [
+                "class",
+                "section",
+                "student"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Filter by assignment status.",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "enum": [
+                "active",
+                "inactive",
+                "cancelled"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Filter by fee structure.",
+            "in": "query",
+            "name": "fee_structure_id",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Filter by academic year.",
+            "in": "query",
+            "name": "academic_year_id",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid, or expired JWT"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "Role or permission check failed"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "List fee assignments",
+        "tags": [
+          "Billing"
+        ]
+      },
       "post": {
         "description": "Requires permission: fees.manage.",
         "operationId": "post_admin_fee_assignments",
@@ -2504,6 +2783,249 @@
           }
         ],
         "summary": "Create fee assignment",
+        "tags": [
+          "Billing"
+        ]
+      }
+    },
+    "/api/v1/admin/fee-assignments/{id}": {
+      "delete": {
+        "description": "Requires permission: fees.manage.",
+        "operationId": "delete_admin_fee_assignments_id",
+        "parameters": [
+          {
+            "description": "Route identifier.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid, or expired JWT"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "Role or permission check failed"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "Resource not found"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Delete fee assignment",
+        "tags": [
+          "Billing"
+        ]
+      },
+      "get": {
+        "description": "Requires permission: fees.manage.",
+        "operationId": "get_admin_fee_assignments_id",
+        "parameters": [
+          {
+            "description": "Route identifier.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid, or expired JWT"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "Role or permission check failed"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "Resource not found"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Get fee assignment",
+        "tags": [
+          "Billing"
+        ]
+      },
+      "patch": {
+        "description": "Requires permission: fees.manage.",
+        "operationId": "patch_admin_fee_assignments_id",
+        "parameters": [
+          {
+            "description": "Route identifier.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateFeeAssignmentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid, or expired JWT"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "Role or permission check failed"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "Resource not found"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Update fee assignment",
         "tags": [
           "Billing"
         ]

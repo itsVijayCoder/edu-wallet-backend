@@ -205,6 +205,78 @@ func (h *BillingHandler) CreateFeeAssignment(c *gin.Context) {
 	RespondCreated(c, resp)
 }
 
+func (h *BillingHandler) ListFeeAssignments(c *gin.Context) {
+	tenantID, err := currentTenantID(c)
+	if err != nil {
+		HandleError(c, err)
+		return
+	}
+	feeStructureID, ok := queryUUID(c, "fee_structure_id")
+	if !ok {
+		return
+	}
+	academicYearID, ok := queryUUID(c, "academic_year_id")
+	if !ok {
+		return
+	}
+	filter := model.FeeAssignmentFilter{
+		FeeStructureID: feeStructureID,
+		AcademicYearID: academicYearID,
+		AssignmentType: c.Query("assignment_type"),
+		Status:         c.Query("status"),
+		Search:         c.Query("search"),
+	}
+	result, err := h.billingSvc.ListFeeAssignments(c.Request.Context(), tenantID, filter, dto.ExtractPagination(c))
+	if err != nil {
+		HandleError(c, err)
+		return
+	}
+	RespondPaginated(c, result.Data, result.Page, result.PageSize, result.Total, result.TotalPages)
+}
+
+func (h *BillingHandler) GetFeeAssignment(c *gin.Context) {
+	tenantID, id, ok := currentTenantAndParamID(c, "id")
+	if !ok {
+		return
+	}
+	resp, err := h.billingSvc.GetFeeAssignment(c.Request.Context(), tenantID, id)
+	if err != nil {
+		HandleError(c, err)
+		return
+	}
+	RespondOK(c, resp)
+}
+
+func (h *BillingHandler) UpdateFeeAssignment(c *gin.Context) {
+	actorID, tenantID, id, ok := currentActorTenantAndParamID(c, "id")
+	if !ok {
+		return
+	}
+	var req dto.UpdateFeeAssignmentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondValidationError(c, extractValidationErrors(err))
+		return
+	}
+	resp, err := h.billingSvc.UpdateFeeAssignment(c.Request.Context(), actorID, tenantID, id, req)
+	if err != nil {
+		HandleError(c, err)
+		return
+	}
+	RespondOK(c, resp)
+}
+
+func (h *BillingHandler) DeleteFeeAssignment(c *gin.Context) {
+	actorID, tenantID, id, ok := currentActorTenantAndParamID(c, "id")
+	if !ok {
+		return
+	}
+	if err := h.billingSvc.DeleteFeeAssignment(c.Request.Context(), actorID, tenantID, id); err != nil {
+		HandleError(c, err)
+		return
+	}
+	RespondMessage(c, "fee assignment deleted")
+}
+
 func (h *BillingHandler) GenerateInvoices(c *gin.Context) {
 	actorID, tenantID, ok := currentActorAndTenant(c)
 	if !ok {

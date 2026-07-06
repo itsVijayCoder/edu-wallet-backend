@@ -199,6 +199,10 @@ func New(log *slog.Logger, cfg RouterConfig, tokenMgr jwt.TokenManager, rdb *red
 			feeAssignments := adminTenant.Group("/fee-assignments", middleware.PermissionGuard("fees.manage"))
 			{
 				feeAssignments.POST("", h.Billing.CreateFeeAssignment)
+				feeAssignments.GET("", h.Billing.ListFeeAssignments)
+				feeAssignments.GET("/:id", h.Billing.GetFeeAssignment)
+				feeAssignments.PATCH("/:id", h.Billing.UpdateFeeAssignment)
+				feeAssignments.DELETE("/:id", h.Billing.DeleteFeeAssignment)
 			}
 
 			invoices := adminTenant.Group("/invoices", middleware.PermissionGuard("fees.manage"))
