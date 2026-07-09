@@ -24,9 +24,21 @@ type UserService interface {
 	Create(ctx context.Context, req dto.CreateUserRequest) (*dto.UserResponse, error)
 	CreateForTenant(ctx context.Context, actorID, tenantID uuid.UUID, req dto.CreateTenantUserRequest) (*dto.TenantUserResponse, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*dto.UserResponse, error)
-	List(ctx context.Context, params model.PaginationParams) (*model.PaginatedResult[dto.UserResponse], error)
+	List(ctx context.Context, roleSlug string, params model.PaginationParams) (*model.PaginatedResult[dto.UserResponse], error)
 	Update(ctx context.Context, id uuid.UUID, req dto.UpdateUserRequest) (*dto.UserResponse, error)
 	Delete(ctx context.Context, id uuid.UUID) error
+}
+
+// ParentService orchestrates the unified "Parents" admin view by binding
+// guardian contact records to parent login accounts (users) and aggregating
+// the linked students for each guardian. It is intentionally a separate
+// service because it must cross the academic + user domains without coupling
+// them.
+type ParentService interface {
+	LinkGuardianUser(ctx context.Context, actorID, tenantID, guardianID, userID uuid.UUID) (*dto.GuardianResponse, error)
+	UnlinkGuardianUser(ctx context.Context, actorID, tenantID, guardianID uuid.UUID) (*dto.GuardianResponse, error)
+	ListGuardianStudents(ctx context.Context, tenantID, guardianID uuid.UUID) ([]dto.GuardianStudentResponse, error)
+	ListParents(ctx context.Context, tenantID uuid.UUID, filter model.GuardianFilter, params model.PaginationParams) (*model.PaginatedResult[dto.ParentSummaryResponse], error)
 }
 
 type SettingsService interface {

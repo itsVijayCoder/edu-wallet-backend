@@ -93,6 +93,7 @@ type Guardian struct {
 	PreferredLanguage  string         `json:"preferred_language"`
 	CommunicationOptIn bool           `json:"communication_opt_in"`
 	Address            Address        `json:"address"`
+	UserID             *uuid.UUID     `json:"user_id,omitempty"`
 	Metadata           map[string]any `json:"metadata,omitempty"`
 	CreatedAt          time.Time      `json:"created_at"`
 	UpdatedAt          time.Time      `json:"updated_at"`
@@ -107,6 +108,21 @@ type StudentGuardian struct {
 	IsPrimary    bool      `json:"is_primary"`
 	CreatedAt    time.Time `json:"created_at"`
 	Guardian     *Guardian `json:"guardian,omitempty"`
+}
+
+// GuardianStudent is the reverse projection of StudentGuardian joined with the
+// student, class, and section tables so a guardian can be resolved back to the
+// students they are responsible for without a second round trip.
+type GuardianStudent struct {
+	StudentID       uuid.UUID `json:"student_id"`
+	AdmissionNumber string    `json:"admission_number"`
+	FirstName       string    `json:"first_name"`
+	LastName        string    `json:"last_name"`
+	Relationship    string    `json:"relationship"`
+	IsPrimary       bool      `json:"is_primary"`
+	ClassName       string    `json:"class_name"`
+	SectionName     string    `json:"section_name"`
+	Status          string    `json:"status"`
 }
 
 type Import struct {
@@ -163,7 +179,9 @@ type StudentFilter struct {
 }
 
 type GuardianFilter struct {
-	Search string
+	Search       string
+	OnlyLinked   bool
+	OnlyUnlinked bool
 }
 
 type ImportFilter struct {

@@ -31,6 +31,7 @@ type Handlers struct {
 	Billing  *handler.BillingHandler
 	Payment  *handler.PaymentHandler
 	Ops      *handler.OperationsHandler
+	Parent   *handler.ParentHandler
 }
 
 // RouterConfig holds router-level configuration.
@@ -166,7 +167,12 @@ func New(log *slog.Logger, cfg RouterConfig, tokenMgr jwt.TokenManager, rdb *red
 				guardians.GET("/:id", h.Academic.GetGuardian)
 				guardians.PATCH("/:id", h.Academic.UpdateGuardian)
 				guardians.DELETE("/:id", h.Academic.DeleteGuardian)
+				guardians.GET("/:id/students", h.Parent.ListGuardianStudents)
+				guardians.POST("/:id/user", h.Parent.LinkGuardianUser)
+				guardians.DELETE("/:id/user", h.Parent.UnlinkGuardianUser)
 			}
+
+			adminTenant.GET("/parents", middleware.PermissionGuard("guardians.manage"), h.Parent.ListParents)
 
 			imports := adminTenant.Group("/imports", middleware.PermissionGuard("imports.manage"))
 			{

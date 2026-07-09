@@ -421,6 +421,24 @@ func studentFilterParams() []Parameter {
 	return params
 }
 
+func userFilterParams() []Parameter {
+	params := paginationParams()
+	params = append(params,
+		qEnum("role", "Filter users by role slug.", "admin", "staff", "parents", "student", "super_admin"),
+		qString("search", "Search email, first name, or last name."),
+	)
+	return params
+}
+
+func guardianFilterParams() []Parameter {
+	params := paginationParams()
+	params = append(params,
+		qString("search", "Search guardian name, email, or phone."),
+		qEnum("linked", "Filter by parent login link status.", "true", "false"),
+	)
+	return params
+}
+
 func paymentFilterParams() []Parameter {
 	params := paginationParams()
 	params = append(params,
@@ -497,7 +515,7 @@ var endpointCatalog = []Endpoint{
 	endpoint(http.MethodPost, "/api/v1/platform/tenants/:id/branches", "Platform Tenants", "Create tenant branch", secured(), body("CreateBranchRequest"), created()),
 
 	endpoint(http.MethodPost, "/api/v1/admin/users", "Admin Users", "Create user", secured(), body("CreateUserRequest"), created()),
-	endpoint(http.MethodGet, "/api/v1/admin/users", "Admin Users", "List users", secured(), query(paginationParams()...)),
+	endpoint(http.MethodGet, "/api/v1/admin/users", "Admin Users", "List users", secured(), query(userFilterParams()...)),
 	endpoint(http.MethodGet, "/api/v1/admin/users/:id", "Admin Users", "Get user", secured()),
 	endpoint(http.MethodPut, "/api/v1/admin/users/:id", "Admin Users", "Update user", secured(), body("UpdateUserRequest")),
 	endpoint(http.MethodDelete, "/api/v1/admin/users/:id", "Admin Users", "Delete user", secured()),
@@ -533,10 +551,14 @@ var endpointCatalog = []Endpoint{
 	endpoint(http.MethodDelete, "/api/v1/admin/students/:id/guardians/:guardian_id", "Students", "Unlink guardian from student", secured("students.manage")),
 
 	endpoint(http.MethodPost, "/api/v1/admin/guardians", "Students", "Create guardian", secured("guardians.manage"), body("CreateGuardianRequest"), created()),
-	endpoint(http.MethodGet, "/api/v1/admin/guardians", "Students", "List guardians", secured("guardians.manage"), query(paginationParams()...)),
+	endpoint(http.MethodGet, "/api/v1/admin/guardians", "Students", "List guardians", secured("guardians.manage"), query(guardianFilterParams()...)),
 	endpoint(http.MethodGet, "/api/v1/admin/guardians/:id", "Students", "Get guardian", secured("guardians.manage")),
 	endpoint(http.MethodPatch, "/api/v1/admin/guardians/:id", "Students", "Update guardian", secured("guardians.manage"), body("GenericPatchRequest")),
 	endpoint(http.MethodDelete, "/api/v1/admin/guardians/:id", "Students", "Delete guardian", secured("guardians.manage")),
+	endpoint(http.MethodGet, "/api/v1/admin/guardians/:id/students", "Students", "List students linked to a guardian", secured("guardians.manage")),
+	endpoint(http.MethodPost, "/api/v1/admin/guardians/:id/user", "Students", "Link a parent user account to a guardian", secured("guardians.manage"), body("LinkGuardianUserRequest"), created()),
+	endpoint(http.MethodDelete, "/api/v1/admin/guardians/:id/user", "Students", "Unlink a parent user account from a guardian", secured("guardians.manage")),
+	endpoint(http.MethodGet, "/api/v1/admin/parents", "Students", "List parents (guardian + login + linked students)", secured("guardians.manage"), query(guardianFilterParams()...)),
 
 	endpoint(http.MethodGet, "/api/v1/admin/imports", "Students", "List student import history", secured("imports.manage"), query(paginationParams()...)),
 	endpoint(http.MethodGet, "/api/v1/admin/imports/students/template", "Students", "Download student import CSV template", secured("imports.manage"), download("text/csv")),
@@ -738,7 +760,32 @@ func schemaComponents() map[string]any {
 			"preferred_language":   stringSchema(""),
 			"communication_opt_in": boolSchema(),
 			"address":              ref("AddressRequest"),
+			"user_id":              uuidSchema(),
 			"metadata":             map[string]any{"type": "object", "additionalProperties": true},
+		}),
+		"LinkGuardianUserRequest": object([]string{"user_id"}, map[string]any{
+			"user_id": uuidSchema(),
+		}),
+		"GuardianStudentResponse": object(nil, map[string]any{
+			"student_id":       uuidSchema(),
+			"admission_number": stringSchema(""),
+			"first_name":       stringSchema(""),
+			"last_name":        stringSchema(""),
+			"relationship":     stringSchema(""),
+			"is_primary":       boolSchema(),
+			"class_name":       stringSchema(""),
+			"section_name":     stringSchema(""),
+			"status":           enumSchema("active", "inactive", "transferred", "graduated"),
+		}),
+		"ParentSummaryResponse": object(nil, map[string]any{
+			"guardian_id":     uuidSchema(),
+			"name":            stringSchema(""),
+			"relationship":    stringSchema(""),
+			"phone":           stringSchema(""),
+			"email":           stringSchema("email"),
+			"user_id":         uuidSchema(),
+			"user_status":     enumSchema("active", "inactive", "invited"),
+			"linked_students": arrayOf(ref("GuardianStudentResponse")),
 		}),
 		"StudentGuardianRequest": object([]string{"guardian_id"}, map[string]any{
 			"guardian_id":  uuidSchema(),

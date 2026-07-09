@@ -1524,6 +1524,7 @@ func guardianToResponse(item *model.Guardian) dto.GuardianResponse {
 		PreferredLanguage:  item.PreferredLanguage,
 		CommunicationOptIn: item.CommunicationOptIn,
 		Address:            addressToResponse(item.Address),
+		UserID:             item.UserID,
 		Metadata:           item.Metadata,
 		CreatedAt:          item.CreatedAt,
 		UpdatedAt:          item.UpdatedAt,

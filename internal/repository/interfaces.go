@@ -22,7 +22,7 @@ type UserRepository interface {
 	Create(ctx context.Context, user *model.User) error
 	GetByID(ctx context.Context, id uuid.UUID) (*model.User, error)
 	GetByEmail(ctx context.Context, email string) (*model.User, error)
-	List(ctx context.Context, params model.PaginationParams) (*model.PaginatedResult[model.User], error)
+	List(ctx context.Context, filter model.UserFilter, params model.PaginationParams) (*model.PaginatedResult[model.User], error)
 	Update(ctx context.Context, user *model.User) error
 	SoftDelete(ctx context.Context, id uuid.UUID) error
 	AssignRoles(ctx context.Context, userID uuid.UUID, roleIDs []uuid.UUID) error
@@ -103,11 +103,13 @@ type AcademicRepository interface {
 	ListGuardians(ctx context.Context, tenantID uuid.UUID, filter model.GuardianFilter, params model.PaginationParams) (*model.PaginatedResult[model.Guardian], error)
 	UpdateGuardian(ctx context.Context, guardian *model.Guardian) error
 	SoftDeleteGuardian(ctx context.Context, tenantID, id uuid.UUID) error
+	SetGuardianUserID(ctx context.Context, tenantID, guardianID uuid.UUID, userID *uuid.UUID) error
 
 	SetStudentGuardians(ctx context.Context, tenantID, studentID uuid.UUID, links []model.StudentGuardian) error
 	LinkStudentGuardian(ctx context.Context, link *model.StudentGuardian) error
 	UnlinkStudentGuardian(ctx context.Context, tenantID, studentID, guardianID uuid.UUID) error
 	ListStudentGuardians(ctx context.Context, tenantID, studentID uuid.UUID) ([]model.StudentGuardian, error)
+	ListGuardianStudents(ctx context.Context, tenantID, guardianID uuid.UUID) ([]model.GuardianStudent, error)
 
 	CreateImport(ctx context.Context, imp *model.Import) error
 	GetImport(ctx context.Context, tenantID, id uuid.UUID) (*model.Import, error)

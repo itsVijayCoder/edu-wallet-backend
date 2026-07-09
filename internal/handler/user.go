@@ -62,7 +62,7 @@ func (h *AdminUserHandler) CreateTenantUser(c *gin.Context) {
 func (h *AdminUserHandler) List(c *gin.Context) {
 	params := dto.ExtractPagination(c)
 
-	result, err := h.userSvc.List(c.Request.Context(), params)
+	result, err := h.userSvc.List(c.Request.Context(), c.Query("role"), params)
 	if err != nil {
 		HandleError(c, err)
 		return

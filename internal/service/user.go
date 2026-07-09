@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -151,8 +152,16 @@ func (s *userService) GetByID(ctx context.Context, id uuid.UUID) (*dto.UserRespo
 	return &resp, nil
 }
 
-func (s *userService) List(ctx context.Context, params model.PaginationParams) (*model.PaginatedResult[dto.UserResponse], error) {
-	result, err := s.userRepo.List(ctx, params)
+func (s *userService) List(ctx context.Context, roleSlug string, params model.PaginationParams) (*model.PaginatedResult[dto.UserResponse], error) {
+	trimmed := strings.TrimSpace(roleSlug)
+	if trimmed != "" {
+		role, err := s.roleRepo.GetBySlug(ctx, trimmed)
+		if err != nil || role == nil {
+			return nil, apperror.New("INVALID_ROLE", fmt.Sprintf("role '%s' not found", trimmed), 400)
+		}
+	}
+
+	result, err := s.userRepo.List(ctx, model.UserFilter{RoleSlug: trimmed}, params)
 	if err != nil {
 		return nil, fmt.Errorf("list users: %w", err)
 	}

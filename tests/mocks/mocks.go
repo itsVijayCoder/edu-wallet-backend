@@ -39,8 +39,8 @@ func (m *MockUserRepository) GetByEmail(ctx context.Context, email string) (*mod
 	return args.Get(0).(*model.User), args.Error(1)
 }
 
-func (m *MockUserRepository) List(ctx context.Context, params model.PaginationParams) (*model.PaginatedResult[model.User], error) {
-	args := m.Called(ctx, params)
+func (m *MockUserRepository) List(ctx context.Context, filter model.UserFilter, params model.PaginationParams) (*model.PaginatedResult[model.User], error) {
+	args := m.Called(ctx, filter, params)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -142,6 +142,19 @@ func (m *MockTenantMembershipRepository) ListPermissionsByRole(ctx context.Conte
 		return nil, args.Error(1)
 	}
 	return args.Get(0).([]model.Permission), args.Error(1)
+}
+
+// ---------------------------------------------------------------------------
+// MockAuditRepository implements repository.AuditRepository
+// ---------------------------------------------------------------------------
+
+type MockAuditRepository struct {
+	mock.Mock
+}
+
+func (m *MockAuditRepository) Create(ctx context.Context, entry *model.AuditLog) error {
+	args := m.Called(ctx, entry)
+	return args.Error(0)
 }
 
 // ---------------------------------------------------------------------------

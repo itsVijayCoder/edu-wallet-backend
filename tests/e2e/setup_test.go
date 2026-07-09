@@ -177,6 +177,7 @@ func SetupSuite(t *testing.T) *TestSuite {
 	paymentSvc := service.NewPaymentService(paymentRepo, postgres.NewPaymentRepository, academicRepo, transactor, auditRepo, paymentProvider, service.NewPDFReceiptRenderer())
 	billingSvc := service.NewBillingService(billingRepo, postgres.NewBillingRepository, academicRepo, transactor, auditRepo, paymentRepo)
 	operationsSvc := service.NewOperationsService(operationsRepo, postgres.NewOperationsRepository, transactor, auditRepo, service.NewNotificationProvider(nil))
+	parentSvc := service.NewParentService(academicRepo, userRepo, roleRepo, auditRepo)
 
 	// Router
 	r := router.New(log, router.RouterConfig{
@@ -194,6 +195,7 @@ func SetupSuite(t *testing.T) *TestSuite {
 		Billing:  handler.NewBillingHandler(billingSvc),
 		Payment:  handler.NewPaymentHandler(paymentSvc),
 		Ops:      handler.NewOperationsHandler(operationsSvc),
+		Parent:   handler.NewParentHandler(parentSvc),
 	})
 
 	return &TestSuite{

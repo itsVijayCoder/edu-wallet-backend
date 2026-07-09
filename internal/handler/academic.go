@@ -304,7 +304,14 @@ func (h *AcademicHandler) ListGuardians(c *gin.Context) {
 		HandleError(c, err)
 		return
 	}
-	result, err := h.academicSvc.ListGuardians(c.Request.Context(), tenantID, model.GuardianFilter{Search: c.Query("search")}, dto.ExtractPagination(c))
+	filter := model.GuardianFilter{Search: c.Query("search")}
+	switch c.Query("linked") {
+	case "true":
+		filter.OnlyLinked = true
+	case "false":
+		filter.OnlyUnlinked = true
+	}
+	result, err := h.academicSvc.ListGuardians(c.Request.Context(), tenantID, filter, dto.ExtractPagination(c))
 	if err != nil {
 		HandleError(c, err)
 		return

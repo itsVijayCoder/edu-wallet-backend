@@ -148,9 +148,38 @@ type GuardianResponse struct {
 	PreferredLanguage  string          `json:"preferred_language"`
 	CommunicationOptIn bool            `json:"communication_opt_in"`
 	Address            AddressResponse `json:"address"`
+	UserID             *uuid.UUID      `json:"user_id,omitempty"`
+	UserStatus         *string         `json:"user_status,omitempty"`
 	Metadata           map[string]any  `json:"metadata,omitempty"`
 	CreatedAt          time.Time       `json:"created_at"`
 	UpdatedAt          time.Time       `json:"updated_at"`
+}
+
+type LinkGuardianUserRequest struct {
+	UserID uuid.UUID `json:"user_id" binding:"required"`
+}
+
+type GuardianStudentResponse struct {
+	StudentID       uuid.UUID `json:"student_id"`
+	AdmissionNumber string    `json:"admission_number"`
+	FirstName       string    `json:"first_name"`
+	LastName        string    `json:"last_name"`
+	Relationship    string    `json:"relationship"`
+	IsPrimary       bool      `json:"is_primary"`
+	ClassName       string    `json:"class_name"`
+	SectionName     string    `json:"section_name"`
+	Status          string    `json:"status"`
+}
+
+type ParentSummaryResponse struct {
+	GuardianID     uuid.UUID                 `json:"guardian_id"`
+	Name           string                    `json:"name"`
+	Relationship   string                    `json:"relationship"`
+	Phone          *string                   `json:"phone,omitempty"`
+	Email          *string                   `json:"email,omitempty"`
+	UserID         *uuid.UUID                `json:"user_id,omitempty"`
+	UserStatus     *string                   `json:"user_status,omitempty"`
+	LinkedStudents []GuardianStudentResponse `json:"linked_students"`
 }
 
 type StudentGuardianRequest struct {

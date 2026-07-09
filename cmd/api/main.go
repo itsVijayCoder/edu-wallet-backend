@@ -105,6 +105,7 @@ func run() error {
 	billingSvc := service.NewBillingService(billingRepo, postgres.NewBillingRepository, academicRepo, transactor, auditRepo, paymentRepo)
 	notificationProvider := service.NewNotificationProvider(emailClient)
 	operationsSvc := service.NewOperationsService(operationsRepo, postgres.NewOperationsRepository, transactor, auditRepo, notificationProvider)
+	parentSvc := service.NewParentService(academicRepo, userRepo, roleRepo, auditRepo)
 	// --- ADD YOUR SERVICES HERE ---
 
 	if strings.EqualFold(cfg.App.Mode, "worker") {
@@ -154,6 +155,7 @@ func run() error {
 		Billing:  handler.NewBillingHandler(billingSvc),
 		Payment:  handler.NewPaymentHandler(paymentSvc),
 		Ops:      handler.NewOperationsHandler(operationsSvc),
+		Parent:   handler.NewParentHandler(parentSvc),
 		// --- ADD YOUR HANDLERS HERE ---
 	})
 

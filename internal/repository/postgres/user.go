@@ -90,13 +90,14 @@ func (r *userRepository) GetByEmail(ctx context.Context, email string) (*model.U
 	return user, nil
 }
 
-func (r *userRepository) List(ctx context.Context, params model.PaginationParams) (*model.PaginatedResult[model.User], error) {
+func (r *userRepository) List(ctx context.Context, filter model.UserFilter, params model.PaginationParams) (*model.PaginatedResult[model.User], error) {
 	params.Normalize()
 
-	// Count total rows.
-	const countQuery = `SELECT COUNT(*) FROM users WHERE deleted_at IS NULL`
+	where, args := userWhereClause(filter)
+	countQuery := "SELECT COUNT(*) FROM users u " + where
+
 	var total int64
-	if err := r.db.QueryRow(ctx, countQuery).Scan(&total); err != nil {
+	if err := r.db.QueryRow(ctx, countQuery, args...).Scan(&total); err != nil {
 		return nil, err
 	}
 
@@ -110,16 +111,21 @@ func (r *userRepository) List(ctx context.Context, params model.PaginationParams
 		sortDir = "ASC"
 	}
 
+	limitParam := fmt.Sprintf("$%d", len(args)+1)
+	offsetParam := fmt.Sprintf("$%d", len(args)+2)
+	args = append(args, params.PageSize, params.Offset())
+
 	listQuery := fmt.Sprintf(
-		`SELECT id, email, password_hash, first_name, last_name, status,
-			last_login_at, created_at, updated_at, deleted_at
-		FROM users
-		WHERE deleted_at IS NULL
-		ORDER BY %s %s
-		LIMIT $1 OFFSET $2`, sortCol, sortDir,
+		`SELECT u.id, u.email, u.password_hash, u.first_name, u.last_name, u.status,
+			u.last_login_at, u.created_at, u.updated_at, u.deleted_at
+		FROM users u
+		%s
+		ORDER BY u.%s %s
+		LIMIT %s OFFSET %s`,
+		where, sortCol, sortDir, limitParam, offsetParam,
 	)
 
-	rows, err := r.db.Query(ctx, listQuery, params.PageSize, params.Offset())
+	rows, err := r.db.Query(ctx, listQuery, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +147,43 @@ func (r *userRepository) List(ctx context.Context, params model.PaginationParams
 		return nil, err
 	}
 
+	// Populate roles per user so the list response can show role slugs. This
+	// matches the GetByID behaviour and keeps the admin user list useful. The
+	// pagination bound makes the N+1 cost acceptable for an admin endpoint.
+	for i := range users {
+		roles, err := r.getRoles(ctx, users[i].ID)
+		if err != nil {
+			return nil, err
+		}
+		users[i].Roles = roles
+	}
+
 	return model.NewPaginatedResult(users, total, params.Page, params.PageSize), nil
+}
+
+// userWhereClause builds the WHERE clause and argument list for filtered user
+// listings. The role filter uses an EXISTS subquery (rather than joining the
+// user_roles/roles tables in FROM) so users with multiple roles still appear
+// only once in the result set.
+func userWhereClause(filter model.UserFilter) (string, []any) {
+	clauses := []string{"u.deleted_at IS NULL"}
+	args := []any{}
+	if strings.TrimSpace(filter.RoleSlug) != "" {
+		args = append(args, strings.TrimSpace(filter.RoleSlug))
+		clauses = append(clauses, fmt.Sprintf(
+			"EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = u.id AND r.slug = $%d)",
+			len(args),
+		))
+	}
+	if strings.TrimSpace(filter.Status) != "" {
+		args = append(args, strings.TrimSpace(filter.Status))
+		clauses = append(clauses, fmt.Sprintf("u.status = $%d", len(args)))
+	}
+	if strings.TrimSpace(filter.Search) != "" {
+		args = append(args, "%"+strings.ToLower(strings.TrimSpace(filter.Search))+"%")
+		clauses = append(clauses, fmt.Sprintf("(lower(u.email) LIKE $%d OR lower(u.first_name) LIKE $%d OR lower(u.last_name) LIKE $%d)", len(args), len(args), len(args)))
+	}
+	return "WHERE " + strings.Join(clauses, " AND "), args
 }
 
 func (r *userRepository) Update(ctx context.Context, user *model.User) error {

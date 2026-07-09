@@ -25,3 +25,11 @@ type User struct {
 func (u User) FullName() string {
 	return u.FirstName + " " + u.LastName
 }
+
+// UserFilter narrows UserRepository.List results. RoleSlug is the slug of a
+// role the user must hold; an empty string means "no role filter".
+type UserFilter struct {
+	RoleSlug string
+	Search   string
+	Status   string
+}

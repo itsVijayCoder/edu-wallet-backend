@@ -465,8 +465,8 @@ func (r *academicRepository) SoftDeleteStudent(ctx context.Context, tenantID, id
 func (r *academicRepository) CreateGuardian(ctx context.Context, guardian *model.Guardian) error {
 	const query = `INSERT INTO guardians (
 			tenant_id, name, relationship, phone, whatsapp_phone, email, preferred_language,
-			communication_opt_in, address_line1, address_line2, city, state, postal_code, country, metadata
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+			communication_opt_in, address_line1, address_line2, city, state, postal_code, country, user_id, metadata
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
 		RETURNING id, created_at, updated_at`
 
 	return r.db.QueryRow(ctx, query,
@@ -484,6 +484,7 @@ func (r *academicRepository) CreateGuardian(ctx context.Context, guardian *model
 		guardian.Address.State,
 		guardian.Address.PostalCode,
 		guardian.Address.Country,
+		guardian.UserID,
 		mustJSON(guardian.Metadata),
 	).Scan(&guardian.ID, &guardian.CreatedAt, &guardian.UpdatedAt)
 }
@@ -566,9 +567,10 @@ func (r *academicRepository) UpdateGuardian(ctx context.Context, guardian *model
 			state = $11,
 			postal_code = $12,
 			country = $13,
-			metadata = $14,
+			user_id = $14,
+			metadata = $15,
 			updated_at = NOW()
-		WHERE tenant_id = $15 AND id = $16 AND deleted_at IS NULL
+		WHERE tenant_id = $16 AND id = $17 AND deleted_at IS NULL
 		RETURNING updated_at`
 
 	return r.db.QueryRow(ctx, query,
@@ -585,6 +587,7 @@ func (r *academicRepository) UpdateGuardian(ctx context.Context, guardian *model
 		guardian.Address.State,
 		guardian.Address.PostalCode,
 		guardian.Address.Country,
+		guardian.UserID,
 		mustJSON(guardian.Metadata),
 		guardian.TenantID,
 		guardian.ID,
@@ -594,6 +597,20 @@ func (r *academicRepository) UpdateGuardian(ctx context.Context, guardian *model
 func (r *academicRepository) SoftDeleteGuardian(ctx context.Context, tenantID, id uuid.UUID) error {
 	_, err := r.db.Exec(ctx, `UPDATE guardians SET deleted_at = NOW(), updated_at = NOW() WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL`, tenantID, id)
 	return err
+}
+
+func (r *academicRepository) SetGuardianUserID(ctx context.Context, tenantID, guardianID uuid.UUID, userID *uuid.UUID) error {
+	const query = `UPDATE guardians SET user_id = $1, updated_at = NOW()
+		WHERE tenant_id = $2 AND id = $3 AND deleted_at IS NULL
+		RETURNING id`
+	var returned uuid.UUID
+	if err := r.db.QueryRow(ctx, query, userID, tenantID, guardianID).Scan(&returned); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil
+		}
+		return err
+	}
+	return nil
 }
 
 func (r *academicRepository) SetStudentGuardians(ctx context.Context, tenantID, studentID uuid.UUID, links []model.StudentGuardian) error {
@@ -643,7 +660,7 @@ func (r *academicRepository) ListStudentGuardians(ctx context.Context, tenantID,
 			g.id, g.tenant_id, g.name, g.relationship, g.phone, g.whatsapp_phone, g.email,
 			g.preferred_language, g.communication_opt_in,
 			g.address_line1, g.address_line2, g.city, g.state, g.postal_code, g.country,
-			g.metadata, g.created_at, g.updated_at, g.deleted_at
+			g.user_id, g.metadata, g.created_at, g.updated_at, g.deleted_at
 		FROM student_guardians sg
 		JOIN guardians g ON g.tenant_id = sg.tenant_id AND g.id = sg.guardian_id
 		WHERE sg.tenant_id = $1 AND sg.student_id = $2 AND g.deleted_at IS NULL
@@ -664,6 +681,43 @@ func (r *academicRepository) ListStudentGuardians(ctx context.Context, tenantID,
 		links = append(links, *link)
 	}
 	return links, rows.Err()
+}
+
+// ListGuardianStudents is the reverse projection: given a guardian ID, return
+// the students linked to it with the student, class, and section details
+// required to render the admin "Parents" view without a second round trip.
+func (r *academicRepository) ListGuardianStudents(ctx context.Context, tenantID, guardianID uuid.UUID) ([]model.GuardianStudent, error) {
+	const query = `SELECT
+			sg.student_id, s.admission_number, s.first_name, s.last_name,
+			sg.relationship, sg.is_primary,
+			coalesce(c.name, '') AS class_name,
+			coalesce(sec.name, '') AS section_name,
+			s.status
+		FROM student_guardians sg
+		JOIN students s ON s.tenant_id = sg.tenant_id AND s.id = sg.student_id AND s.deleted_at IS NULL
+		LEFT JOIN classes c ON c.tenant_id = s.tenant_id AND c.id = s.class_id
+		LEFT JOIN sections sec ON sec.tenant_id = s.tenant_id AND sec.id = s.section_id
+		WHERE sg.tenant_id = $1 AND sg.guardian_id = $2
+		ORDER BY sg.is_primary DESC, s.first_name ASC, s.last_name ASC`
+
+	rows, err := r.db.Query(ctx, query, tenantID, guardianID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := []model.GuardianStudent{}
+	for rows.Next() {
+		item, err := scanGuardianStudentRow(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, *item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 func (r *academicRepository) CreateImport(ctx context.Context, imp *model.Import) error {
@@ -830,7 +884,7 @@ const guardianSelect = `SELECT
 		id, tenant_id, name, relationship, phone, whatsapp_phone, email,
 		preferred_language, communication_opt_in,
 		address_line1, address_line2, city, state, postal_code, country,
-		metadata, created_at, updated_at, deleted_at
+		user_id, metadata, created_at, updated_at, deleted_at
 	FROM guardians`
 
 const importSelect = `SELECT
@@ -1053,6 +1107,7 @@ func scanGuardianScanner(row rowScanner) (*model.Guardian, error) {
 		&item.Address.State,
 		&item.Address.PostalCode,
 		&item.Address.Country,
+		&item.UserID,
 		&metadata,
 		&item.CreatedAt,
 		&item.UpdatedAt,
@@ -1090,6 +1145,7 @@ func scanStudentGuardianRow(rows pgx.Rows) (*model.StudentGuardian, error) {
 		&guardian.Address.State,
 		&guardian.Address.PostalCode,
 		&guardian.Address.Country,
+		&guardian.UserID,
 		&metadata,
 		&guardian.CreatedAt,
 		&guardian.UpdatedAt,
@@ -1100,6 +1156,24 @@ func scanStudentGuardianRow(rows pgx.Rows) (*model.StudentGuardian, error) {
 	guardian.Metadata = parseJSON(metadata)
 	link.Guardian = &guardian
 	return &link, nil
+}
+
+func scanGuardianStudentRow(rows pgx.Rows) (*model.GuardianStudent, error) {
+	var item model.GuardianStudent
+	if err := rows.Scan(
+		&item.StudentID,
+		&item.AdmissionNumber,
+		&item.FirstName,
+		&item.LastName,
+		&item.Relationship,
+		&item.IsPrimary,
+		&item.ClassName,
+		&item.SectionName,
+		&item.Status,
+	); err != nil {
+		return nil, err
+	}
+	return &item, nil
 }
 
 func scanImportScanner(row rowScanner) (*model.Import, error) {
@@ -1209,6 +1283,12 @@ func guardianWhere(tenantID uuid.UUID, filter model.GuardianFilter) (string, []a
 	if strings.TrimSpace(filter.Search) != "" {
 		args = append(args, "%"+strings.ToLower(strings.TrimSpace(filter.Search))+"%")
 		clauses = append(clauses, fmt.Sprintf("(lower(name) LIKE $%d OR lower(coalesce(email, '')) LIKE $%d OR coalesce(phone, '') LIKE $%d)", len(args), len(args), len(args)))
+	}
+	if filter.OnlyLinked {
+		clauses = append(clauses, "user_id IS NOT NULL")
+	}
+	if filter.OnlyUnlinked {
+		clauses = append(clauses, "user_id IS NULL")
 	}
 	return "WHERE " + strings.Join(clauses, " AND "), args
 }
