@@ -455,6 +455,10 @@
           "relationship": {
             "type": "string"
           },
+          "user_id": {
+            "format": "uuid",
+            "type": "string"
+          },
           "whatsapp_phone": {
             "type": "string"
           }
@@ -1051,6 +1055,57 @@
         "additionalProperties": true,
         "type": "object"
       },
+      "GuardianStudentResponse": {
+        "properties": {
+          "admission_number": {
+            "type": "string"
+          },
+          "class_name": {
+            "type": "string"
+          },
+          "first_name": {
+            "type": "string"
+          },
+          "is_primary": {
+            "type": "boolean"
+          },
+          "last_name": {
+            "type": "string"
+          },
+          "relationship": {
+            "type": "string"
+          },
+          "section_name": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "inactive",
+              "transferred",
+              "graduated"
+            ],
+            "type": "string"
+          },
+          "student_id": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "LinkGuardianUserRequest": {
+        "properties": {
+          "user_id": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id"
+        ],
+        "type": "object"
+      },
       "LoginRequest": {
         "properties": {
           "email": {
@@ -1102,6 +1157,46 @@
           "total_pages": {
             "format": "int32",
             "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "ParentSummaryResponse": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "type": "string"
+          },
+          "guardian_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "linked_students": {
+            "items": {
+              "$ref": "#/components/schemas/GuardianStudentResponse"
+            },
+            "type": "array"
+          },
+          "name": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "relationship": {
+            "type": "string"
+          },
+          "user_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "user_status": {
+            "enum": [
+              "active",
+              "inactive",
+              "invited"
+            ],
+            "type": "string"
           }
         },
         "type": "object"
@@ -3875,6 +3970,28 @@
               ],
               "type": "string"
             }
+          },
+          {
+            "description": "Search guardian name, email, or phone.",
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Filter by parent login link status.",
+            "in": "query",
+            "name": "linked",
+            "required": false,
+            "schema": {
+              "enum": [
+                "true",
+                "false"
+              ],
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -4223,6 +4340,251 @@
           }
         ],
         "summary": "Update guardian",
+        "tags": [
+          "Students"
+        ]
+      }
+    },
+    "/api/v1/admin/guardians/{id}/students": {
+      "get": {
+        "description": "Requires permission: guardians.manage.",
+        "operationId": "get_admin_guardians_id_students",
+        "parameters": [
+          {
+            "description": "Route identifier.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid, or expired JWT"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "Role or permission check failed"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "Resource not found"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "List students linked to a guardian",
+        "tags": [
+          "Students"
+        ]
+      }
+    },
+    "/api/v1/admin/guardians/{id}/user": {
+      "delete": {
+        "description": "Requires permission: guardians.manage.",
+        "operationId": "delete_admin_guardians_id_user",
+        "parameters": [
+          {
+            "description": "Route identifier.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid, or expired JWT"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "Role or permission check failed"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "Resource not found"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Unlink a parent user account from a guardian",
+        "tags": [
+          "Students"
+        ]
+      },
+      "post": {
+        "description": "Requires permission: guardians.manage.",
+        "operationId": "post_admin_guardians_id_user",
+        "parameters": [
+          {
+            "description": "Route identifier.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkGuardianUserRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid, or expired JWT"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "Role or permission check failed"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "Resource not found"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Link a parent user account to a guardian",
         "tags": [
           "Students"
         ]
@@ -4812,6 +5174,119 @@
         "summary": "Create offline payment",
         "tags": [
           "Payments"
+        ]
+      }
+    },
+    "/api/v1/admin/parents": {
+      "get": {
+        "description": "Requires permission: guardians.manage.",
+        "operationId": "get_admin_parents",
+        "parameters": [
+          {
+            "description": "Page number, starting at 1.",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Items per page.",
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Sort field.",
+            "in": "query",
+            "name": "sort_by",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Sort direction.",
+            "in": "query",
+            "name": "sort_dir",
+            "required": false,
+            "schema": {
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Search guardian name, email, or phone.",
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Filter by parent login link status.",
+            "in": "query",
+            "name": "linked",
+            "required": false,
+            "schema": {
+              "enum": [
+                "true",
+                "false"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid, or expired JWT"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "Role or permission check failed"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "List parents (guardian + login + linked students)",
+        "tags": [
+          "Students"
         ]
       }
     },
@@ -8540,6 +9015,31 @@
                 "asc",
                 "desc"
               ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Filter users by role slug.",
+            "in": "query",
+            "name": "role",
+            "required": false,
+            "schema": {
+              "enum": [
+                "admin",
+                "staff",
+                "parents",
+                "student",
+                "super_admin"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Search email, first name, or last name.",
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
               "type": "string"
             }
           }
