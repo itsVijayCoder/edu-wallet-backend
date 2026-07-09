@@ -177,8 +177,8 @@ func (r *paymentRepository) ApplyInvoicePayment(ctx context.Context, tenantID, i
 			balance_amount_paise = i.total_amount_paise - (i.paid_amount_paise + $3),
 			status = CASE
 				WHEN i.total_amount_paise - (i.paid_amount_paise + $3) = 0 THEN 'paid'
-				WHEN i.due_date < $4 THEN 'overdue'
 				WHEN i.paid_amount_paise + $3 > 0 THEN 'partially_paid'
+				WHEN i.due_date < $4 THEN 'overdue'
 				ELSE 'issued'
 			END,
 			updated_at = NOW()

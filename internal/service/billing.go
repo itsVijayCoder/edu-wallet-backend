@@ -1245,11 +1245,11 @@ func recalculateInvoiceStatus(invoice model.Invoice, asOf time.Time) string {
 	if invoice.BalanceAmountPaise <= 0 {
 		return "paid"
 	}
-	if invoice.DueDate.Before(asOf) {
-		return "overdue"
-	}
 	if invoice.PaidAmountPaise > 0 {
 		return "partially_paid"
+	}
+	if invoice.DueDate.Before(asOf) {
+		return "overdue"
 	}
 	return "issued"
 }
