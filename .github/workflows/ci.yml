@@ -30,17 +30,6 @@ jobs:
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
       runs-on: ubuntu-latest
       steps:
-         - name: Trigger Railway deploy
-           run: |
-              if [ -n "$RAILWAY_DEPLOY_HOOK_URL" ]; then
-                 curl -fsSL -X POST "$RAILWAY_DEPLOY_HOOK_URL" -H "Content-Type: application/json" -d '{}'
-                 echo "Railway deploy triggered."
-              else
-                 echo "RAILWAY_DEPLOY_HOOK_URL not set — skipping Railway deploy."
-              fi
-           env:
-              RAILWAY_DEPLOY_HOOK_URL: ${{ secrets.RAILWAY_DEPLOY_HOOK_URL }}
-
          - name: Trigger Render deploy
            run: |
               if [ -n "$RENDER_DEPLOY_HOOK_URL" ]; then
