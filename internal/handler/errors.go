@@ -2,11 +2,13 @@ package handler
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/itsVijayCoder/edu-wallet-backend/internal/apperror"
+	"github.com/itsVijayCoder/edu-wallet-backend/pkg/logger"
 )
 
 // HandleError maps an error to the correct HTTP response.
@@ -26,7 +28,14 @@ func HandleError(c *gin.Context, err error) {
 		return
 	}
 
-	// Unknown error: don't leak internal details
+	// Unknown error: don't leak internal details to the client, but log it.
+	log := logger.WithContext(c.Request.Context(), slog.Default())
+	log.Error("unhandled error",
+		slog.String("error", err.Error()),
+		slog.String("method", c.Request.Method),
+		slog.String("path", c.Request.URL.Path),
+	)
+
 	c.JSON(http.StatusInternalServerError, APIResponse{
 		Success:   false,
 		RequestID: getRequestID(c),

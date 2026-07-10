@@ -20,5 +20,34 @@ jobs:
               version: v2.12.2
          - name: Test
            run: go test ./... -short -race -count=1
-         - name: Build
+         - name: Build API
            run: go build -ldflags="-w -s" -o bin/api ./cmd/api
+         - name: Build Migrate
+           run: go build -ldflags="-w -s" -o bin/eduwallet-migrate ./cmd/migrate
+
+   deploy:
+      needs: quality
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      runs-on: ubuntu-latest
+      steps:
+         - name: Trigger Railway deploy
+           run: |
+              if [ -n "$RAILWAY_DEPLOY_HOOK_URL" ]; then
+                 curl -fsSL -X POST "$RAILWAY_DEPLOY_HOOK_URL" -H "Content-Type: application/json" -d '{}'
+                 echo "Railway deploy triggered."
+              else
+                 echo "RAILWAY_DEPLOY_HOOK_URL not set — skipping Railway deploy."
+              fi
+           env:
+              RAILWAY_DEPLOY_HOOK_URL: ${{ secrets.RAILWAY_DEPLOY_HOOK_URL }}
+
+         - name: Trigger Render deploy
+           run: |
+              if [ -n "$RENDER_DEPLOY_HOOK_URL" ]; then
+                 curl -fsSL -X POST "$RENDER_DEPLOY_HOOK_URL" -H "Content-Type: application/json" -d '{}'
+                 echo "Render deploy triggered."
+              else
+                 echo "RENDER_DEPLOY_HOOK_URL not set — skipping Render deploy."
+              fi
+           env:
+              RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}

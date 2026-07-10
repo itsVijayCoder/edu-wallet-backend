@@ -28,4 +28,4 @@ RUN chmod +x render-start.sh
 
 EXPOSE 8080
 
-CMD ["./api"]
+CMD ["./render-start.sh"]

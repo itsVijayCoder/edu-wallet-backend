@@ -39,6 +39,7 @@ func run() error {
 
 	// --- Logger ---
 	log := logger.New(cfg.App.Env)
+	slog.SetDefault(log)
 	log.Info("starting eduwallet", "env", cfg.App.Env, "port", cfg.App.Port)
 
 	// --- Databases ---

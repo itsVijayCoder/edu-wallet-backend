@@ -270,7 +270,9 @@ func createMigration(dir, ext string, args []string) error {
 		if err != nil {
 			return fmt.Errorf("create %s: %w", filename, err)
 		}
-		f.Close()
+		if err := f.Close(); err != nil {
+			return fmt.Errorf("close %s: %w", filename, err)
+		}
 		abs, _ := filepath.Abs(filename)
 		fmt.Println(abs)
 	}
