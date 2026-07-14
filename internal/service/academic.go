@@ -63,6 +63,8 @@ type academicService struct {
 	repoFactory repository.AcademicRepositoryFactory
 	tx          database.Transactor
 	auditRepo   repository.AuditRepository
+	userRepo    repository.UserRepository
+	roleRepo    repository.RoleRepository
 }
 
 func NewAcademicService(
@@ -70,12 +72,16 @@ func NewAcademicService(
 	repoFactory repository.AcademicRepositoryFactory,
 	tx database.Transactor,
 	auditRepo repository.AuditRepository,
+	userRepo repository.UserRepository,
+	roleRepo repository.RoleRepository,
 ) AcademicService {
 	return &academicService{
 		repo:        repo,
 		repoFactory: repoFactory,
 		tx:          tx,
 		auditRepo:   auditRepo,
+		userRepo:    userRepo,
+		roleRepo:    roleRepo,
 	}
 }
 
@@ -481,6 +487,25 @@ func (s *academicService) CreateGuardian(ctx context.Context, actorID, tenantID 
 	if req.CommunicationOptIn != nil {
 		optIn = *req.CommunicationOptIn
 	}
+	optInWhatsApp := true
+	if req.OptInWhatsApp != nil {
+		optInWhatsApp = *req.OptInWhatsApp
+	}
+
+	var linkedUser *model.User
+	if req.UserID != nil {
+		var err error
+		linkedUser, err = s.userRepo.GetByID(ctx, *req.UserID)
+		if err != nil {
+			return nil, fmt.Errorf("get guardian user: %w", err)
+		}
+		if linkedUser == nil {
+			return nil, apperror.New("PARENT_USER_NOT_FOUND", "parent user not found", 404)
+		}
+		if err := requireParentRole(ctx, s.roleRepo, linkedUser); err != nil {
+			return nil, err
+		}
+	}
 	guardian := &model.Guardian{
 		TenantID:           tenantID,
 		Name:               strings.TrimSpace(req.Name),
@@ -490,8 +515,13 @@ func (s *academicService) CreateGuardian(ctx context.Context, actorID, tenantID 
 		Email:              cleanOptionalString(req.Email),
 		PreferredLanguage:  defaultString(req.PreferredLanguage, "en"),
 		CommunicationOptIn: optIn,
-		Address:            addressFromRequest(req.Address),
+		OptInWhatsApp:      optInWhatsApp,
+		Address:            addressFromRequest(req.Address.AddressRequest),
+		UserID:             req.UserID,
 		Metadata:           normalizeMetadata(req.Metadata),
+	}
+	if linkedUser != nil {
+		guardian.UserStatus = userStatusPtr(linkedUser.Status)
 	}
 	if err := validateOptionalEmail(guardian.Email); err != nil {
 		return nil, err
@@ -559,8 +589,11 @@ func (s *academicService) UpdateGuardian(ctx context.Context, actorID, tenantID,
 	if req.CommunicationOptIn != nil {
 		guardian.CommunicationOptIn = *req.CommunicationOptIn
 	}
+	if req.OptInWhatsApp != nil {
+		guardian.OptInWhatsApp = *req.OptInWhatsApp
+	}
 	if req.Address != nil {
-		guardian.Address = addressFromRequest(*req.Address)
+		guardian.Address = addressFromRequest(req.Address.AddressRequest)
 	}
 	if req.Metadata != nil {
 		guardian.Metadata = normalizeMetadata(req.Metadata)
@@ -1523,12 +1556,36 @@ func guardianToResponse(item *model.Guardian) dto.GuardianResponse {
 		Email:              item.Email,
 		PreferredLanguage:  item.PreferredLanguage,
 		CommunicationOptIn: item.CommunicationOptIn,
-		Address:            addressToResponse(item.Address),
+		OptInWhatsApp:      item.OptInWhatsApp,
+		Address:            guardianAddressText(item.Address),
 		UserID:             item.UserID,
+		UserStatus:         item.UserStatus,
 		Metadata:           item.Metadata,
 		CreatedAt:          item.CreatedAt,
 		UpdatedAt:          item.UpdatedAt,
 	}
+}
+
+func guardianAddressText(address model.Address) string {
+	parts := []string{
+		strings.TrimSpace(address.Line1),
+		strings.TrimSpace(address.Line2),
+		strings.TrimSpace(address.City),
+		strings.TrimSpace(address.State),
+		strings.TrimSpace(address.PostalCode),
+	}
+	nonEmpty := parts[:0]
+	for i := range parts {
+		if parts[i] != "" {
+			nonEmpty = append(nonEmpty, parts[i])
+		}
+	}
+	if len(nonEmpty) > 1 {
+		if country := strings.TrimSpace(address.Country); country != "" {
+			nonEmpty = append(nonEmpty, country)
+		}
+	}
+	return strings.Join(nonEmpty, ", ")
 }
 
 func studentToResponse(item *model.Student) dto.StudentResponse {

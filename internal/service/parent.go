@@ -26,6 +26,7 @@ type guardianStore interface {
 	GetGuardian(ctx context.Context, tenantID, id uuid.UUID) (*model.Guardian, error)
 	ListGuardians(ctx context.Context, tenantID uuid.UUID, filter model.GuardianFilter, params model.PaginationParams) (*model.PaginatedResult[model.Guardian], error)
 	ListGuardianStudents(ctx context.Context, tenantID, guardianID uuid.UUID) ([]model.GuardianStudent, error)
+	ListGuardianStudentsByGuardianIDs(ctx context.Context, tenantID uuid.UUID, guardianIDs []uuid.UUID) (map[uuid.UUID][]model.GuardianStudent, error)
 	SetGuardianUserID(ctx context.Context, tenantID, guardianID uuid.UUID, userID *uuid.UUID) error
 }
 
@@ -123,6 +124,7 @@ func (s *parentService) UnlinkGuardianUser(ctx context.Context, actorID, tenantI
 	}
 
 	guardian.UserID = nil
+	guardian.UserStatus = nil
 	resp := guardianToResponse(guardian)
 	return &resp, nil
 }
@@ -154,36 +156,22 @@ func (s *parentService) ListParents(ctx context.Context, tenantID uuid.UUID, fil
 		return nil, fmt.Errorf("list guardians: %w", err)
 	}
 
-	// Collect linked user IDs so we can resolve their status in a single call
-	// set rather than issuing one query per guardian.
-	userIDs := make([]uuid.UUID, 0, len(result.Data))
+	guardianIDs := make([]uuid.UUID, 0, len(result.Data))
 	for i := range result.Data {
-		if result.Data[i].UserID != nil {
-			userIDs = append(userIDs, *result.Data[i].UserID)
-		}
+		guardianIDs = append(guardianIDs, result.Data[i].ID)
 	}
-	userStatusByID, err := s.resolveUserStatuses(ctx, userIDs)
+	studentsByGuardian, err := s.guardians.ListGuardianStudentsByGuardianIDs(ctx, tenantID, guardianIDs)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("list guardian students: %w", err)
 	}
 
 	summaries := make([]dto.ParentSummaryResponse, 0, len(result.Data))
 	for i := range result.Data {
 		guardian := &result.Data[i]
-		students, err := s.guardians.ListGuardianStudents(ctx, tenantID, guardian.ID)
-		if err != nil {
-			return nil, fmt.Errorf("list guardian students: %w", err)
-		}
+		students := studentsByGuardian[guardian.ID]
 		studentResponses := make([]dto.GuardianStudentResponse, 0, len(students))
 		for j := range students {
 			studentResponses = append(studentResponses, guardianStudentToResponse(&students[j]))
-		}
-
-		var userStatus *string
-		if guardian.UserID != nil {
-			if status, ok := userStatusByID[*guardian.UserID]; ok {
-				userStatus = &status
-			}
 		}
 
 		summaries = append(summaries, dto.ParentSummaryResponse{
@@ -193,31 +181,12 @@ func (s *parentService) ListParents(ctx context.Context, tenantID uuid.UUID, fil
 			Phone:          guardian.Phone,
 			Email:          guardian.Email,
 			UserID:         guardian.UserID,
-			UserStatus:     userStatus,
+			UserStatus:     guardian.UserStatus,
 			LinkedStudents: studentResponses,
 		})
 	}
 
 	return model.NewPaginatedResult(summaries, result.Total, result.Page, result.PageSize), nil
-}
-
-// resolveUserStatuses returns a map of user_id -> status for the given user
-// IDs. Missing users (e.g., soft-deleted) are skipped. This deliberately does
-// not fail on a missing user so the list view can still render guardians whose
-// accounts were deleted out-of-band.
-func (s *parentService) resolveUserStatuses(ctx context.Context, userIDs []uuid.UUID) (map[uuid.UUID]string, error) {
-	out := make(map[uuid.UUID]string, len(userIDs))
-	for i := range userIDs {
-		user, err := s.userRepo.GetByID(ctx, userIDs[i])
-		if err != nil {
-			return nil, fmt.Errorf("get user: %w", err)
-		}
-		if user == nil {
-			continue
-		}
-		out[userIDs[i]] = user.Status
-	}
-	return out, nil
 }
 
 func (s *parentService) audit(ctx context.Context, tenantID, actorID uuid.UUID, action, entityType string, entityID uuid.UUID, summary string, metadata map[string]any) error {

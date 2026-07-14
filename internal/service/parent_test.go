@@ -45,6 +45,14 @@ func (m *mockGuardianStore) ListGuardianStudents(ctx context.Context, tenantID, 
 	return args.Get(0).([]model.GuardianStudent), args.Error(1)
 }
 
+func (m *mockGuardianStore) ListGuardianStudentsByGuardianIDs(ctx context.Context, tenantID uuid.UUID, guardianIDs []uuid.UUID) (map[uuid.UUID][]model.GuardianStudent, error) {
+	args := m.Called(ctx, tenantID, guardianIDs)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(map[uuid.UUID][]model.GuardianStudent), args.Error(1)
+}
+
 func (m *mockGuardianStore) SetGuardianUserID(ctx context.Context, tenantID, guardianID uuid.UUID, userID *uuid.UUID) error {
 	args := m.Called(ctx, tenantID, guardianID, userID)
 	return args.Error(0)
@@ -168,7 +176,7 @@ func TestParentService_UnlinkGuardianUser_Success(t *testing.T) {
 	svc, guardians, _, _, auditRepo := newParentServiceForTest(t)
 	tenantID, guardianID, actorID := uuid.New(), uuid.New(), uuid.New()
 	existingUserID := uuid.New()
-	guardian := &model.Guardian{ID: guardianID, TenantID: tenantID, UserID: &existingUserID}
+	guardian := &model.Guardian{ID: guardianID, TenantID: tenantID, UserID: &existingUserID, UserStatus: stringPtr("active")}
 
 	guardians.On("GetGuardian", mock.Anything, tenantID, guardianID).Return(guardian, nil)
 	guardians.On("SetGuardianUserID", mock.Anything, tenantID, guardianID, (*uuid.UUID)(nil)).Return(nil)
@@ -178,6 +186,7 @@ func TestParentService_UnlinkGuardianUser_Success(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Nil(t, resp.UserID)
+	assert.Nil(t, resp.UserStatus)
 }
 
 func TestParentService_ListGuardianStudents_NotFound(t *testing.T) {
@@ -214,27 +223,26 @@ func TestParentService_ListGuardianStudents_Success(t *testing.T) {
 }
 
 func TestParentService_ListParents_AggregatesGuardianUserAndStudents(t *testing.T) {
-	svc, guardians, userRepo, _, _ := newParentServiceForTest(t)
+	svc, guardians, _, _, _ := newParentServiceForTest(t)
 	tenantID := uuid.New()
 	userID := uuid.New()
 	guardianID := uuid.New()
 	secondGuardianID := uuid.New()
 
 	guardiansList := []model.Guardian{
-		{ID: guardianID, TenantID: tenantID, Name: "Riya", UserID: &userID},
+		{ID: guardianID, TenantID: tenantID, Name: "Riya", UserID: &userID, UserStatus: stringPtr("active")},
 		{ID: secondGuardianID, TenantID: tenantID, Name: "Anil"},
 	}
 	guardians.On("ListGuardians", mock.Anything, tenantID, mock.Anything, mock.Anything).
 		Return(model.NewPaginatedResult(guardiansList, int64(2), 1, 20), nil)
 
-	userRepo.On("GetByID", mock.Anything, userID).Return(&model.User{ID: userID, Status: "active"}, nil)
-
-	guardians.On("ListGuardianStudents", mock.Anything, tenantID, guardianID).
-		Return([]model.GuardianStudent{
-			{StudentID: uuid.New(), AdmissionNumber: "ADM-1", FirstName: "Aarav", ClassName: "10", SectionName: "A", Status: "active"},
+	guardians.On("ListGuardianStudentsByGuardianIDs", mock.Anything, tenantID, []uuid.UUID{guardianID, secondGuardianID}).
+		Return(map[uuid.UUID][]model.GuardianStudent{
+			guardianID: {
+				{GuardianID: guardianID, StudentID: uuid.New(), AdmissionNumber: "ADM-1", FirstName: "Aarav", ClassName: "10", SectionName: "A", Status: "active"},
+			},
+			secondGuardianID: {},
 		}, nil)
-	guardians.On("ListGuardianStudents", mock.Anything, tenantID, secondGuardianID).
-		Return([]model.GuardianStudent{}, nil)
 
 	result, err := svc.ListParents(context.Background(), tenantID, model.GuardianFilter{}, model.PaginationParams{})
 	require.NoError(t, err)
@@ -257,7 +265,7 @@ func TestParentService_ListParents_AggregatesGuardianUserAndStudents(t *testing.
 }
 
 func TestParentService_ListParents_DeletedUserLeavesStatusNil(t *testing.T) {
-	svc, guardians, userRepo, _, _ := newParentServiceForTest(t)
+	svc, guardians, _, _, _ := newParentServiceForTest(t)
 	tenantID := uuid.New()
 	guardianID := uuid.New()
 	userID := uuid.New()
@@ -267,9 +275,8 @@ func TestParentService_ListParents_DeletedUserLeavesStatusNil(t *testing.T) {
 	}
 	guardians.On("ListGuardians", mock.Anything, tenantID, mock.Anything, mock.Anything).
 		Return(model.NewPaginatedResult(guardiansList, int64(1), 1, 20), nil)
-	userRepo.On("GetByID", mock.Anything, userID).Return((*model.User)(nil), nil)
-	guardians.On("ListGuardianStudents", mock.Anything, tenantID, guardianID).
-		Return([]model.GuardianStudent{}, nil)
+	guardians.On("ListGuardianStudentsByGuardianIDs", mock.Anything, tenantID, []uuid.UUID{guardianID}).
+		Return(map[uuid.UUID][]model.GuardianStudent{guardianID: {}}, nil)
 
 	result, err := svc.ListParents(context.Background(), tenantID, model.GuardianFilter{}, model.PaginationParams{})
 	require.NoError(t, err)
@@ -277,4 +284,25 @@ func TestParentService_ListParents_DeletedUserLeavesStatusNil(t *testing.T) {
 	assert.Equal(t, guardianID, result.Data[0].GuardianID)
 	require.NotNil(t, result.Data[0].UserID)
 	assert.Nil(t, result.Data[0].UserStatus)
+}
+
+func TestGuardianToResponseIncludesFrontendContractFields(t *testing.T) {
+	userID := uuid.New()
+	guardian := &model.Guardian{
+		ID:                 uuid.New(),
+		Name:               "Rajesh Kumar",
+		CommunicationOptIn: true,
+		OptInWhatsApp:      false,
+		Address:            model.Address{Line1: "123, Main Street, City", Country: "India"},
+		UserID:             &userID,
+		UserStatus:         stringPtr("invited"),
+	}
+
+	response := guardianToResponse(guardian)
+	assert.Equal(t, "123, Main Street, City", response.Address)
+	assert.False(t, response.OptInWhatsApp)
+	require.NotNil(t, response.UserID)
+	assert.Equal(t, userID, *response.UserID)
+	require.NotNil(t, response.UserStatus)
+	assert.Equal(t, "invited", *response.UserStatus)
 }

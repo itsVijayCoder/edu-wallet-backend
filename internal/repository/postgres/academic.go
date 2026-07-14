@@ -465,8 +465,8 @@ func (r *academicRepository) SoftDeleteStudent(ctx context.Context, tenantID, id
 func (r *academicRepository) CreateGuardian(ctx context.Context, guardian *model.Guardian) error {
 	const query = `INSERT INTO guardians (
 			tenant_id, name, relationship, phone, whatsapp_phone, email, preferred_language,
-			communication_opt_in, address_line1, address_line2, city, state, postal_code, country, user_id, metadata
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+			communication_opt_in, opt_in_whatsapp, address_line1, address_line2, city, state, postal_code, country, user_id, metadata
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 		RETURNING id, created_at, updated_at`
 
 	return r.db.QueryRow(ctx, query,
@@ -478,6 +478,7 @@ func (r *academicRepository) CreateGuardian(ctx context.Context, guardian *model
 		guardian.Email,
 		guardian.PreferredLanguage,
 		guardian.CommunicationOptIn,
+		guardian.OptInWhatsApp,
 		guardian.Address.Line1,
 		guardian.Address.Line2,
 		guardian.Address.City,
@@ -490,27 +491,27 @@ func (r *academicRepository) CreateGuardian(ctx context.Context, guardian *model
 }
 
 func (r *academicRepository) GetGuardian(ctx context.Context, tenantID, id uuid.UUID) (*model.Guardian, error) {
-	const query = guardianSelect + ` WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL`
+	const query = guardianSelect + ` WHERE g.tenant_id = $1 AND g.id = $2 AND g.deleted_at IS NULL`
 	return r.scanGuardian(ctx, query, tenantID, id)
 }
 
 func (r *academicRepository) FindGuardianByContact(ctx context.Context, tenantID uuid.UUID, email, phone *string) (*model.Guardian, error) {
-	clauses := []string{"tenant_id = $1", "deleted_at IS NULL"}
+	clauses := []string{"g.tenant_id = $1", "g.deleted_at IS NULL"}
 	args := []any{tenantID}
 	contactClauses := []string{}
 	if email != nil && strings.TrimSpace(*email) != "" {
 		args = append(args, strings.TrimSpace(*email))
-		contactClauses = append(contactClauses, fmt.Sprintf("lower(email) = lower($%d)", len(args)))
+		contactClauses = append(contactClauses, fmt.Sprintf("lower(g.email) = lower($%d)", len(args)))
 	}
 	if phone != nil && strings.TrimSpace(*phone) != "" {
 		args = append(args, strings.TrimSpace(*phone))
-		contactClauses = append(contactClauses, fmt.Sprintf("phone = $%d", len(args)))
+		contactClauses = append(contactClauses, fmt.Sprintf("g.phone = $%d", len(args)))
 	}
 	if len(contactClauses) == 0 {
 		return nil, nil
 	}
 	clauses = append(clauses, "("+strings.Join(contactClauses, " OR ")+")")
-	query := guardianSelect + ` WHERE ` + strings.Join(clauses, " AND ") + ` ORDER BY created_at ASC LIMIT 1`
+	query := guardianSelect + ` WHERE ` + strings.Join(clauses, " AND ") + ` ORDER BY g.created_at ASC LIMIT 1`
 	return r.scanGuardian(ctx, query, args...)
 }
 
@@ -519,7 +520,7 @@ func (r *academicRepository) ListGuardians(ctx context.Context, tenantID uuid.UU
 	where, args := guardianWhere(tenantID, filter)
 
 	var total int64
-	if err := r.db.QueryRow(ctx, `SELECT COUNT(*) FROM guardians `+where, args...).Scan(&total); err != nil {
+	if err := r.db.QueryRow(ctx, `SELECT COUNT(*) FROM guardians g `+where, args...).Scan(&total); err != nil {
 		return nil, err
 	}
 
@@ -529,7 +530,7 @@ func (r *academicRepository) ListGuardians(ctx context.Context, tenantID uuid.UU
 	queryArgs = append(queryArgs, params.PageSize, params.Offset())
 
 	sortCol, sortDir := sanitizeSort(params, allowedGuardianSortColumns, "created_at", "DESC")
-	query := fmt.Sprintf(`%s %s ORDER BY %s %s LIMIT %s OFFSET %s`, guardianSelect, where, sortCol, sortDir, limitParam, offsetParam)
+	query := fmt.Sprintf(`%s %s ORDER BY g.%s %s LIMIT %s OFFSET %s`, guardianSelect, where, sortCol, sortDir, limitParam, offsetParam)
 
 	rows, err := r.db.Query(ctx, query, queryArgs...)
 	if err != nil {
@@ -561,16 +562,17 @@ func (r *academicRepository) UpdateGuardian(ctx context.Context, guardian *model
 			email = $5,
 			preferred_language = $6,
 			communication_opt_in = $7,
-			address_line1 = $8,
-			address_line2 = $9,
-			city = $10,
-			state = $11,
-			postal_code = $12,
-			country = $13,
-			user_id = $14,
-			metadata = $15,
+			opt_in_whatsapp = $8,
+			address_line1 = $9,
+			address_line2 = $10,
+			city = $11,
+			state = $12,
+			postal_code = $13,
+			country = $14,
+			user_id = $15,
+			metadata = $16,
 			updated_at = NOW()
-		WHERE tenant_id = $16 AND id = $17 AND deleted_at IS NULL
+		WHERE tenant_id = $17 AND id = $18 AND deleted_at IS NULL
 		RETURNING updated_at`
 
 	return r.db.QueryRow(ctx, query,
@@ -581,6 +583,7 @@ func (r *academicRepository) UpdateGuardian(ctx context.Context, guardian *model
 		guardian.Email,
 		guardian.PreferredLanguage,
 		guardian.CommunicationOptIn,
+		guardian.OptInWhatsApp,
 		guardian.Address.Line1,
 		guardian.Address.Line2,
 		guardian.Address.City,
@@ -687,8 +690,26 @@ func (r *academicRepository) ListStudentGuardians(ctx context.Context, tenantID,
 // the students linked to it with the student, class, and section details
 // required to render the admin "Parents" view without a second round trip.
 func (r *academicRepository) ListGuardianStudents(ctx context.Context, tenantID, guardianID uuid.UUID) ([]model.GuardianStudent, error) {
+	itemsByGuardian, err := r.ListGuardianStudentsByGuardianIDs(ctx, tenantID, []uuid.UUID{guardianID})
+	if err != nil {
+		return nil, err
+	}
+	return itemsByGuardian[guardianID], nil
+}
+
+// ListGuardianStudentsByGuardianIDs resolves the linked students for an
+// entire guardian page in one query, avoiding one query per parent row.
+func (r *academicRepository) ListGuardianStudentsByGuardianIDs(ctx context.Context, tenantID uuid.UUID, guardianIDs []uuid.UUID) (map[uuid.UUID][]model.GuardianStudent, error) {
+	itemsByGuardian := make(map[uuid.UUID][]model.GuardianStudent, len(guardianIDs))
+	for i := range guardianIDs {
+		itemsByGuardian[guardianIDs[i]] = []model.GuardianStudent{}
+	}
+	if len(guardianIDs) == 0 {
+		return itemsByGuardian, nil
+	}
+
 	const query = `SELECT
-			sg.student_id, s.admission_number, s.first_name, s.last_name,
+			sg.guardian_id, sg.student_id, s.admission_number, s.first_name, s.last_name,
 			sg.relationship, sg.is_primary,
 			coalesce(c.name, '') AS class_name,
 			coalesce(sec.name, '') AS section_name,
@@ -697,27 +718,26 @@ func (r *academicRepository) ListGuardianStudents(ctx context.Context, tenantID,
 		JOIN students s ON s.tenant_id = sg.tenant_id AND s.id = sg.student_id AND s.deleted_at IS NULL
 		LEFT JOIN classes c ON c.tenant_id = s.tenant_id AND c.id = s.class_id
 		LEFT JOIN sections sec ON sec.tenant_id = s.tenant_id AND sec.id = s.section_id
-		WHERE sg.tenant_id = $1 AND sg.guardian_id = $2
-		ORDER BY sg.is_primary DESC, s.first_name ASC, s.last_name ASC`
+		WHERE sg.tenant_id = $1 AND sg.guardian_id = ANY($2::uuid[])
+		ORDER BY sg.guardian_id, sg.is_primary DESC, s.first_name ASC, s.last_name ASC`
 
-	rows, err := r.db.Query(ctx, query, tenantID, guardianID)
+	rows, err := r.db.Query(ctx, query, tenantID, guardianIDs)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	items := []model.GuardianStudent{}
 	for rows.Next() {
 		item, err := scanGuardianStudentRow(rows)
 		if err != nil {
 			return nil, err
 		}
-		items = append(items, *item)
+		itemsByGuardian[item.GuardianID] = append(itemsByGuardian[item.GuardianID], *item)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	return items, nil
+	return itemsByGuardian, nil
 }
 
 func (r *academicRepository) CreateImport(ctx context.Context, imp *model.Import) error {
@@ -881,11 +901,12 @@ const studentSelect = `SELECT
 	JOIN sections sec ON sec.tenant_id = s.tenant_id AND sec.id = s.section_id`
 
 const guardianSelect = `SELECT
-		id, tenant_id, name, relationship, phone, whatsapp_phone, email,
-		preferred_language, communication_opt_in,
-		address_line1, address_line2, city, state, postal_code, country,
-		user_id, metadata, created_at, updated_at, deleted_at
-	FROM guardians`
+		g.id, g.tenant_id, g.name, g.relationship, g.phone, g.whatsapp_phone, g.email,
+		g.preferred_language, g.communication_opt_in, g.opt_in_whatsapp,
+		g.address_line1, g.address_line2, g.city, g.state, g.postal_code, g.country,
+		g.user_id, u.status, g.metadata, g.created_at, g.updated_at, g.deleted_at
+	FROM guardians g
+	LEFT JOIN users u ON u.id = g.user_id AND u.deleted_at IS NULL`
 
 const importSelect = `SELECT
 		id, tenant_id, import_type, status, source_filename, total_rows, valid_rows,
@@ -1101,6 +1122,7 @@ func scanGuardianScanner(row rowScanner) (*model.Guardian, error) {
 		&item.Email,
 		&item.PreferredLanguage,
 		&item.CommunicationOptIn,
+		&item.OptInWhatsApp,
 		&item.Address.Line1,
 		&item.Address.Line2,
 		&item.Address.City,
@@ -1108,6 +1130,7 @@ func scanGuardianScanner(row rowScanner) (*model.Guardian, error) {
 		&item.Address.PostalCode,
 		&item.Address.Country,
 		&item.UserID,
+		&item.UserStatus,
 		&metadata,
 		&item.CreatedAt,
 		&item.UpdatedAt,
@@ -1161,6 +1184,7 @@ func scanStudentGuardianRow(rows pgx.Rows) (*model.StudentGuardian, error) {
 func scanGuardianStudentRow(rows pgx.Rows) (*model.GuardianStudent, error) {
 	var item model.GuardianStudent
 	if err := rows.Scan(
+		&item.GuardianID,
 		&item.StudentID,
 		&item.AdmissionNumber,
 		&item.FirstName,
@@ -1278,17 +1302,17 @@ func studentWhere(tenantID uuid.UUID, filter model.StudentFilter) (string, []any
 }
 
 func guardianWhere(tenantID uuid.UUID, filter model.GuardianFilter) (string, []any) {
-	clauses := []string{"tenant_id = $1", "deleted_at IS NULL"}
+	clauses := []string{"g.tenant_id = $1", "g.deleted_at IS NULL"}
 	args := []any{tenantID}
 	if strings.TrimSpace(filter.Search) != "" {
 		args = append(args, "%"+strings.ToLower(strings.TrimSpace(filter.Search))+"%")
-		clauses = append(clauses, fmt.Sprintf("(lower(name) LIKE $%d OR lower(coalesce(email, '')) LIKE $%d OR coalesce(phone, '') LIKE $%d)", len(args), len(args), len(args)))
+		clauses = append(clauses, fmt.Sprintf("(lower(g.name) LIKE $%d OR lower(coalesce(g.email, '')) LIKE $%d OR coalesce(g.phone, '') LIKE $%d)", len(args), len(args), len(args)))
 	}
 	if filter.OnlyLinked {
-		clauses = append(clauses, "user_id IS NOT NULL")
+		clauses = append(clauses, "g.user_id IS NOT NULL")
 	}
 	if filter.OnlyUnlinked {
-		clauses = append(clauses, "user_id IS NULL")
+		clauses = append(clauses, "g.user_id IS NULL")
 	}
 	return "WHERE " + strings.Join(clauses, " AND "), args
 }

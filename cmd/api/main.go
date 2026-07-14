@@ -99,7 +99,7 @@ func run() error {
 	)
 	userSvc := service.NewUserService(userRepo, roleRepo, membershipRepo, h, rdb)
 	tenantSvc := service.NewTenantService(tenantRepo, membershipRepo, roleRepo, auditRepo)
-	academicSvc := service.NewAcademicService(academicRepo, postgres.NewAcademicRepository, transactor, auditRepo)
+	academicSvc := service.NewAcademicService(academicRepo, postgres.NewAcademicRepository, transactor, auditRepo, userRepo, roleRepo)
 	paymentProvider := paymentProviderFromConfig(cfg)
 	paymentRenderer := service.NewPDFReceiptRenderer()
 	paymentSvc := service.NewPaymentService(paymentRepo, postgres.NewPaymentRepository, academicRepo, transactor, auditRepo, paymentProvider, paymentRenderer)

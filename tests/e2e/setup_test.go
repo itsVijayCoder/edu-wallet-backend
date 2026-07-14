@@ -172,7 +172,7 @@ func SetupSuite(t *testing.T) *TestSuite {
 	authSvc := service.NewAuthService(userRepo, h, tokenMgr, rdb, 7*24*time.Hour, emailSvc, log, true, membershipRepo, tenantRepo)
 	userSvc := service.NewUserService(userRepo, roleRepo, membershipRepo, h, rdb)
 	tenantSvc := service.NewTenantService(tenantRepo, membershipRepo, roleRepo, auditRepo)
-	academicSvc := service.NewAcademicService(academicRepo, postgres.NewAcademicRepository, transactor, auditRepo)
+	academicSvc := service.NewAcademicService(academicRepo, postgres.NewAcademicRepository, transactor, auditRepo, userRepo, roleRepo)
 	paymentProvider := service.NewFakePaymentProvider("fake", "test_payment_secret")
 	paymentSvc := service.NewPaymentService(paymentRepo, postgres.NewPaymentRepository, academicRepo, transactor, auditRepo, paymentProvider, service.NewPDFReceiptRenderer())
 	billingSvc := service.NewBillingService(billingRepo, postgres.NewBillingRepository, academicRepo, transactor, auditRepo, paymentRepo)

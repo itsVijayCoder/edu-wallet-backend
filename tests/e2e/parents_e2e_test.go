@@ -56,6 +56,15 @@ func TestParentsUnifiedView_E2E(t *testing.T) {
 		body := parseJSON(t, w)
 		data := body["data"].(map[string]any)
 		assert.Equal(t, parentUserID.String(), data["user_id"])
+		assert.Equal(t, "active", data["user_status"])
+
+		w = doRequest(suite.Server, http.MethodGet, "/api/v1/admin/guardians", nil, bearer(tenantAccessToken))
+		require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+		body = parseJSON(t, w)
+		rows := body["data"].([]any)
+		require.Len(t, rows, 1)
+		assert.Equal(t, parentUserID.String(), rows[0].(map[string]any)["user_id"])
+		assert.Equal(t, "active", rows[0].(map[string]any)["user_status"])
 	})
 
 	t.Run("list guardian students (reverse lookup)", func(t *testing.T) {
@@ -140,6 +149,36 @@ func TestParentsUnifiedView_E2E(t *testing.T) {
 		body := parseJSON(t, w)
 		errObj := body["error"].(map[string]any)
 		assert.Equal(t, "PARENT_ROLE_MISSING", errObj["code"])
+	})
+
+	t.Run("create guardian persists user and frontend fields", func(t *testing.T) {
+		secondParentUserID := SeedUser(t, suite.Pool, suite.Hasher, "parent-two@example.com", "parent123", []string{"parents"})
+		w := doRequest(suite.Server, http.MethodPost, "/api/v1/admin/guardians", map[string]any{
+			"name":                 "Rajesh Kumar",
+			"relationship":         "Father",
+			"phone":                "9876543210",
+			"whatsapp_phone":       "9876543210",
+			"email":                "rajesh@example.com",
+			"user_id":              secondParentUserID.String(),
+			"address":              "123, Main Street, City",
+			"communication_opt_in": true,
+			"opt_in_whatsapp":      false,
+		}, bearer(tenantAccessToken))
+		require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
+		body := parseJSON(t, w)
+		data := body["data"].(map[string]any)
+		assert.Equal(t, secondParentUserID.String(), data["user_id"])
+		assert.Equal(t, "active", data["user_status"])
+		assert.Equal(t, "123, Main Street, City", data["address"])
+		assert.Equal(t, false, data["opt_in_whatsapp"])
+
+		w = doRequest(suite.Server, http.MethodGet, "/api/v1/admin/parents?search=Rajesh", nil, bearer(tenantAccessToken))
+		require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+		body = parseJSON(t, w)
+		parents := body["data"].([]any)
+		require.Len(t, parents, 1)
+		assert.Equal(t, secondParentUserID.String(), parents[0].(map[string]any)["user_id"])
+		assert.Equal(t, "active", parents[0].(map[string]any)["user_status"])
 	})
 
 	_ = tenantID
