@@ -1,6 +1,9 @@
 package dto
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -114,45 +117,76 @@ type LookupResponse struct {
 }
 
 type CreateGuardianRequest struct {
-	Name               string         `json:"name" binding:"required,min=2,max=160"`
-	Relationship       string         `json:"relationship" binding:"omitempty,max=60"`
-	Phone              *string        `json:"phone"`
-	WhatsAppPhone      *string        `json:"whatsapp_phone"`
-	Email              *string        `json:"email" binding:"omitempty,email"`
-	PreferredLanguage  string         `json:"preferred_language" binding:"omitempty,max=40"`
-	CommunicationOptIn *bool          `json:"communication_opt_in"`
-	Address            AddressRequest `json:"address"`
-	Metadata           map[string]any `json:"metadata"`
+	Name               string                 `json:"name" binding:"required,min=2,max=160"`
+	Relationship       string                 `json:"relationship" binding:"omitempty,max=60"`
+	Phone              *string                `json:"phone"`
+	WhatsAppPhone      *string                `json:"whatsapp_phone"`
+	Email              *string                `json:"email" binding:"omitempty,email"`
+	PreferredLanguage  string                 `json:"preferred_language" binding:"omitempty,max=40"`
+	CommunicationOptIn *bool                  `json:"communication_opt_in"`
+	OptInWhatsApp      *bool                  `json:"opt_in_whatsapp"`
+	Address            GuardianAddressRequest `json:"address"`
+	UserID             *uuid.UUID             `json:"user_id"`
+	Metadata           map[string]any         `json:"metadata"`
 }
 
 type UpdateGuardianRequest struct {
-	Name               *string         `json:"name" binding:"omitempty,min=2,max=160"`
-	Relationship       *string         `json:"relationship" binding:"omitempty,max=60"`
-	Phone              *string         `json:"phone"`
-	WhatsAppPhone      *string         `json:"whatsapp_phone"`
-	Email              *string         `json:"email" binding:"omitempty,email"`
-	PreferredLanguage  *string         `json:"preferred_language" binding:"omitempty,max=40"`
-	CommunicationOptIn *bool           `json:"communication_opt_in"`
-	Address            *AddressRequest `json:"address"`
-	Metadata           map[string]any  `json:"metadata"`
+	Name               *string                 `json:"name" binding:"omitempty,min=2,max=160"`
+	Relationship       *string                 `json:"relationship" binding:"omitempty,max=60"`
+	Phone              *string                 `json:"phone"`
+	WhatsAppPhone      *string                 `json:"whatsapp_phone"`
+	Email              *string                 `json:"email" binding:"omitempty,email"`
+	PreferredLanguage  *string                 `json:"preferred_language" binding:"omitempty,max=40"`
+	CommunicationOptIn *bool                   `json:"communication_opt_in"`
+	OptInWhatsApp      *bool                   `json:"opt_in_whatsapp"`
+	Address            *GuardianAddressRequest `json:"address"`
+	Metadata           map[string]any          `json:"metadata"`
+}
+
+// GuardianAddressRequest accepts both the frontend's flat address string and
+// the older structured AddressRequest object. New writes store a flat string
+// in address_line1 while keeping object-shaped clients backward compatible.
+type GuardianAddressRequest struct {
+	AddressRequest
+}
+
+func (r *GuardianAddressRequest) UnmarshalJSON(data []byte) error {
+	if bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
+		*r = GuardianAddressRequest{}
+		return nil
+	}
+
+	var flat string
+	if err := json.Unmarshal(data, &flat); err == nil {
+		r.AddressRequest = AddressRequest{Line1: flat}
+		return nil
+	}
+
+	var structured AddressRequest
+	if err := json.Unmarshal(data, &structured); err != nil {
+		return fmt.Errorf("address must be a string or object: %w", err)
+	}
+	r.AddressRequest = structured
+	return nil
 }
 
 type GuardianResponse struct {
-	ID                 uuid.UUID       `json:"id"`
-	TenantID           uuid.UUID       `json:"tenant_id"`
-	Name               string          `json:"name"`
-	Relationship       string          `json:"relationship"`
-	Phone              *string         `json:"phone,omitempty"`
-	WhatsAppPhone      *string         `json:"whatsapp_phone,omitempty"`
-	Email              *string         `json:"email,omitempty"`
-	PreferredLanguage  string          `json:"preferred_language"`
-	CommunicationOptIn bool            `json:"communication_opt_in"`
-	Address            AddressResponse `json:"address"`
-	UserID             *uuid.UUID      `json:"user_id,omitempty"`
-	UserStatus         *string         `json:"user_status,omitempty"`
-	Metadata           map[string]any  `json:"metadata,omitempty"`
-	CreatedAt          time.Time       `json:"created_at"`
-	UpdatedAt          time.Time       `json:"updated_at"`
+	ID                 uuid.UUID      `json:"id"`
+	TenantID           uuid.UUID      `json:"tenant_id"`
+	Name               string         `json:"name"`
+	Relationship       string         `json:"relationship"`
+	Phone              *string        `json:"phone,omitempty"`
+	WhatsAppPhone      *string        `json:"whatsapp_phone,omitempty"`
+	Email              *string        `json:"email,omitempty"`
+	PreferredLanguage  string         `json:"preferred_language"`
+	CommunicationOptIn bool           `json:"communication_opt_in"`
+	OptInWhatsApp      bool           `json:"opt_in_whatsapp"`
+	Address            string         `json:"address"`
+	UserID             *uuid.UUID     `json:"user_id,omitempty"`
+	UserStatus         *string        `json:"user_status,omitempty"`
+	Metadata           map[string]any `json:"metadata,omitempty"`
+	CreatedAt          time.Time      `json:"created_at"`
+	UpdatedAt          time.Time      `json:"updated_at"`
 }
 
 type LinkGuardianUserRequest struct {

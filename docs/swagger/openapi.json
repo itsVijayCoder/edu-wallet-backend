@@ -430,7 +430,14 @@
       "CreateGuardianRequest": {
         "properties": {
           "address": {
-            "$ref": "#/components/schemas/AddressRequest"
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/components/schemas/AddressRequest"
+              }
+            ]
           },
           "communication_opt_in": {
             "type": "boolean"
@@ -445,6 +452,9 @@
           },
           "name": {
             "type": "string"
+          },
+          "opt_in_whatsapp": {
+            "type": "boolean"
           },
           "phone": {
             "type": "string"
@@ -1053,6 +1063,67 @@
       },
       "GenericPatchRequest": {
         "additionalProperties": true,
+        "type": "object"
+      },
+      "GuardianResponse": {
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "communication_opt_in": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "opt_in_whatsapp": {
+            "type": "boolean"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "preferred_language": {
+            "type": "string"
+          },
+          "relationship": {
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "user_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "user_status": {
+            "enum": [
+              "active",
+              "inactive",
+              "invited"
+            ],
+            "type": "string"
+          },
+          "whatsapp_phone": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
         "type": "object"
       },
       "GuardianStudentResponse": {

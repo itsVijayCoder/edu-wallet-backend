@@ -110,6 +110,7 @@ type AcademicRepository interface {
 	UnlinkStudentGuardian(ctx context.Context, tenantID, studentID, guardianID uuid.UUID) error
 	ListStudentGuardians(ctx context.Context, tenantID, studentID uuid.UUID) ([]model.StudentGuardian, error)
 	ListGuardianStudents(ctx context.Context, tenantID, guardianID uuid.UUID) ([]model.GuardianStudent, error)
+	ListGuardianStudentsByGuardianIDs(ctx context.Context, tenantID uuid.UUID, guardianIDs []uuid.UUID) (map[uuid.UUID][]model.GuardianStudent, error)
 
 	CreateImport(ctx context.Context, imp *model.Import) error
 	GetImport(ctx context.Context, tenantID, id uuid.UUID) (*model.Import, error)

@@ -92,8 +92,10 @@ type Guardian struct {
 	Email              *string        `json:"email,omitempty"`
 	PreferredLanguage  string         `json:"preferred_language"`
 	CommunicationOptIn bool           `json:"communication_opt_in"`
+	OptInWhatsApp      bool           `json:"opt_in_whatsapp"`
 	Address            Address        `json:"address"`
 	UserID             *uuid.UUID     `json:"user_id,omitempty"`
+	UserStatus         *string        `json:"user_status,omitempty"`
 	Metadata           map[string]any `json:"metadata,omitempty"`
 	CreatedAt          time.Time      `json:"created_at"`
 	UpdatedAt          time.Time      `json:"updated_at"`
@@ -114,6 +116,7 @@ type StudentGuardian struct {
 // student, class, and section tables so a guardian can be resolved back to the
 // students they are responsible for without a second round trip.
 type GuardianStudent struct {
+	GuardianID      uuid.UUID `json:"guardian_id"`
 	StudentID       uuid.UUID `json:"student_id"`
 	AdmissionNumber string    `json:"admission_number"`
 	FirstName       string    `json:"first_name"`
