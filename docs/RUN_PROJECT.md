@@ -24,7 +24,7 @@ For local development, the defaults are enough:
 - `REDIS_HOST=localhost`
 - `PAYMENT_PROVIDER=fake`
 
-For production, use real secrets and HTTPS values. The app will fail fast when production uses wildcard CORS, disabled DB SSL, placeholder Resend sender settings, missing Razorpay secrets, or reused JWT secrets.
+For production, use real secrets and HTTPS values. JWT secrets must be unique, at least 32 characters, and cannot be placeholders. Configure `TRUSTED_PROXIES` with only the reverse-proxy IPs/CIDRs that may supply `X-Forwarded-For`; leave it empty for direct deployments. The app will fail fast when production uses wildcard CORS, disabled DB SSL, placeholder Resend sender settings, or missing Razorpay secrets. See [production deployment](PRODUCTION_DEPLOYMENT.md) for the hardened Compose topology.
 
 For deployed or already-existing databases, bootstrap or rotate the super admin with:
 

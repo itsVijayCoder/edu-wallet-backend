@@ -1,0 +1,70 @@
+# Production topology: the reverse proxy, PostgreSQL, and Redis are managed
+# outside this file. Keep databases off the application host's public network.
+#
+# Start with: ENV_FILE=/secure/path/eduwallet.production.env docker compose -f docker-compose.production.yml up -d --build
+services:
+  api:
+    build:
+      context: .
+    image: eduwallet-backend:latest
+    env_file: ${ENV_FILE:-.env.production}
+    environment:
+      APP_MODE: api
+    ports:
+      - "127.0.0.1:${APP_PORT:-8080}:8080"
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/api/v1/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 45s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          memory: 256M
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  worker:
+    image: eduwallet-backend:latest
+    env_file: ${ENV_FILE:-.env.production}
+    command: ["./api"]
+    environment:
+      APP_MODE: worker
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      api:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          memory: 128M
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+        max-file: "3"

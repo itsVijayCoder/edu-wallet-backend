@@ -12,6 +12,8 @@ import (
 
 type AuthService interface {
 	Login(ctx context.Context, req dto.LoginRequest) (*dto.LoginResponse, error)
+	SendOTP(ctx context.Context, req dto.SendOTPRequest) (*dto.SendOTPResponse, error)
+	VerifyOTP(ctx context.Context, req dto.VerifyOTPRequest) (*dto.LoginResponse, error)
 	Register(ctx context.Context, req dto.RegisterRequest) (*dto.UserResponse, error)
 	RefreshToken(ctx context.Context, req dto.RefreshRequest) (*dto.TokenPair, error)
 	SelectTenant(ctx context.Context, userID uuid.UUID, req dto.SelectTenantRequest) (*dto.TokenPair, error)
@@ -38,6 +40,7 @@ type ParentService interface {
 	LinkGuardianUser(ctx context.Context, actorID, tenantID, guardianID, userID uuid.UUID) (*dto.GuardianResponse, error)
 	UnlinkGuardianUser(ctx context.Context, actorID, tenantID, guardianID uuid.UUID) (*dto.GuardianResponse, error)
 	ListGuardianStudents(ctx context.Context, tenantID, guardianID uuid.UUID) ([]dto.GuardianStudentResponse, error)
+	ListLinkedChildren(ctx context.Context, tenantID, userID uuid.UUID, filter model.GuardianStudentFilter, params model.PaginationParams) (*model.PaginatedResult[dto.ParentChildResponse], error)
 	ListParents(ctx context.Context, tenantID uuid.UUID, filter model.GuardianFilter, params model.PaginationParams) (*model.PaginatedResult[dto.ParentSummaryResponse], error)
 }
 
@@ -123,7 +126,7 @@ type BillingService interface {
 	ListInvoices(ctx context.Context, tenantID uuid.UUID, filter model.InvoiceFilter, params model.PaginationParams) (*model.PaginatedResult[dto.InvoiceResponse], error)
 	GetInvoice(ctx context.Context, tenantID, id uuid.UUID) (*dto.InvoiceResponse, error)
 	GetStudentLedger(ctx context.Context, tenantID, studentID uuid.UUID) (*dto.StudentLedgerResponse, error)
-	GetParentChildDues(ctx context.Context, tenantID, studentID uuid.UUID) (*dto.ParentDuesResponse, error)
+	GetParentChildDues(ctx context.Context, tenantID, userID, studentID uuid.UUID, filter model.InvoiceFilter) (*dto.ParentDuesResponse, error)
 }
 
 type PaymentService interface {
@@ -136,8 +139,8 @@ type PaymentService interface {
 	ListReceipts(ctx context.Context, tenantID uuid.UUID, filter model.ReceiptFilter, params model.PaginationParams) (*model.PaginatedResult[dto.ReceiptResponse], error)
 	GetReceipt(ctx context.Context, tenantID, id uuid.UUID) (*dto.ReceiptResponse, error)
 	DownloadReceipt(ctx context.Context, tenantID, id uuid.UUID) (*dto.ReceiptDownloadResponse, error)
-	ListParentReceipts(ctx context.Context, tenantID uuid.UUID, filter model.ReceiptFilter, params model.PaginationParams) (*model.PaginatedResult[dto.ReceiptResponse], error)
-	DownloadParentReceipt(ctx context.Context, tenantID, id uuid.UUID) (*dto.ReceiptDownloadResponse, error)
+	ListParentReceipts(ctx context.Context, tenantID, userID uuid.UUID, filter model.ReceiptFilter, params model.PaginationParams) (*model.PaginatedResult[dto.ReceiptResponse], error)
+	DownloadParentReceipt(ctx context.Context, tenantID, userID, id uuid.UUID) (*dto.ReceiptDownloadResponse, error)
 	ListPaymentEvents(ctx context.Context, tenantID uuid.UUID, filter model.PaymentEventFilter, params model.PaginationParams) (*model.PaginatedResult[dto.PaymentEventResponse], error)
 }
 

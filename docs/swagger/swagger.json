@@ -1340,6 +1340,20 @@
         ],
         "type": "object"
       },
+      "SendOTPRequest": {
+        "properties": {
+          "phone": {
+            "type": "string"
+          },
+          "tenant_slug": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "phone"
+        ],
+        "type": "object"
+      },
       "SendReminderRequest": {
         "properties": {
           "academic_year_id": {
@@ -1529,6 +1543,21 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "VerifyOTPRequest": {
+        "properties": {
+          "otp": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "phone",
+          "otp"
+        ],
         "type": "object"
       },
       "VerifyPaymentRequest": {
@@ -9839,6 +9868,108 @@
         ]
       }
     },
+    "/api/v1/auth/send-otp": {
+      "post": {
+        "operationId": "post_auth_send_otp",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendOTPRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          }
+        },
+        "summary": "Send parent OTP",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/verify-otp": {
+      "post": {
+        "operationId": "post_auth_verify_otp",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyOTPRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          }
+        },
+        "summary": "Verify parent OTP",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
     "/api/v1/docs": {
       "get": {
         "operationId": "get_docs",
@@ -9944,6 +10075,83 @@
         ]
       }
     },
+    "/api/v1/parent/children": {
+      "get": {
+        "operationId": "get_parent_children",
+        "parameters": [
+          {
+            "description": "Search child name or admission number.",
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page number, starting at 1.",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Items per page.",
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid, or expired JWT"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "Role or permission check failed"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "List linked children for the authenticated parent",
+        "tags": [
+          "Billing"
+        ]
+      }
+    },
     "/api/v1/parent/children/{id}/dues": {
       "get": {
         "operationId": "get_parent_children_id_dues",
@@ -9955,6 +10163,51 @@
             "required": true,
             "schema": {
               "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Search invoice number.",
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Filter invoice status.",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "enum": [
+                "paid",
+                "pending",
+                "partial",
+                "overdue",
+                "failed"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only invoices due on or after this date.",
+            "in": "query",
+            "name": "due_from",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only invoices due on or before this date.",
+            "in": "query",
+            "name": "due_to",
+            "required": false,
+            "schema": {
+              "format": "date",
               "type": "string"
             }
           }
@@ -10179,6 +10432,48 @@
         "operationId": "get_parent_receipts",
         "parameters": [
           {
+            "description": "Search receipt number or student name.",
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Filter receipt status.",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "enum": [
+                "issued",
+                "cancelled"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only receipts issued on or after this date.",
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only receipts issued on or before this date.",
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
             "description": "Page number, starting at 1.",
             "in": "query",
             "name": "page",
@@ -10196,67 +10491,6 @@
             "schema": {
               "format": "int32",
               "type": "integer"
-            }
-          },
-          {
-            "description": "Sort field.",
-            "in": "query",
-            "name": "sort_by",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "description": "Sort direction.",
-            "in": "query",
-            "name": "sort_dir",
-            "required": false,
-            "schema": {
-              "enum": [
-                "asc",
-                "desc"
-              ],
-              "type": "string"
-            }
-          },
-          {
-            "description": "Filter by student.",
-            "in": "query",
-            "name": "student_id",
-            "required": false,
-            "schema": {
-              "format": "uuid",
-              "type": "string"
-            }
-          },
-          {
-            "description": "Filter by receipt status.",
-            "in": "query",
-            "name": "status",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "description": "Start date.",
-            "in": "query",
-            "name": "from",
-            "required": false,
-            "schema": {
-              "format": "date",
-              "type": "string"
-            }
-          },
-          {
-            "description": "End date.",
-            "in": "query",
-            "name": "to",
-            "required": false,
-            "schema": {
-              "format": "date",
-              "type": "string"
             }
           }
         ],

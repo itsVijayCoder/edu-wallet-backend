@@ -826,11 +826,14 @@ PARENT_TENANT_JSON="$(curl -sS -X POST "$BASE_URL/auth/select-tenant" \
 
 export PARENT_TENANT_ACCESS="$(echo "$PARENT_TENANT_JSON" | jq -r '.data.access_token')"
 
+curl -sS "$BASE_URL/parent/children?search=Aar&page=1&page_size=20" \
+  -H "Authorization: Bearer $PARENT_TENANT_ACCESS" | jq
+
 curl -sS "$BASE_URL/parent/children/$STUDENT_ID/dues" \
   -H "Authorization: Bearer $PARENT_TENANT_ACCESS" | jq
 ```
 
-QA authorization check: create a second parent user and confirm whether they can access this same student. If access is allowed, log it as an authorization gap unless that is intentionally accepted for the current MVP.
+QA authorization check: create a second parent user that is not linked to this student. Their request to `/parent/children/$STUDENT_ID/dues` must return `404 NOT_FOUND`.
 
 ## 7. Payments, Receipts, Webhooks, And Events
 
@@ -1466,6 +1469,7 @@ Try each of these:
 | GET | `/admin/invoices/{id}` | 6.4 |
 | GET | `/admin/students/{id}/ledger` | 6.5 |
 | GET | `/parent/children/{id}/dues` | 6.5 |
+| GET | `/parent/children` | 6.5 |
 | POST | `/admin/offline-payments` | 7.1 |
 | GET | `/admin/payments` | 7.2 |
 | GET | `/admin/payments/{id}` | 7.2 |

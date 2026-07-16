@@ -112,7 +112,7 @@ func TestAuthService_Login(t *testing.T) {
 
 			log := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 
-			svc := service.NewAuthService(userRepo, hasherMock, tokenMgr, rdb, time.Hour, emailSvc, log, true, nil, nil)
+			svc := service.NewAuthService(userRepo, hasherMock, tokenMgr, rdb, time.Hour, emailSvc, log, true, nil, nil, nil, nil)
 
 			resp, err := svc.Login(context.Background(), tc.req)
 
@@ -147,7 +147,7 @@ func TestAuthService_Register_PublicRegistrationDisabled(t *testing.T) {
 	rdb, _ := redismock.NewClientMock()
 	log := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 
-	svc := service.NewAuthService(userRepo, hasherMock, tokenMgr, rdb, time.Hour, emailSvc, log, false, nil, nil)
+	svc := service.NewAuthService(userRepo, hasherMock, tokenMgr, rdb, time.Hour, emailSvc, log, false, nil, nil, nil, nil)
 
 	resp, err := svc.Register(context.Background(), dto.RegisterRequest{
 		Email:     "new@example.com",
@@ -222,7 +222,7 @@ func TestAuthService_SelectTenant(t *testing.T) {
 	tokenMgr.On("GenerateRefresh", userID).Return("refresh-token", nil)
 	rmock.ExpectSet("refresh:"+userID.String(), "refresh-token", time.Hour).SetVal("OK")
 
-	svc := service.NewAuthService(userRepo, hasherMock, tokenMgr, rdb, time.Hour, emailSvc, log, true, membershipRepo, nil)
+	svc := service.NewAuthService(userRepo, hasherMock, tokenMgr, rdb, time.Hour, emailSvc, log, true, membershipRepo, nil, nil, nil)
 
 	resp, err := svc.SelectTenant(context.Background(), userID, dto.SelectTenantRequest{TenantID: tenantID})
 

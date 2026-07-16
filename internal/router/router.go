@@ -36,10 +36,11 @@ type Handlers struct {
 
 // RouterConfig holds router-level configuration.
 type RouterConfig struct {
-	AppEnv      string
-	AppPort     int
-	ExternalURL string
-	CORSOrigins []string
+	AppEnv         string
+	AppPort        int
+	ExternalURL    string
+	CORSOrigins    []string
+	TrustedProxies []string
 }
 
 // New creates a fully configured *gin.Engine with all middleware and route groups.
@@ -50,6 +51,12 @@ func New(log *slog.Logger, cfg RouterConfig, tokenMgr jwt.TokenManager, rdb *red
 	}
 
 	r := gin.New()
+	// Only honor X-Forwarded-For from explicitly configured infrastructure.
+	// Otherwise a client could forge its source IP and bypass IP-based limits.
+	if err := r.SetTrustedProxies(cfg.TrustedProxies); err != nil {
+		log.Error("invalid trusted proxy configuration; forwarded headers disabled", "error", err)
+		_ = r.SetTrustedProxies(nil)
+	}
 	r.MaxMultipartMemory = importBodyLimitBytes
 
 	// --- Global middleware chain ---
@@ -77,6 +84,8 @@ func New(log *slog.Logger, cfg RouterConfig, tokenMgr jwt.TokenManager, rdb *red
 		auth := v1.Group("/auth")
 		{
 			auth.POST("/login", middleware.BodySizeLimit(authBodyLimitBytes), middleware.RateLimit(rdb, 5, time.Minute), h.Auth.Login)
+			auth.POST("/send-otp", middleware.BodySizeLimit(authBodyLimitBytes), h.Auth.SendOTP)
+			auth.POST("/verify-otp", middleware.BodySizeLimit(authBodyLimitBytes), middleware.RateLimit(rdb, 10, 5*time.Minute), h.Auth.VerifyOTP)
 			auth.POST("/register", middleware.BodySizeLimit(authBodyLimitBytes), middleware.RateLimit(rdb, 5, time.Minute), h.Auth.Register)
 			auth.POST("/refresh", h.Auth.Refresh)
 			auth.POST("/select-tenant", middleware.BodySizeLimit(authBodyLimitBytes), middleware.RateLimit(rdb, 20, time.Minute), middleware.Auth(tokenMgr), h.Auth.SelectTenant)
@@ -276,8 +285,9 @@ func New(log *slog.Logger, cfg RouterConfig, tokenMgr jwt.TokenManager, rdb *red
 			}
 		}
 
-		parent := v1.Group("/parent", middleware.Auth(tokenMgr), middleware.RequireTenant())
+		parent := v1.Group("/parent", middleware.Auth(tokenMgr), middleware.RequireTenant(), middleware.RoleGuard("parents"))
 		{
+			parent.GET("/children", h.Parent.ListLinkedChildren)
 			parent.GET("/children/:id/dues", h.Billing.GetParentChildDues)
 			parent.POST("/payments/orders", middleware.BodySizeLimit(paymentBodyLimitBytes), middleware.RateLimit(rdb, 30, time.Minute), h.Payment.CreatePaymentOrder)
 			parent.POST("/payments/verify", middleware.BodySizeLimit(paymentBodyLimitBytes), middleware.RateLimit(rdb, 60, time.Minute), h.Payment.VerifyPayment)

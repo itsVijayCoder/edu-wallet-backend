@@ -67,6 +67,7 @@ func run() error {
 	)
 	emailClient := email.NewClient(cfg.Resend.APIKey, cfg.Resend.FromEmail, cfg.Resend.FromName)
 	emailSvc := service.NewEmailService(emailClient, cfg.App.ExternalURL, log)
+	notificationProvider := service.NewNotificationProvider(emailClient)
 
 	// --- Repositories ---
 	roleRepo := postgres.NewRoleRepository(pool)
@@ -96,6 +97,8 @@ func run() error {
 		publicRegistrationEnabled,
 		membershipRepo,
 		tenantRepo,
+		academicRepo,
+		service.NewNotificationOTPNotifier(notificationProvider),
 	)
 	userSvc := service.NewUserService(userRepo, roleRepo, membershipRepo, h, rdb)
 	tenantSvc := service.NewTenantService(tenantRepo, membershipRepo, roleRepo, auditRepo)
@@ -104,7 +107,6 @@ func run() error {
 	paymentRenderer := service.NewPDFReceiptRenderer()
 	paymentSvc := service.NewPaymentService(paymentRepo, postgres.NewPaymentRepository, academicRepo, transactor, auditRepo, paymentProvider, paymentRenderer)
 	billingSvc := service.NewBillingService(billingRepo, postgres.NewBillingRepository, academicRepo, transactor, auditRepo, paymentRepo)
-	notificationProvider := service.NewNotificationProvider(emailClient)
 	operationsSvc := service.NewOperationsService(operationsRepo, postgres.NewOperationsRepository, transactor, auditRepo, notificationProvider)
 	parentSvc := service.NewParentService(academicRepo, userRepo, roleRepo, auditRepo)
 	// --- ADD YOUR SERVICES HERE ---
@@ -142,10 +144,11 @@ func run() error {
 
 	// --- Router ---
 	r := router.New(log, router.RouterConfig{
-		AppEnv:      cfg.App.Env,
-		AppPort:     cfg.App.Port,
-		ExternalURL: cfg.App.ExternalURL,
-		CORSOrigins: cfg.App.CORSOrigins,
+		AppEnv:         cfg.App.Env,
+		AppPort:        cfg.App.Port,
+		ExternalURL:    cfg.App.ExternalURL,
+		CORSOrigins:    cfg.App.CORSOrigins,
+		TrustedProxies: cfg.App.TrustedProxies,
 	}, tokenMgr, rdb, router.Handlers{
 		Docs:     handler.NewDocsHandler(cfg.App.ExternalURL),
 		Health:   handler.NewHealthHandler(pool, rdb),
@@ -162,11 +165,13 @@ func run() error {
 
 	// --- HTTP Server ---
 	srv := &http.Server{
-		Addr:         fmt.Sprintf(":%d", cfg.App.Port),
-		Handler:      r,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
+		Addr:              fmt.Sprintf(":%d", cfg.App.Port),
+		Handler:           r,
+		ReadTimeout:       15 * time.Second,
+		ReadHeaderTimeout: 5 * time.Second,
+		WriteTimeout:      15 * time.Second,
+		IdleTimeout:       60 * time.Second,
+		MaxHeaderBytes:    64 << 10,
 	}
 
 	// --- Graceful Shutdown ---

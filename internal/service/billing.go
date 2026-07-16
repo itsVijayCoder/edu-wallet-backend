@@ -690,7 +690,7 @@ func (s *billingService) GetStudentLedger(ctx context.Context, tenantID, student
 	if student == nil {
 		return nil, apperror.ErrNotFound
 	}
-	invoices, err := s.repo.ListStudentInvoices(ctx, tenantID, studentID)
+	invoices, err := s.repo.ListStudentInvoices(ctx, tenantID, studentID, model.InvoiceFilter{})
 	if err != nil {
 		return nil, fmt.Errorf("list student invoices: %w", err)
 	}
@@ -803,7 +803,10 @@ func (s *billingService) GetStudentLedger(ctx context.Context, tenantID, student
 	return &ledger, nil
 }
 
-func (s *billingService) GetParentChildDues(ctx context.Context, tenantID, studentID uuid.UUID) (*dto.ParentDuesResponse, error) {
+func (s *billingService) GetParentChildDues(ctx context.Context, tenantID, userID, studentID uuid.UUID, filter model.InvoiceFilter) (*dto.ParentDuesResponse, error) {
+	if err := s.requireParentStudentAccess(ctx, tenantID, userID, studentID); err != nil {
+		return nil, err
+	}
 	student, err := s.academicRepo.GetStudent(ctx, tenantID, studentID)
 	if err != nil {
 		return nil, fmt.Errorf("get student: %w", err)
@@ -811,7 +814,7 @@ func (s *billingService) GetParentChildDues(ctx context.Context, tenantID, stude
 	if student == nil {
 		return nil, apperror.ErrNotFound
 	}
-	invoices, err := s.repo.ListStudentInvoices(ctx, tenantID, studentID)
+	invoices, err := s.repo.ListStudentInvoices(ctx, tenantID, studentID, filter)
 	if err != nil {
 		return nil, fmt.Errorf("list student invoices: %w", err)
 	}
@@ -824,7 +827,9 @@ func (s *billingService) GetParentChildDues(ctx context.Context, tenantID, stude
 	}
 	for i := range invoices {
 		invoice := invoices[i]
-		if invoice.BalanceAmountPaise <= 0 {
+		// Preserve the existing dues behavior when no status is selected, while
+		// allowing an explicit paid-status filter to return settled invoices.
+		if filter.Status == "" && invoice.BalanceAmountPaise <= 0 {
 			continue
 		}
 		resp.TotalDuePaise += invoice.BalanceAmountPaise
@@ -843,6 +848,21 @@ func (s *billingService) GetParentChildDues(ctx context.Context, tenantID, stude
 		resp.MinimumPayablePaise = resp.TotalDuePaise
 	}
 	return resp, nil
+}
+
+func (s *billingService) requireParentStudentAccess(ctx context.Context, tenantID, userID, studentID uuid.UUID) error {
+	links, err := s.academicRepo.ListStudentGuardians(ctx, tenantID, studentID)
+	if err != nil {
+		return fmt.Errorf("list student guardians: %w", err)
+	}
+	for i := range links {
+		if links[i].Guardian != nil && links[i].Guardian.UserID != nil && *links[i].Guardian.UserID == userID {
+			return nil
+		}
+	}
+	// Returning not found avoids confirming whether an arbitrary student exists
+	// to a parent who is not linked to that student.
+	return apperror.ErrNotFound
 }
 
 func (s *billingService) getFeeAssignmentResponse(ctx context.Context, tenantID, id uuid.UUID) (*dto.FeeAssignmentResponse, error) {

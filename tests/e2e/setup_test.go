@@ -136,6 +136,7 @@ type TestSuite struct {
 	Redis    *redis.Client
 	TokenMgr jwt.TokenManager
 	Hasher   hasher.Hasher
+	OTP      *capturingOTPNotifier
 }
 
 // SetupSuite creates a fully wired test application, mirroring main.go DI
@@ -169,7 +170,8 @@ func SetupSuite(t *testing.T) *TestSuite {
 
 	// Services - use a no-op email service for e2e tests
 	emailSvc := &noopEmailService{}
-	authSvc := service.NewAuthService(userRepo, h, tokenMgr, rdb, 7*24*time.Hour, emailSvc, log, true, membershipRepo, tenantRepo)
+	otpNotifier := &capturingOTPNotifier{}
+	authSvc := service.NewAuthService(userRepo, h, tokenMgr, rdb, 7*24*time.Hour, emailSvc, log, true, membershipRepo, tenantRepo, academicRepo, otpNotifier)
 	userSvc := service.NewUserService(userRepo, roleRepo, membershipRepo, h, rdb)
 	tenantSvc := service.NewTenantService(tenantRepo, membershipRepo, roleRepo, auditRepo)
 	academicSvc := service.NewAcademicService(academicRepo, postgres.NewAcademicRepository, transactor, auditRepo, userRepo, roleRepo)
@@ -204,6 +206,7 @@ func SetupSuite(t *testing.T) *TestSuite {
 		Redis:    rdb,
 		TokenMgr: tokenMgr,
 		Hasher:   h,
+		OTP:      otpNotifier,
 	}
 }
 
@@ -212,6 +215,24 @@ type noopEmailService struct{}
 
 func (n *noopEmailService) SendPasswordReset(_ context.Context, _, _ string) error { return nil }
 func (n *noopEmailService) SendWelcome(_ context.Context, _, _ string) error       { return nil }
+
+type capturingOTPNotifier struct {
+	phone string
+	otp   string
+}
+
+func (n *capturingOTPNotifier) SendOTP(_ context.Context, phone, otp string) error {
+	n.phone = phone
+	n.otp = otp
+	return nil
+}
+
+func (n *capturingOTPNotifier) LastOTP(phone string) string {
+	if n.phone != phone {
+		return ""
+	}
+	return n.otp
+}
 
 // ---------------------------------------------------------------------------
 // truncateAndReseed clears all data (except schema_migrations) and

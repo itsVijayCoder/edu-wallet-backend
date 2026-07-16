@@ -632,10 +632,12 @@ func (r *billingRepository) ListInvoiceItems(ctx context.Context, tenantID, invo
 	return items, rows.Err()
 }
 
-func (r *billingRepository) ListStudentInvoices(ctx context.Context, tenantID, studentID uuid.UUID) ([]model.Invoice, error) {
-	const query = invoiceSelect + ` WHERE i.tenant_id = $1 AND i.student_id = $2 AND i.status NOT IN ('cancelled', 'void') ORDER BY i.issue_date ASC, i.created_at ASC`
+func (r *billingRepository) ListStudentInvoices(ctx context.Context, tenantID, studentID uuid.UUID, filter model.InvoiceFilter) ([]model.Invoice, error) {
+	filter.StudentID = &studentID
+	where, args := invoiceWhere(tenantID, filter)
+	query := invoiceSelect + ` ` + where + ` AND i.status NOT IN ('cancelled', 'void') ORDER BY i.issue_date ASC, i.created_at ASC`
 
-	rows, err := r.db.Query(ctx, query, tenantID, studentID)
+	rows, err := r.db.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}

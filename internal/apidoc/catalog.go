@@ -476,6 +476,34 @@ func receiptFilterParams() []Parameter {
 	return params
 }
 
+func parentChildrenFilterParams() []Parameter {
+	return []Parameter{
+		qString("search", "Search child name or admission number."),
+		qInt("page", "Page number, starting at 1."),
+		qInt("page_size", "Items per page."),
+	}
+}
+
+func parentDuesFilterParams() []Parameter {
+	return []Parameter{
+		qString("search", "Search invoice number."),
+		qEnum("status", "Filter invoice status.", "paid", "pending", "partial", "overdue", "failed"),
+		qDate("due_from", "Only invoices due on or after this date."),
+		qDate("due_to", "Only invoices due on or before this date."),
+	}
+}
+
+func parentReceiptFilterParams() []Parameter {
+	return []Parameter{
+		qString("search", "Search receipt number or student name."),
+		qEnum("status", "Filter receipt status.", "issued", "cancelled"),
+		qDate("from", "Only receipts issued on or after this date."),
+		qDate("to", "Only receipts issued on or before this date."),
+		qInt("page", "Page number, starting at 1."),
+		qInt("page_size", "Items per page."),
+	}
+}
+
 func reportFilterParams() []Parameter {
 	return []Parameter{
 		qDate("from", "Start date."),
@@ -499,6 +527,8 @@ var endpointCatalog = []Endpoint{
 	endpoint(http.MethodGet, "/api/v1/readyz", "Health", "Readiness probe"),
 
 	endpoint(http.MethodPost, "/api/v1/auth/login", "Auth", "Login", body("LoginRequest"), rateLimited()),
+	endpoint(http.MethodPost, "/api/v1/auth/send-otp", "Auth", "Send parent OTP", body("SendOTPRequest"), rateLimited()),
+	endpoint(http.MethodPost, "/api/v1/auth/verify-otp", "Auth", "Verify parent OTP", body("VerifyOTPRequest"), rateLimited()),
 	endpoint(http.MethodPost, "/api/v1/auth/register", "Auth", "Register user", body("RegisterRequest"), created(), rateLimited()),
 	endpoint(http.MethodPost, "/api/v1/auth/refresh", "Auth", "Refresh access token", body("RefreshRequest")),
 	endpoint(http.MethodPost, "/api/v1/auth/select-tenant", "Auth", "Select tenant context", secured(), body("SelectTenantRequest"), rateLimited()),
@@ -587,7 +617,8 @@ var endpointCatalog = []Endpoint{
 	endpoint(http.MethodPost, "/api/v1/admin/invoices/generate", "Billing", "Generate invoices", secured("fees.manage"), body("GenerateInvoicesRequest"), created()),
 	endpoint(http.MethodGet, "/api/v1/admin/invoices", "Billing", "List invoices", secured("fees.manage"), query(paginationParams()...)),
 	endpoint(http.MethodGet, "/api/v1/admin/invoices/:id", "Billing", "Get invoice", secured("fees.manage")),
-	endpoint(http.MethodGet, "/api/v1/parent/children/:id/dues", "Billing", "Get parent child dues", secured()),
+	endpoint(http.MethodGet, "/api/v1/parent/children", "Billing", "List linked children for the authenticated parent", secured(), query(parentChildrenFilterParams()...)),
+	endpoint(http.MethodGet, "/api/v1/parent/children/:id/dues", "Billing", "Get parent child dues", secured(), query(parentDuesFilterParams()...)),
 
 	endpoint(http.MethodPost, "/api/v1/parent/payments/orders", "Payments", "Create payment order", secured(), body("CreatePaymentOrderRequest"), created(), rateLimited()),
 	endpoint(http.MethodPost, "/api/v1/parent/payments/verify", "Payments", "Verify payment", secured(), body("VerifyPaymentRequest"), rateLimited()),
@@ -597,7 +628,7 @@ var endpointCatalog = []Endpoint{
 	endpoint(http.MethodGet, "/api/v1/admin/receipts", "Payments", "List receipts", secured("payments.manage"), query(receiptFilterParams()...)),
 	endpoint(http.MethodGet, "/api/v1/admin/receipts/:id", "Payments", "Get receipt", secured("payments.manage")),
 	endpoint(http.MethodGet, "/api/v1/admin/receipts/:id/download", "Payments", "Download receipt PDF", secured("payments.manage"), download("application/pdf")),
-	endpoint(http.MethodGet, "/api/v1/parent/receipts", "Payments", "List parent receipts", secured(), query(receiptFilterParams()...)),
+	endpoint(http.MethodGet, "/api/v1/parent/receipts", "Payments", "List parent receipts", secured(), query(parentReceiptFilterParams()...)),
 	endpoint(http.MethodGet, "/api/v1/parent/receipts/:id/download", "Payments", "Download parent receipt PDF", secured(), download("application/pdf")),
 	endpoint(http.MethodGet, "/api/v1/admin/payment-events", "Payments", "List payment events", secured("payments.manage"), query(paymentFilterParams()...)),
 
@@ -662,6 +693,14 @@ func schemaComponents() map[string]any {
 		"LoginRequest": object([]string{"email", "password"}, map[string]any{
 			"email":    stringSchema("email"),
 			"password": stringSchema("password"),
+		}),
+		"SendOTPRequest": object([]string{"phone"}, map[string]any{
+			"phone":       stringSchema(""),
+			"tenant_slug": stringSchema(""),
+		}),
+		"VerifyOTPRequest": object([]string{"phone", "otp"}, map[string]any{
+			"phone": stringSchema(""),
+			"otp":   stringSchema(""),
 		}),
 		"RegisterRequest": object([]string{"email", "password", "first_name", "last_name"}, map[string]any{
 			"email":      stringSchema("email"),

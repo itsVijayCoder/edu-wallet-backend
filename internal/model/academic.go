@@ -102,6 +102,16 @@ type Guardian struct {
 	DeletedAt          *time.Time     `json:"deleted_at,omitempty"`
 }
 
+// ParentLoginCandidate is the minimal cross-tenant projection needed to
+// resolve a guardian phone number to a linked parent account.
+type ParentLoginCandidate struct {
+	TenantID     uuid.UUID
+	TenantName   string
+	TenantSlug   string
+	TenantStatus string
+	UserID       uuid.UUID
+}
+
 type StudentGuardian struct {
 	TenantID     uuid.UUID `json:"tenant_id"`
 	StudentID    uuid.UUID `json:"student_id"`
@@ -185,6 +195,13 @@ type GuardianFilter struct {
 	Search       string
 	OnlyLinked   bool
 	OnlyUnlinked bool
+}
+
+// GuardianStudentFilter limits the children returned for a guardian. It is
+// deliberately separate from StudentFilter so parent-facing queries cannot
+// accidentally gain administrative filtering capabilities.
+type GuardianStudentFilter struct {
+	Search string
 }
 
 type ImportFilter struct {

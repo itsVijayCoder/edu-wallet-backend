@@ -30,6 +30,13 @@ func TestPaymentsReceiptsLedger_E2E(t *testing.T) {
 	sectionID := createSection(t, suite, tenantAccessToken, academicYearID, classID)
 	guardianID := createGuardian(t, suite, tenantAccessToken)
 	studentID := createStudent(t, suite, tenantAccessToken, academicYearID, classID, sectionID, guardianID)
+	parentUserID := SeedUser(t, suite.Pool, suite.Hasher, "payments-parent@example.com", "password123", []string{"parents"})
+	w := doRequest(suite.Server, http.MethodPost, "/api/v1/admin/guardians/"+guardianID.String()+"/user", map[string]any{
+		"user_id": parentUserID.String(),
+	}, bearer(tenantAccessToken))
+	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+	parentToken, err := suite.TokenMgr.GenerateTenantAccess(parentUserID, "payments-parent@example.com", []string{"parents"}, tenantID, nil)
+	require.NoError(t, err)
 
 	tuitionHeadID := createFeeHead(t, suite, tenantAccessToken, "Tuition Fee", "TUITION", "tuition")
 	examHeadID := createFeeHead(t, suite, tenantAccessToken, "Exam Fee", "EXAM", "exam")
@@ -38,12 +45,12 @@ func TestPaymentsReceiptsLedger_E2E(t *testing.T) {
 
 	juneInvoiceID := generateInvoice(t, suite, tenantAccessToken, assignmentID, "2026-06-01", "2026-06-10", "2026-06-01", "2026-06-30")
 
-	w := doRequest(suite.Server, http.MethodPost, "/api/v1/parent/payments/orders", map[string]any{
+	w = doRequest(suite.Server, http.MethodPost, "/api/v1/parent/payments/orders", map[string]any{
 		"student_id":      studentID.String(),
 		"invoice_ids":     []string{juneInvoiceID.String()},
 		"amount_paise":    50000,
 		"idempotency_key": "june-partial",
-	}, bearer(tenantAccessToken))
+	}, bearer(parentToken))
 	require.Equal(t, http.StatusCreated, w.Code)
 	body := parseJSON(t, w)
 	orderData := body["data"].(map[string]any)
@@ -55,7 +62,7 @@ func TestPaymentsReceiptsLedger_E2E(t *testing.T) {
 		"provider_payment_id": "pay_partial_001",
 		"signature":           testSignature(orderID + "|" + "pay_partial_001"),
 		"payment_method":      "upi",
-	}, bearer(tenantAccessToken))
+	}, bearer(parentToken))
 	require.Equal(t, http.StatusOK, w.Code)
 	body = parseJSON(t, w)
 	verifyData := body["data"].(map[string]any)
@@ -69,7 +76,7 @@ func TestPaymentsReceiptsLedger_E2E(t *testing.T) {
 		"provider_payment_id": "pay_partial_001",
 		"signature":           testSignature(orderID + "|" + "pay_partial_001"),
 		"payment_method":      "upi",
-	}, bearer(tenantAccessToken))
+	}, bearer(parentToken))
 	require.Equal(t, http.StatusOK, w.Code)
 	body = parseJSON(t, w)
 	duplicateReceipt := body["data"].(map[string]any)["receipt"].(map[string]any)
@@ -86,7 +93,7 @@ func TestPaymentsReceiptsLedger_E2E(t *testing.T) {
 	w = doRequest(suite.Server, http.MethodPost, "/api/v1/parent/payments/orders", map[string]any{
 		"student_id":  studentID.String(),
 		"invoice_ids": []string{juneInvoiceID.String()},
-	}, bearer(tenantAccessToken))
+	}, bearer(parentToken))
 	require.Equal(t, http.StatusCreated, w.Code)
 	body = parseJSON(t, w)
 	webhookOrderID := body["data"].(map[string]any)["order_id"].(string)

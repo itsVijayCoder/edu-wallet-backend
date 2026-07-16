@@ -64,6 +64,9 @@ func (s *paymentService) CreatePaymentOrder(ctx context.Context, actorID, tenant
 	if _, err := s.requireStudent(ctx, tenantID, req.StudentID); err != nil {
 		return nil, err
 	}
+	if err := s.requireParentStudentAccess(ctx, tenantID, actorID, req.StudentID); err != nil {
+		return nil, err
+	}
 	invoiceIDs, err := normalizeInvoiceIDs(req.InvoiceIDs)
 	if err != nil {
 		return nil, err
@@ -174,6 +177,9 @@ func (s *paymentService) VerifyPayment(ctx context.Context, actorID, tenantID uu
 	}
 	if attempt == nil {
 		return nil, apperror.ErrNotFound
+	}
+	if err := s.requireParentStudentAccess(ctx, tenantID, actorID, attempt.StudentID); err != nil {
+		return nil, err
 	}
 	if err := s.provider.VerifyPaymentSignature(PaymentSignatureVerification{
 		OrderID:   strings.TrimSpace(req.ProviderOrderID),
@@ -428,12 +434,36 @@ func (s *paymentService) DownloadReceipt(ctx context.Context, tenantID, id uuid.
 	return s.renderer.RenderReceipt(ctx, *receipt)
 }
 
-func (s *paymentService) ListParentReceipts(ctx context.Context, tenantID uuid.UUID, filter model.ReceiptFilter, params model.PaginationParams) (*model.PaginatedResult[dto.ReceiptResponse], error) {
+func (s *paymentService) ListParentReceipts(ctx context.Context, tenantID, userID uuid.UUID, filter model.ReceiptFilter, params model.PaginationParams) (*model.PaginatedResult[dto.ReceiptResponse], error) {
+	filter.GuardianUserID = &userID
 	return s.ListReceipts(ctx, tenantID, filter, params)
 }
 
-func (s *paymentService) DownloadParentReceipt(ctx context.Context, tenantID, id uuid.UUID) (*dto.ReceiptDownloadResponse, error) {
-	return s.DownloadReceipt(ctx, tenantID, id)
+func (s *paymentService) DownloadParentReceipt(ctx context.Context, tenantID, userID, id uuid.UUID) (*dto.ReceiptDownloadResponse, error) {
+	receipt, err := s.repo.GetReceipt(ctx, tenantID, id)
+	if err != nil {
+		return nil, fmt.Errorf("get receipt: %w", err)
+	}
+	if receipt == nil {
+		return nil, apperror.ErrNotFound
+	}
+	if err := s.requireParentStudentAccess(ctx, tenantID, userID, receipt.StudentID); err != nil {
+		return nil, err
+	}
+	return s.renderer.RenderReceipt(ctx, *receiptToResponse(receipt))
+}
+
+func (s *paymentService) requireParentStudentAccess(ctx context.Context, tenantID, userID, studentID uuid.UUID) error {
+	links, err := s.academicRepo.ListStudentGuardians(ctx, tenantID, studentID)
+	if err != nil {
+		return fmt.Errorf("list student guardians: %w", err)
+	}
+	for i := range links {
+		if links[i].Guardian != nil && links[i].Guardian.UserID != nil && *links[i].Guardian.UserID == userID {
+			return nil
+		}
+	}
+	return apperror.ErrNotFound
 }
 
 func (s *paymentService) ListPaymentEvents(ctx context.Context, tenantID uuid.UUID, filter model.PaymentEventFilter, params model.PaginationParams) (*model.PaginatedResult[dto.PaymentEventResponse], error) {

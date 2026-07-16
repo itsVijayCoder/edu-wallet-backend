@@ -33,6 +33,36 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	RespondOK(c, resp)
 }
 
+func (h *AuthHandler) SendOTP(c *gin.Context) {
+	var req dto.SendOTPRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondValidationError(c, extractValidationErrors(err))
+		return
+	}
+
+	resp, err := h.authSvc.SendOTP(c.Request.Context(), req)
+	if err != nil {
+		HandleError(c, err)
+		return
+	}
+	RespondOK(c, resp)
+}
+
+func (h *AuthHandler) VerifyOTP(c *gin.Context) {
+	var req dto.VerifyOTPRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondValidationError(c, extractValidationErrors(err))
+		return
+	}
+
+	resp, err := h.authSvc.VerifyOTP(c.Request.Context(), req)
+	if err != nil {
+		HandleError(c, err)
+		return
+	}
+	RespondOK(c, resp)
+}
+
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req dto.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

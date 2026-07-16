@@ -1090,6 +1090,18 @@ func receiptWhere(tenantID uuid.UUID, filter model.ReceiptFilter) (string, []any
 		args = append(args, *filter.StudentID)
 		clauses = append(clauses, fmt.Sprintf("r.student_id = $%d", len(args)))
 	}
+	if filter.GuardianUserID != nil {
+		args = append(args, *filter.GuardianUserID)
+		clauses = append(clauses, fmt.Sprintf(`EXISTS (
+			SELECT 1
+			FROM student_guardians sg
+			JOIN guardians g ON g.tenant_id = sg.tenant_id AND g.id = sg.guardian_id
+			WHERE sg.tenant_id = r.tenant_id
+				AND sg.student_id = r.student_id
+				AND g.user_id = $%d
+				AND g.deleted_at IS NULL
+		)`, len(args)))
+	}
 	if strings.TrimSpace(filter.Status) != "" {
 		args = append(args, strings.TrimSpace(filter.Status))
 		clauses = append(clauses, fmt.Sprintf("r.status = $%d", len(args)))

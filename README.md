@@ -113,6 +113,8 @@ make swagger
 |--------|-----------------------------------|----------------------------|
 | POST   | `/api/v1/auth/register`           | Register new user          |
 | POST   | `/api/v1/auth/login`              | Login (returns tokens)     |
+| POST   | `/api/v1/auth/send-otp`           | Send an OTP to a linked parent guardian phone |
+| POST   | `/api/v1/auth/verify-otp`         | Verify parent OTP (returns tenant-scoped parent tokens) |
 | POST   | `/api/v1/auth/refresh`            | Refresh access token       |
 | POST   | `/api/v1/auth/select-tenant`      | Select tenant context      |
 | POST   | `/api/v1/auth/logout`             | Logout (requires auth)     |
@@ -212,10 +214,11 @@ Invoices store explicit partial-payment rules: `allow_partial_payment` and `mini
 
 ### Payments, Webhooks, And Receipts
 
-Parent payment endpoints require auth + selected tenant token. Admin finance endpoints require selected tenant token + `payments.manage`.
+Parent endpoints require a `parents`-role JWT with a selected tenant and a guardian link to the requested student. Admin finance endpoints require selected tenant token + `payments.manage`.
 
 | Method | Endpoint                                  | Description                         |
 |--------|-------------------------------------------|-------------------------------------|
+| GET    | `/api/v1/parent/children`                 | List linked children for the parent |
 | POST   | `/api/v1/parent/payments/orders`          | Create provider order for invoices  |
 | POST   | `/api/v1/parent/payments/verify`          | Verify checkout signature and apply payment |
 | POST   | `/api/v1/webhooks/razorpay`               | Process signed Razorpay webhook     |
@@ -271,6 +274,7 @@ CSV exports are generated into `export_jobs` for the MVP. The service supports c
 
 | Method | Endpoint                              | Description             |
 |--------|---------------------------------------|-------------------------|
+| GET    | `/api/v1/parent/children`             | List linked children    |
 | GET    | `/api/v1/parent/children/:id/dues`    | View unpaid child dues  |
 
 ### Platform/Admin Users (requires super_admin or admin role)
@@ -425,6 +429,7 @@ Copy `.env.example` to `.env` and adjust values. Key settings:
 | `APP_PORT`           | `8080`           | HTTP server port                |
 | `APP_EXTERNAL_URL`   | -                | Public HTTPS base URL in production |
 | `CORS_ALLOWED_ORIGINS` | -              | Comma-separated HTTPS browser origins in production |
+| `TRUSTED_PROXIES`    | -                | Comma-separated reverse-proxy IPs/CIDRs allowed to set client IP headers |
 | `WORKER_POLL_INTERVAL` | `5s`           | Reminder job polling interval in worker mode |
 | `DB_HOST`            | `localhost`      | PostgreSQL host                 |
 | `DB_PORT`            | `5432`           | PostgreSQL port                 |
@@ -440,7 +445,7 @@ Copy `.env.example` to `.env` and adjust values. Key settings:
 | `RAZORPAY_KEY_SECRET` | -               | Required when `PAYMENT_PROVIDER=razorpay` |
 | `RAZORPAY_WEBHOOK_SECRET` | -           | Required when `PAYMENT_PROVIDER=razorpay` |
 
-Production validation fails fast when required settings are missing, wildcard CORS is configured, production URLs are not HTTPS, JWT secrets are reused, DB SSL is disabled, or Razorpay/Resend settings are placeholders.
+JWT secrets must be unique, at least 32 characters, and cannot be placeholders in every environment. Production validation additionally fails fast when required settings are missing, wildcard CORS is configured, production URLs are not HTTPS, DB SSL is disabled, or Razorpay/Resend settings are placeholders. See [production deployment](docs/PRODUCTION_DEPLOYMENT.md) for the hardened Compose topology.
 
 ## Operations
 
