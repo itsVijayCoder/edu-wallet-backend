@@ -9,7 +9,9 @@
 # successfully deployed SHA; failures are retried on the next poll (see the log:
 # ~/Library/Logs/eduwallet-autodeploy.out.log).
 set -euo pipefail
-export PATH="/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+# /usr/local/bin carries docker-credential-osxkeychain (docker's credsStore helper —
+# buildkit hard-fails image pulls without it under launchd's minimal PATH)
+export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 export GIT_TERMINAL_PROMPT=0
 
 SRC="/Users/jarvis/eduwallet-src"

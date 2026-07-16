@@ -45,7 +45,7 @@ say "1. rsync ${REPO_ROOT} -> ${DEPLOY_DIR} (preserve deploy-dir .env)"
 mkdir -p "${DEPLOY_DIR}"
 rsync -a --delete \
   --exclude='.git' --exclude='.claude' --exclude='bin/' --exclude='tmp/' \
-  --exclude='.env' --exclude='*.log' \
+  --exclude='.env' --exclude='*.log' --exclude='.deployed-sha' --exclude='*.sql' \
   "${REPO_ROOT}/" "${DEPLOY_DIR}/"
 echo "synced."
 
