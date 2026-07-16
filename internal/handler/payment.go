@@ -3,9 +3,9 @@ package handler
 import (
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 
 	"github.com/itsVijayCoder/edu-wallet-backend/internal/dto"
 	"github.com/itsVijayCoder/edu-wallet-backend/internal/model"
@@ -144,7 +144,12 @@ func (h *PaymentHandler) GetPayment(c *gin.Context) {
 }
 
 func (h *PaymentHandler) ListReceipts(c *gin.Context) {
-	tenantID, filter, ok := receiptFilterFromQuery(c)
+	tenantID, err := currentTenantID(c)
+	if err != nil {
+		HandleError(c, err)
+		return
+	}
+	filter, ok := receiptFilterFromQuery(c)
 	if !ok {
 		return
 	}
@@ -184,11 +189,15 @@ func (h *PaymentHandler) DownloadReceipt(c *gin.Context) {
 }
 
 func (h *PaymentHandler) ListParentReceipts(c *gin.Context) {
-	tenantID, filter, ok := receiptFilterFromQuery(c)
+	actorID, tenantID, ok := currentActorAndTenant(c)
 	if !ok {
 		return
 	}
-	result, err := h.paymentSvc.ListParentReceipts(c.Request.Context(), tenantID, filter, dto.ExtractPagination(c))
+	filter, ok := receiptFilterFromQuery(c)
+	if !ok {
+		return
+	}
+	result, err := h.paymentSvc.ListParentReceipts(c.Request.Context(), tenantID, actorID, filter, dto.ExtractPagination(c))
 	if err != nil {
 		HandleError(c, err)
 		return
@@ -197,11 +206,11 @@ func (h *PaymentHandler) ListParentReceipts(c *gin.Context) {
 }
 
 func (h *PaymentHandler) DownloadParentReceipt(c *gin.Context) {
-	tenantID, id, ok := currentTenantAndParamID(c, "id")
+	actorID, tenantID, id, ok := currentActorTenantAndParamID(c, "id")
 	if !ok {
 		return
 	}
-	file, err := h.paymentSvc.DownloadParentReceipt(c.Request.Context(), tenantID, id)
+	file, err := h.paymentSvc.DownloadParentReceipt(c.Request.Context(), tenantID, actorID, id)
 	if err != nil {
 		HandleError(c, err)
 		return
@@ -243,27 +252,31 @@ func (h *PaymentHandler) ListPaymentEvents(c *gin.Context) {
 	RespondPaginated(c, result.Data, result.Page, result.PageSize, result.Total, result.TotalPages)
 }
 
-func receiptFilterFromQuery(c *gin.Context) (uuid.UUID, model.ReceiptFilter, bool) {
-	tenantID, err := currentTenantID(c)
-	if err != nil {
-		HandleError(c, err)
-		return uuid.Nil, model.ReceiptFilter{}, false
-	}
+func receiptFilterFromQuery(c *gin.Context) (model.ReceiptFilter, bool) {
 	studentID, ok := queryUUID(c, "student_id")
 	if !ok {
-		return uuid.Nil, model.ReceiptFilter{}, false
+		return model.ReceiptFilter{}, false
 	}
 	from, ok := queryDate(c, "from")
 	if !ok {
-		return uuid.Nil, model.ReceiptFilter{}, false
+		return model.ReceiptFilter{}, false
 	}
 	to, ok := queryDate(c, "to")
 	if !ok {
-		return uuid.Nil, model.ReceiptFilter{}, false
+		return model.ReceiptFilter{}, false
 	}
-	return tenantID, model.ReceiptFilter{
+	if from != nil && to != nil && from.After(*to) {
+		RespondValidationError(c, []string{"from must be on or before to"})
+		return model.ReceiptFilter{}, false
+	}
+	status := strings.ToLower(strings.TrimSpace(c.Query("status")))
+	if status != "" && status != "issued" && status != "cancelled" {
+		RespondValidationError(c, []string{"status must be one of issued, cancelled"})
+		return model.ReceiptFilter{}, false
+	}
+	return model.ReceiptFilter{
 		StudentID: studentID,
-		Status:    c.Query("status"),
+		Status:    status,
 		From:      from,
 		To:        to,
 		Search:    c.Query("search"),

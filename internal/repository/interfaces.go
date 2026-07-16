@@ -99,6 +99,7 @@ type AcademicRepository interface {
 
 	CreateGuardian(ctx context.Context, guardian *model.Guardian) error
 	GetGuardian(ctx context.Context, tenantID, id uuid.UUID) (*model.Guardian, error)
+	GetGuardianByUserID(ctx context.Context, tenantID, userID uuid.UUID) (*model.Guardian, error)
 	FindGuardianByContact(ctx context.Context, tenantID uuid.UUID, email, phone *string) (*model.Guardian, error)
 	ListGuardians(ctx context.Context, tenantID uuid.UUID, filter model.GuardianFilter, params model.PaginationParams) (*model.PaginatedResult[model.Guardian], error)
 	UpdateGuardian(ctx context.Context, guardian *model.Guardian) error
@@ -110,6 +111,7 @@ type AcademicRepository interface {
 	UnlinkStudentGuardian(ctx context.Context, tenantID, studentID, guardianID uuid.UUID) error
 	ListStudentGuardians(ctx context.Context, tenantID, studentID uuid.UUID) ([]model.StudentGuardian, error)
 	ListGuardianStudents(ctx context.Context, tenantID, guardianID uuid.UUID) ([]model.GuardianStudent, error)
+	ListGuardianStudentsPaginated(ctx context.Context, tenantID, guardianID uuid.UUID, filter model.GuardianStudentFilter, params model.PaginationParams) (*model.PaginatedResult[model.GuardianStudent], error)
 	ListGuardianStudentsByGuardianIDs(ctx context.Context, tenantID uuid.UUID, guardianIDs []uuid.UUID) (map[uuid.UUID][]model.GuardianStudent, error)
 
 	CreateImport(ctx context.Context, imp *model.Import) error
@@ -153,7 +155,7 @@ type BillingRepository interface {
 	GetInvoiceByGenerationKey(ctx context.Context, tenantID uuid.UUID, generationKey string) (*model.Invoice, error)
 	ListInvoices(ctx context.Context, tenantID uuid.UUID, filter model.InvoiceFilter, params model.PaginationParams) (*model.PaginatedResult[model.Invoice], error)
 	ListInvoiceItems(ctx context.Context, tenantID, invoiceID uuid.UUID) ([]model.InvoiceItem, error)
-	ListStudentInvoices(ctx context.Context, tenantID, studentID uuid.UUID) ([]model.Invoice, error)
+	ListStudentInvoices(ctx context.Context, tenantID, studentID uuid.UUID, filter model.InvoiceFilter) ([]model.Invoice, error)
 }
 
 // PaymentRepository defines tenant-scoped payment, webhook, receipt, and ledger operations.

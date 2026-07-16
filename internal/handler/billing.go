@@ -325,6 +325,10 @@ func (h *BillingHandler) ListInvoices(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if dueFrom != nil && dueTo != nil && dueFrom.After(*dueTo) {
+		RespondValidationError(c, []string{"due_from must be on or before due_to"})
+		return
+	}
 	filter := model.InvoiceFilter{
 		StudentID:      studentID,
 		AcademicYearID: academicYearID,
@@ -370,16 +374,61 @@ func (h *BillingHandler) GetStudentLedger(c *gin.Context) {
 }
 
 func (h *BillingHandler) GetParentChildDues(c *gin.Context) {
-	tenantID, childID, ok := currentTenantAndParamID(c, "id")
+	actorID, tenantID, childID, ok := currentActorTenantAndParamID(c, "id")
 	if !ok {
 		return
 	}
-	resp, err := h.billingSvc.GetParentChildDues(c.Request.Context(), tenantID, childID)
+	dueFrom, ok := queryDate(c, "due_from")
+	if !ok {
+		return
+	}
+	dueTo, ok := queryDate(c, "due_to")
+	if !ok {
+		return
+	}
+	if dueFrom != nil && dueTo != nil && dueFrom.After(*dueTo) {
+		RespondValidationError(c, []string{"due_from must be on or before due_to"})
+		return
+	}
+	status, ok := parentInvoiceStatus(c.Query("status"))
+	if !ok {
+		RespondValidationError(c, []string{"status must be one of paid, pending, partial, overdue, failed"})
+		return
+	}
+	filter := model.InvoiceFilter{
+		Status:  status,
+		DueFrom: dueFrom,
+		DueTo:   dueTo,
+		Search:  c.Query("search"),
+	}
+	resp, err := h.billingSvc.GetParentChildDues(c.Request.Context(), tenantID, actorID, childID, filter)
 	if err != nil {
 		HandleError(c, err)
 		return
 	}
 	RespondOK(c, resp)
+}
+
+func parentInvoiceStatus(value string) (string, bool) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "":
+		return "", true
+	case "paid":
+		return "paid", true
+	case "pending":
+		return "issued", true
+	case "partial":
+		return "partially_paid", true
+	case "overdue":
+		return "overdue", true
+	case "failed":
+		// Invoices do not have a failed lifecycle state. The accepted frontend
+		// category is represented by an empty result rather than being silently
+		// treated as an unrelated invoice state.
+		return "failed", true
+	default:
+		return "", false
+	}
 }
 
 func queryDate(c *gin.Context, name string) (*time.Time, bool) {

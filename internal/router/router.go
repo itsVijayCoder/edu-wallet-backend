@@ -276,8 +276,9 @@ func New(log *slog.Logger, cfg RouterConfig, tokenMgr jwt.TokenManager, rdb *red
 			}
 		}
 
-		parent := v1.Group("/parent", middleware.Auth(tokenMgr), middleware.RequireTenant())
+		parent := v1.Group("/parent", middleware.Auth(tokenMgr), middleware.RequireTenant(), middleware.RoleGuard("parents"))
 		{
+			parent.GET("/children", h.Parent.ListLinkedChildren)
 			parent.GET("/children/:id/dues", h.Billing.GetParentChildDues)
 			parent.POST("/payments/orders", middleware.BodySizeLimit(paymentBodyLimitBytes), middleware.RateLimit(rdb, 30, time.Minute), h.Payment.CreatePaymentOrder)
 			parent.POST("/payments/verify", middleware.BodySizeLimit(paymentBodyLimitBytes), middleware.RateLimit(rdb, 60, time.Minute), h.Payment.VerifyPayment)

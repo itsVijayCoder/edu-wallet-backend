@@ -63,6 +63,29 @@ func (h *ParentHandler) ListGuardianStudents(c *gin.Context) {
 	RespondOK(c, resp)
 }
 
+func (h *ParentHandler) ListLinkedChildren(c *gin.Context) {
+	actorID, tenantID, ok := currentActorAndTenant(c)
+	if !ok {
+		return
+	}
+	result, err := h.parentSvc.ListLinkedChildren(c.Request.Context(), tenantID, actorID, model.GuardianStudentFilter{
+		Search: c.Query("search"),
+	}, dto.ExtractPagination(c))
+	if err != nil {
+		HandleError(c, err)
+		return
+	}
+	RespondOK(c, dto.ParentChildrenResponse{
+		Rows: result.Data,
+		Meta: dto.PaginationMetaResponse{
+			Page:       result.Page,
+			PageSize:   result.PageSize,
+			Total:      result.Total,
+			TotalPages: result.TotalPages,
+		},
+	})
+}
+
 func (h *ParentHandler) ListParents(c *gin.Context) {
 	tenantID, err := currentTenantID(c)
 	if err != nil {

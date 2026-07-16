@@ -24,8 +24,10 @@ const parentRoleSlug = "parents"
 // adapter.
 type guardianStore interface {
 	GetGuardian(ctx context.Context, tenantID, id uuid.UUID) (*model.Guardian, error)
+	GetGuardianByUserID(ctx context.Context, tenantID, userID uuid.UUID) (*model.Guardian, error)
 	ListGuardians(ctx context.Context, tenantID uuid.UUID, filter model.GuardianFilter, params model.PaginationParams) (*model.PaginatedResult[model.Guardian], error)
 	ListGuardianStudents(ctx context.Context, tenantID, guardianID uuid.UUID) ([]model.GuardianStudent, error)
+	ListGuardianStudentsPaginated(ctx context.Context, tenantID, guardianID uuid.UUID, filter model.GuardianStudentFilter, params model.PaginationParams) (*model.PaginatedResult[model.GuardianStudent], error)
 	ListGuardianStudentsByGuardianIDs(ctx context.Context, tenantID uuid.UUID, guardianIDs []uuid.UUID) (map[uuid.UUID][]model.GuardianStudent, error)
 	SetGuardianUserID(ctx context.Context, tenantID, guardianID uuid.UUID, userID *uuid.UUID) error
 }
@@ -148,6 +150,36 @@ func (s *parentService) ListGuardianStudents(ctx context.Context, tenantID, guar
 		resp = append(resp, guardianStudentToResponse(&students[i]))
 	}
 	return resp, nil
+}
+
+func (s *parentService) ListLinkedChildren(ctx context.Context, tenantID, userID uuid.UUID, filter model.GuardianStudentFilter, params model.PaginationParams) (*model.PaginatedResult[dto.ParentChildResponse], error) {
+	guardian, err := s.guardians.GetGuardianByUserID(ctx, tenantID, userID)
+	if err != nil {
+		return nil, fmt.Errorf("get parent guardian: %w", err)
+	}
+	if guardian == nil {
+		params.Normalize()
+		return model.NewPaginatedResult([]dto.ParentChildResponse{}, 0, params.Page, params.PageSize), nil
+	}
+
+	result, err := s.guardians.ListGuardianStudentsPaginated(ctx, tenantID, guardian.ID, filter, params)
+	if err != nil {
+		return nil, fmt.Errorf("list linked children: %w", err)
+	}
+	children := make([]dto.ParentChildResponse, len(result.Data))
+	for i := range result.Data {
+		student := result.Data[i]
+		children[i] = dto.ParentChildResponse{
+			ID:              student.StudentID,
+			AdmissionNumber: student.AdmissionNumber,
+			FirstName:       student.FirstName,
+			LastName:        student.LastName,
+			ClassName:       student.ClassName,
+			SectionName:     student.SectionName,
+			Status:          student.Status,
+		}
+	}
+	return model.NewPaginatedResult(children, result.Total, result.Page, result.PageSize), nil
 }
 
 func (s *parentService) ListParents(ctx context.Context, tenantID uuid.UUID, filter model.GuardianFilter, params model.PaginationParams) (*model.PaginatedResult[dto.ParentSummaryResponse], error) {

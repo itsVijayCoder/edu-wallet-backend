@@ -212,10 +212,11 @@ Invoices store explicit partial-payment rules: `allow_partial_payment` and `mini
 
 ### Payments, Webhooks, And Receipts
 
-Parent payment endpoints require auth + selected tenant token. Admin finance endpoints require selected tenant token + `payments.manage`.
+Parent endpoints require a `parents`-role JWT with a selected tenant and a guardian link to the requested student. Admin finance endpoints require selected tenant token + `payments.manage`.
 
 | Method | Endpoint                                  | Description                         |
 |--------|-------------------------------------------|-------------------------------------|
+| GET    | `/api/v1/parent/children`                 | List linked children for the parent |
 | POST   | `/api/v1/parent/payments/orders`          | Create provider order for invoices  |
 | POST   | `/api/v1/parent/payments/verify`          | Verify checkout signature and apply payment |
 | POST   | `/api/v1/webhooks/razorpay`               | Process signed Razorpay webhook     |
@@ -271,6 +272,7 @@ CSV exports are generated into `export_jobs` for the MVP. The service supports c
 
 | Method | Endpoint                              | Description             |
 |--------|---------------------------------------|-------------------------|
+| GET    | `/api/v1/parent/children`             | List linked children    |
 | GET    | `/api/v1/parent/children/:id/dues`    | View unpaid child dues  |
 
 ### Platform/Admin Users (requires super_admin or admin role)

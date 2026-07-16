@@ -164,11 +164,12 @@ type PaymentFilter struct {
 }
 
 type ReceiptFilter struct {
-	StudentID *uuid.UUID
-	Status    string
-	From      *time.Time
-	To        *time.Time
-	Search    string
+	StudentID      *uuid.UUID
+	GuardianUserID *uuid.UUID
+	Status         string
+	From           *time.Time
+	To             *time.Time
+	Search         string
 }
 
 type PaymentEventFilter struct {

@@ -495,6 +495,11 @@ func (r *academicRepository) GetGuardian(ctx context.Context, tenantID, id uuid.
 	return r.scanGuardian(ctx, query, tenantID, id)
 }
 
+func (r *academicRepository) GetGuardianByUserID(ctx context.Context, tenantID, userID uuid.UUID) (*model.Guardian, error) {
+	const query = guardianSelect + ` WHERE g.tenant_id = $1 AND g.user_id = $2 AND g.deleted_at IS NULL`
+	return r.scanGuardian(ctx, query, tenantID, userID)
+}
+
 func (r *academicRepository) FindGuardianByContact(ctx context.Context, tenantID uuid.UUID, email, phone *string) (*model.Guardian, error) {
 	clauses := []string{"g.tenant_id = $1", "g.deleted_at IS NULL"}
 	args := []any{tenantID}
@@ -695,6 +700,60 @@ func (r *academicRepository) ListGuardianStudents(ctx context.Context, tenantID,
 		return nil, err
 	}
 	return itemsByGuardian[guardianID], nil
+}
+
+// ListGuardianStudentsPaginated is the parent portal projection. The query
+// keeps the guardian predicate in SQL, so search and pagination never operate
+// on students belonging to another guardian.
+func (r *academicRepository) ListGuardianStudentsPaginated(ctx context.Context, tenantID, guardianID uuid.UUID, filter model.GuardianStudentFilter, params model.PaginationParams) (*model.PaginatedResult[model.GuardianStudent], error) {
+	params.Normalize()
+	clauses := []string{"sg.tenant_id = $1", "sg.guardian_id = $2", "s.deleted_at IS NULL"}
+	args := []any{tenantID, guardianID}
+	if search := strings.TrimSpace(filter.Search); search != "" {
+		args = append(args, "%"+strings.ToLower(search)+"%")
+		clauses = append(clauses, fmt.Sprintf("(lower(s.first_name) LIKE $%d OR lower(s.last_name) LIKE $%d OR lower(s.admission_number) LIKE $%d)", len(args), len(args), len(args)))
+	}
+	where := "WHERE " + strings.Join(clauses, " AND ")
+
+	var total int64
+	countQuery := `SELECT COUNT(*) FROM student_guardians sg JOIN students s ON s.tenant_id = sg.tenant_id AND s.id = sg.student_id ` + where
+	if err := r.db.QueryRow(ctx, countQuery, args...).Scan(&total); err != nil {
+		return nil, err
+	}
+
+	queryArgs := append([]any{}, args...)
+	limitParam := fmt.Sprintf("$%d", len(queryArgs)+1)
+	offsetParam := fmt.Sprintf("$%d", len(queryArgs)+2)
+	queryArgs = append(queryArgs, params.PageSize, params.Offset())
+	const selectQuery = `SELECT
+			sg.guardian_id, sg.student_id, s.admission_number, s.first_name, s.last_name,
+			sg.relationship, sg.is_primary,
+			coalesce(c.name, '') AS class_name,
+			coalesce(sec.name, '') AS section_name,
+			s.status
+		FROM student_guardians sg
+		JOIN students s ON s.tenant_id = sg.tenant_id AND s.id = sg.student_id
+		LEFT JOIN classes c ON c.tenant_id = s.tenant_id AND c.id = s.class_id
+		LEFT JOIN sections sec ON sec.tenant_id = s.tenant_id AND sec.id = s.section_id`
+	query := selectQuery + ` ` + where + ` ORDER BY s.first_name ASC, s.last_name ASC, s.admission_number ASC LIMIT ` + limitParam + ` OFFSET ` + offsetParam
+	rows, err := r.db.Query(ctx, query, queryArgs...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := make([]model.GuardianStudent, 0, params.PageSize)
+	for rows.Next() {
+		item, err := scanGuardianStudentRow(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, *item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return model.NewPaginatedResult(items, total, params.Page, params.PageSize), nil
 }
 
 // ListGuardianStudentsByGuardianIDs resolves the linked students for an

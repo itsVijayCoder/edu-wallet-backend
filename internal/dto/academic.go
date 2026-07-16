@@ -205,6 +205,31 @@ type GuardianStudentResponse struct {
 	Status          string    `json:"status"`
 }
 
+// ParentChildResponse is the intentionally minimal student projection used by
+// the parent portal. Guardian relationship details remain available only on
+// the administrative guardian endpoint.
+type ParentChildResponse struct {
+	ID              uuid.UUID `json:"id"`
+	AdmissionNumber string    `json:"admission_number"`
+	FirstName       string    `json:"first_name"`
+	LastName        string    `json:"last_name"`
+	ClassName       string    `json:"class_name"`
+	SectionName     string    `json:"section_name"`
+	Status          string    `json:"status"`
+}
+
+type PaginationMetaResponse struct {
+	Page       int   `json:"page"`
+	PageSize   int   `json:"page_size"`
+	Total      int64 `json:"total"`
+	TotalPages int   `json:"total_pages"`
+}
+
+type ParentChildrenResponse struct {
+	Rows []ParentChildResponse  `json:"rows"`
+	Meta PaginationMetaResponse `json:"meta"`
+}
+
 type ParentSummaryResponse struct {
 	GuardianID     uuid.UUID                 `json:"guardian_id"`
 	Name           string                    `json:"name"`

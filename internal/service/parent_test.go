@@ -29,6 +29,14 @@ func (m *mockGuardianStore) GetGuardian(ctx context.Context, tenantID, id uuid.U
 	return args.Get(0).(*model.Guardian), args.Error(1)
 }
 
+func (m *mockGuardianStore) GetGuardianByUserID(ctx context.Context, tenantID, userID uuid.UUID) (*model.Guardian, error) {
+	args := m.Called(ctx, tenantID, userID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*model.Guardian), args.Error(1)
+}
+
 func (m *mockGuardianStore) ListGuardians(ctx context.Context, tenantID uuid.UUID, filter model.GuardianFilter, params model.PaginationParams) (*model.PaginatedResult[model.Guardian], error) {
 	args := m.Called(ctx, tenantID, filter, params)
 	if args.Get(0) == nil {
@@ -43,6 +51,14 @@ func (m *mockGuardianStore) ListGuardianStudents(ctx context.Context, tenantID, 
 		return nil, args.Error(1)
 	}
 	return args.Get(0).([]model.GuardianStudent), args.Error(1)
+}
+
+func (m *mockGuardianStore) ListGuardianStudentsPaginated(ctx context.Context, tenantID, guardianID uuid.UUID, filter model.GuardianStudentFilter, params model.PaginationParams) (*model.PaginatedResult[model.GuardianStudent], error) {
+	args := m.Called(ctx, tenantID, guardianID, filter, params)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*model.PaginatedResult[model.GuardianStudent]), args.Error(1)
 }
 
 func (m *mockGuardianStore) ListGuardianStudentsByGuardianIDs(ctx context.Context, tenantID uuid.UUID, guardianIDs []uuid.UUID) (map[uuid.UUID][]model.GuardianStudent, error) {
@@ -220,6 +236,48 @@ func TestParentService_ListGuardianStudents_Success(t *testing.T) {
 	assert.Equal(t, "ADM-1", resp[0].AdmissionNumber)
 	assert.True(t, resp[0].IsPrimary)
 	assert.Equal(t, "10", resp[0].ClassName)
+}
+
+func TestParentService_ListLinkedChildren_PaginatesAndLimitsFields(t *testing.T) {
+	svc, guardians, _, _, _ := newParentServiceForTest(t)
+	tenantID, userID, guardianID := uuid.New(), uuid.New(), uuid.New()
+	params := model.PaginationParams{Page: 2, PageSize: 1}
+	filter := model.GuardianStudentFilter{Search: "aar"}
+	guardian := &model.Guardian{ID: guardianID, TenantID: tenantID, UserID: &userID}
+	students := []model.GuardianStudent{{
+		GuardianID: guardianID, StudentID: uuid.New(), AdmissionNumber: "ADM-1",
+		FirstName: "Aarav", LastName: "Sharma", Relationship: "father", IsPrimary: true,
+		ClassName: "Class 5", SectionName: "A", Status: "active",
+	}}
+
+	guardians.On("GetGuardianByUserID", mock.Anything, tenantID, userID).Return(guardian, nil)
+	guardians.On("ListGuardianStudentsPaginated", mock.Anything, tenantID, guardianID, filter, params).
+		Return(model.NewPaginatedResult(students, int64(2), 2, 1), nil)
+
+	result, err := svc.ListLinkedChildren(context.Background(), tenantID, userID, filter, params)
+	require.NoError(t, err)
+	require.Len(t, result.Data, 1)
+	assert.Equal(t, students[0].StudentID, result.Data[0].ID)
+	assert.Equal(t, "ADM-1", result.Data[0].AdmissionNumber)
+	assert.Equal(t, "Class 5", result.Data[0].ClassName)
+	assert.Equal(t, 2, result.Page)
+	assert.Equal(t, int64(2), result.Total)
+}
+
+func TestParentService_ListLinkedChildren_UnlinkedParentReturnsEmptyPage(t *testing.T) {
+	svc, guardians, _, _, _ := newParentServiceForTest(t)
+	tenantID, userID := uuid.New(), uuid.New()
+	params := model.PaginationParams{Page: 3, PageSize: 5}
+
+	guardians.On("GetGuardianByUserID", mock.Anything, tenantID, userID).Return((*model.Guardian)(nil), nil)
+
+	result, err := svc.ListLinkedChildren(context.Background(), tenantID, userID, model.GuardianStudentFilter{}, params)
+	require.NoError(t, err)
+	assert.Empty(t, result.Data)
+	assert.Equal(t, 3, result.Page)
+	assert.Equal(t, 5, result.PageSize)
+	assert.Equal(t, int64(0), result.Total)
+	assert.Equal(t, 0, result.TotalPages)
 }
 
 func TestParentService_ListParents_AggregatesGuardianUserAndStudents(t *testing.T) {

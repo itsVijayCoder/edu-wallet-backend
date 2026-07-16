@@ -187,6 +187,13 @@ type GuardianFilter struct {
 	OnlyUnlinked bool
 }
 
+// GuardianStudentFilter limits the children returned for a guardian. It is
+// deliberately separate from StudentFilter so parent-facing queries cannot
+// accidentally gain administrative filtering capabilities.
+type GuardianStudentFilter struct {
+	Search string
+}
+
 type ImportFilter struct {
 	Status     string
 	ImportType string

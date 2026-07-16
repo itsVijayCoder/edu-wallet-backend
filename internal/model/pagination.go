@@ -17,6 +17,9 @@ func (p *PaginationParams) Normalize() {
 	if p.PageSize <= 0 {
 		p.PageSize = 20
 	}
+	if p.PageSize > 100 {
+		p.PageSize = 100
+	}
 	if p.SortDir == "" {
 		p.SortDir = "desc"
 	}
