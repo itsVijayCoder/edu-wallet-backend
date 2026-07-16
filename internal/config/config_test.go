@@ -86,6 +86,17 @@ func TestValidateProductionConfig(t *testing.T) {
 			t.Fatalf("expected super admin password error, got %v", err)
 		}
 	})
+
+	t.Run("rejects malformed trusted proxy", func(t *testing.T) {
+		t.Parallel()
+		cfg := productionConfig()
+		cfg.App.TrustedProxies = []string{"not-an-ip"}
+
+		err := validate(cfg)
+		if err == nil || !strings.Contains(err.Error(), "TRUSTED_PROXIES") {
+			t.Fatalf("expected trusted proxy error, got %v", err)
+		}
+	})
 }
 
 func productionConfig() *Config {

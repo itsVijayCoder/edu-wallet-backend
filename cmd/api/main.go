@@ -144,10 +144,11 @@ func run() error {
 
 	// --- Router ---
 	r := router.New(log, router.RouterConfig{
-		AppEnv:      cfg.App.Env,
-		AppPort:     cfg.App.Port,
-		ExternalURL: cfg.App.ExternalURL,
-		CORSOrigins: cfg.App.CORSOrigins,
+		AppEnv:         cfg.App.Env,
+		AppPort:        cfg.App.Port,
+		ExternalURL:    cfg.App.ExternalURL,
+		CORSOrigins:    cfg.App.CORSOrigins,
+		TrustedProxies: cfg.App.TrustedProxies,
 	}, tokenMgr, rdb, router.Handlers{
 		Docs:     handler.NewDocsHandler(cfg.App.ExternalURL),
 		Health:   handler.NewHealthHandler(pool, rdb),
@@ -164,11 +165,13 @@ func run() error {
 
 	// --- HTTP Server ---
 	srv := &http.Server{
-		Addr:         fmt.Sprintf(":%d", cfg.App.Port),
-		Handler:      r,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
+		Addr:              fmt.Sprintf(":%d", cfg.App.Port),
+		Handler:           r,
+		ReadTimeout:       15 * time.Second,
+		ReadHeaderTimeout: 5 * time.Second,
+		WriteTimeout:      15 * time.Second,
+		IdleTimeout:       60 * time.Second,
+		MaxHeaderBytes:    64 << 10,
 	}
 
 	// --- Graceful Shutdown ---

@@ -22,14 +22,32 @@ func RateLimit(rdb *redis.Client, limit int, window time.Duration) gin.HandlerFu
 
 		count, err := rdb.Incr(ctx, key).Result()
 		if err != nil {
-			// If Redis is unreachable, allow the request rather than blocking all traffic.
-			c.Next()
+			// Rate-limited routes include authentication and payment mutations. Failing
+			// open here would remove their brute-force and abuse protection exactly
+			// when the limiter dependency is unhealthy.
+			c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{
+				"success": false,
+				"error": gin.H{
+					"code":    "RATE_LIMIT_UNAVAILABLE",
+					"message": "request limiting is temporarily unavailable",
+				},
+			})
 			return
 		}
 
 		// Set expiry only on the first request in the window.
 		if count == 1 {
-			rdb.Expire(ctx, key, window)
+			if err := rdb.Expire(ctx, key, window).Err(); err != nil {
+				_ = rdb.Del(ctx, key).Err()
+				c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{
+					"success": false,
+					"error": gin.H{
+						"code":    "RATE_LIMIT_UNAVAILABLE",
+						"message": "request limiting is temporarily unavailable",
+					},
+				})
+				return
+			}
 		}
 
 		remaining := int64(limit) - count

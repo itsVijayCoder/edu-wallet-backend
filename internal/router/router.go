@@ -36,10 +36,11 @@ type Handlers struct {
 
 // RouterConfig holds router-level configuration.
 type RouterConfig struct {
-	AppEnv      string
-	AppPort     int
-	ExternalURL string
-	CORSOrigins []string
+	AppEnv         string
+	AppPort        int
+	ExternalURL    string
+	CORSOrigins    []string
+	TrustedProxies []string
 }
 
 // New creates a fully configured *gin.Engine with all middleware and route groups.
@@ -50,6 +51,12 @@ func New(log *slog.Logger, cfg RouterConfig, tokenMgr jwt.TokenManager, rdb *red
 	}
 
 	r := gin.New()
+	// Only honor X-Forwarded-For from explicitly configured infrastructure.
+	// Otherwise a client could forge its source IP and bypass IP-based limits.
+	if err := r.SetTrustedProxies(cfg.TrustedProxies); err != nil {
+		log.Error("invalid trusted proxy configuration; forwarded headers disabled", "error", err)
+		_ = r.SetTrustedProxies(nil)
+	}
 	r.MaxMultipartMemory = importBodyLimitBytes
 
 	// --- Global middleware chain ---

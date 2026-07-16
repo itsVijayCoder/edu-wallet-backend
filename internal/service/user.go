@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -41,7 +42,10 @@ func NewUserService(
 }
 
 func (s *userService) Create(ctx context.Context, req dto.CreateUserRequest) (*dto.UserResponse, error) {
-	existing, _ := s.userRepo.GetByEmail(ctx, req.Email)
+	existing, err := s.userRepo.GetByEmail(ctx, req.Email)
+	if err != nil {
+		return nil, fmt.Errorf("lookup user email: %w", err)
+	}
 	if existing != nil {
 		return nil, apperror.ErrConflict
 	}
@@ -67,20 +71,26 @@ func (s *userService) Create(ctx context.Context, req dto.CreateUserRequest) (*d
 	roleIDs := make([]uuid.UUID, 0, len(req.RoleSlugs))
 	for _, slug := range req.RoleSlugs {
 		role, err := s.roleRepo.GetBySlug(ctx, slug)
-		if err != nil || role == nil {
-			return nil, apperror.New("INVALID_ROLE", fmt.Sprintf("role '%s' not found", slug), 400)
+		if err != nil {
+			return nil, s.compensateUserCreate(ctx, user.ID, fmt.Errorf("get role %q: %w", slug, err))
+		}
+		if role == nil {
+			return nil, s.compensateUserCreate(ctx, user.ID, apperror.New("INVALID_ROLE", fmt.Sprintf("role '%s' not found", slug), 400))
 		}
 		roleIDs = append(roleIDs, role.ID)
 	}
 
 	if err := s.userRepo.AssignRoles(ctx, user.ID, roleIDs); err != nil {
-		return nil, fmt.Errorf("assign roles: %w", err)
+		return nil, s.compensateUserCreate(ctx, user.ID, fmt.Errorf("assign roles: %w", err))
 	}
 
 	// Reload with roles
 	user, err = s.userRepo.GetByID(ctx, user.ID)
 	if err != nil {
 		return nil, fmt.Errorf("reload user: %w", err)
+	}
+	if user == nil {
+		return nil, fmt.Errorf("reload user: created user was not found")
 	}
 
 	resp := userToResponse(user)
@@ -94,13 +104,19 @@ func (s *userService) CreateForTenant(ctx context.Context, actorID, tenantID uui
 		return nil, apperror.New("TENANT_MEMBERSHIP_UNAVAILABLE", "tenant membership repository is unavailable", 500)
 	}
 
-	existing, _ := s.userRepo.GetByEmail(ctx, req.Email)
+	existing, err := s.userRepo.GetByEmail(ctx, req.Email)
+	if err != nil {
+		return nil, fmt.Errorf("lookup tenant user email: %w", err)
+	}
 	if existing != nil {
 		return nil, apperror.ErrConflict
 	}
 
 	role, err := s.roleRepo.GetBySlug(ctx, req.RoleSlug)
-	if err != nil || role == nil {
+	if err != nil {
+		return nil, fmt.Errorf("get tenant role %q: %w", req.RoleSlug, err)
+	}
+	if role == nil {
 		return nil, apperror.New("INVALID_ROLE", fmt.Sprintf("role '%s' not found", req.RoleSlug), 400)
 	}
 	if role.Scope == "platform" || role.Slug == "super_admin" {
@@ -132,7 +148,7 @@ func (s *userService) CreateForTenant(ctx context.Context, actorID, tenantID uui
 		JoinedAt: &now,
 	}
 	if err := s.membershipRepo.CreateMembership(ctx, membership); err != nil {
-		return nil, fmt.Errorf("create tenant user membership: %w", err)
+		return nil, s.compensateUserCreate(ctx, user.ID, fmt.Errorf("create tenant user membership: %w", err))
 	}
 
 	respUser := userToResponse(user)
@@ -145,7 +161,10 @@ func (s *userService) CreateForTenant(ctx context.Context, actorID, tenantID uui
 
 func (s *userService) GetByID(ctx context.Context, id uuid.UUID) (*dto.UserResponse, error) {
 	user, err := s.userRepo.GetByID(ctx, id)
-	if err != nil || user == nil {
+	if err != nil {
+		return nil, fmt.Errorf("get user: %w", err)
+	}
+	if user == nil {
 		return nil, apperror.ErrNotFound
 	}
 	resp := userToResponse(user)
@@ -156,7 +175,10 @@ func (s *userService) List(ctx context.Context, roleSlug string, params model.Pa
 	trimmed := strings.TrimSpace(roleSlug)
 	if trimmed != "" {
 		role, err := s.roleRepo.GetBySlug(ctx, trimmed)
-		if err != nil || role == nil {
+		if err != nil {
+			return nil, fmt.Errorf("get role %q: %w", trimmed, err)
+		}
+		if role == nil {
 			return nil, apperror.New("INVALID_ROLE", fmt.Sprintf("role '%s' not found", trimmed), 400)
 		}
 	}
@@ -176,7 +198,10 @@ func (s *userService) List(ctx context.Context, roleSlug string, params model.Pa
 
 func (s *userService) Update(ctx context.Context, id uuid.UUID, req dto.UpdateUserRequest) (*dto.UserResponse, error) {
 	user, err := s.userRepo.GetByID(ctx, id)
-	if err != nil || user == nil {
+	if err != nil {
+		return nil, fmt.Errorf("get user: %w", err)
+	}
+	if user == nil {
 		return nil, apperror.ErrNotFound
 	}
 
@@ -203,6 +228,9 @@ func (s *userService) Update(ctx context.Context, id uuid.UUID, req dto.UpdateUs
 		for _, slug := range req.RoleSlugs {
 			role, err := s.roleRepo.GetBySlug(ctx, slug)
 			if err != nil {
+				return nil, fmt.Errorf("get role %q: %w", slug, err)
+			}
+			if role == nil {
 				return nil, apperror.New("INVALID_ROLE", fmt.Sprintf("role '%s' not found", slug), 400)
 			}
 			roleIDs = append(roleIDs, role.ID)
@@ -212,15 +240,36 @@ func (s *userService) Update(ctx context.Context, id uuid.UUID, req dto.UpdateUs
 		}
 	}
 
-	user, _ = s.userRepo.GetByID(ctx, id)
+	user, err = s.userRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("reload user: %w", err)
+	}
+	if user == nil {
+		return nil, fmt.Errorf("reload user: user was not found")
+	}
 	resp := userToResponse(user)
 	return &resp, nil
 }
 
 func (s *userService) Delete(ctx context.Context, id uuid.UUID) error {
 	user, err := s.userRepo.GetByID(ctx, id)
-	if err != nil || user == nil {
+	if err != nil {
+		return fmt.Errorf("get user: %w", err)
+	}
+	if user == nil {
 		return apperror.ErrNotFound
 	}
-	return s.userRepo.SoftDelete(ctx, id)
+	if err := s.userRepo.SoftDelete(ctx, id); err != nil {
+		return fmt.Errorf("delete user: %w", err)
+	}
+	return nil
+}
+
+// compensateUserCreate prevents an active, roleless account from being left
+// behind when a post-create validation or membership operation fails.
+func (s *userService) compensateUserCreate(ctx context.Context, userID uuid.UUID, cause error) error {
+	if err := s.userRepo.SoftDelete(ctx, userID); err != nil {
+		return errors.Join(cause, fmt.Errorf("rollback created user: %w", err))
+	}
+	return cause
 }

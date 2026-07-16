@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"math/big"
@@ -120,7 +121,9 @@ func (s *authService) Login(ctx context.Context, req dto.LoginRequest) (*dto.Log
 		return nil, fmt.Errorf("store refresh token: %w", err)
 	}
 
-	_ = s.userRepo.UpdateLastLogin(ctx, user.ID)
+	if err := s.userRepo.UpdateLastLogin(ctx, user.ID); err != nil {
+		s.log.Warn("failed to update login timestamp", "user_id", user.ID, "error", err)
+	}
 
 	return &dto.LoginResponse{
 		TokenPair: s.tokenPair(accessToken, refreshToken),
@@ -142,11 +145,14 @@ func (s *authService) SendOTP(ctx context.Context, req dto.SendOTPRequest) (*dto
 
 	rctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
-	allowed, err := s.redis.SetNX(rctx, otpRequestKey(phone, candidate.TenantID), "1", otpRequestWindow).Result()
+	setResult, err := s.redis.SetArgs(rctx, otpRequestKey(phone, candidate.TenantID), "1", redis.SetArgs{Mode: "NX", TTL: otpRequestWindow}).Result()
+	if errors.Is(err, redis.Nil) {
+		return nil, apperror.ErrOTPRateLimited
+	}
 	if err != nil {
 		return nil, fmt.Errorf("set OTP request rate limit: %w", err)
 	}
-	if !allowed {
+	if setResult != "OK" {
 		return nil, apperror.ErrOTPRateLimited
 	}
 
@@ -261,7 +267,10 @@ func (s *authService) Register(ctx context.Context, req dto.RegisterRequest) (*d
 		return nil, apperror.ErrPublicRegistrationDisabled
 	}
 
-	existing, _ := s.userRepo.GetByEmail(ctx, req.Email)
+	existing, err := s.userRepo.GetByEmail(ctx, req.Email)
+	if err != nil {
+		return nil, fmt.Errorf("lookup registration email: %w", err)
+	}
 	if existing != nil {
 		return nil, apperror.ErrConflict
 	}
@@ -405,7 +414,11 @@ func (s *authService) Logout(ctx context.Context, userID uuid.UUID) error {
 
 func (s *authService) ForgotPassword(ctx context.Context, req dto.ForgotPasswordRequest) error {
 	user, err := s.userRepo.GetByEmail(ctx, req.Email)
-	if err != nil || user == nil {
+	if err != nil {
+		s.log.Error("failed to look up password-reset user", "error", err)
+		return nil // preserve the enumeration-resistant response
+	}
+	if user == nil {
 		return nil // always nil to prevent email enumeration
 	}
 
@@ -447,7 +460,10 @@ func (s *authService) ResetPassword(ctx context.Context, req dto.ResetPasswordRe
 	}
 
 	user, err := s.userRepo.GetByID(ctx, userID)
-	if err != nil || user == nil {
+	if err != nil {
+		return fmt.Errorf("get reset-password user: %w", err)
+	}
+	if user == nil {
 		return apperror.ErrNotFound
 	}
 
@@ -459,8 +475,9 @@ func (s *authService) ResetPassword(ctx context.Context, req dto.ResetPasswordRe
 	// Invalidate reset token and refresh token
 	rctx2, cancel2 := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel2()
-	s.redis.Del(rctx2, resetKey(req.Token))
-	s.redis.Del(rctx2, refreshKey(userID))
+	if err := s.redis.Del(rctx2, resetKey(req.Token), refreshKey(userID)).Err(); err != nil {
+		s.log.Error("failed to invalidate reset and refresh tokens after password reset", "user_id", userID, "error", err)
+	}
 
 	return nil
 }
@@ -620,7 +637,7 @@ func accessTokenExpiresAt(token string) *time.Time {
 	if err != nil || expiresAt == nil {
 		return nil
 	}
-	value := expiresAt.Time.UTC()
+	value := expiresAt.UTC()
 	return &value
 }
 

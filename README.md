@@ -429,6 +429,7 @@ Copy `.env.example` to `.env` and adjust values. Key settings:
 | `APP_PORT`           | `8080`           | HTTP server port                |
 | `APP_EXTERNAL_URL`   | -                | Public HTTPS base URL in production |
 | `CORS_ALLOWED_ORIGINS` | -              | Comma-separated HTTPS browser origins in production |
+| `TRUSTED_PROXIES`    | -                | Comma-separated reverse-proxy IPs/CIDRs allowed to set client IP headers |
 | `WORKER_POLL_INTERVAL` | `5s`           | Reminder job polling interval in worker mode |
 | `DB_HOST`            | `localhost`      | PostgreSQL host                 |
 | `DB_PORT`            | `5432`           | PostgreSQL port                 |
@@ -444,7 +445,7 @@ Copy `.env.example` to `.env` and adjust values. Key settings:
 | `RAZORPAY_KEY_SECRET` | -               | Required when `PAYMENT_PROVIDER=razorpay` |
 | `RAZORPAY_WEBHOOK_SECRET` | -           | Required when `PAYMENT_PROVIDER=razorpay` |
 
-Production validation fails fast when required settings are missing, wildcard CORS is configured, production URLs are not HTTPS, JWT secrets are reused, DB SSL is disabled, or Razorpay/Resend settings are placeholders.
+JWT secrets must be unique, at least 32 characters, and cannot be placeholders in every environment. Production validation additionally fails fast when required settings are missing, wildcard CORS is configured, production URLs are not HTTPS, DB SSL is disabled, or Razorpay/Resend settings are placeholders. See [production deployment](docs/PRODUCTION_DEPLOYMENT.md) for the hardened Compose topology.
 
 ## Operations
 

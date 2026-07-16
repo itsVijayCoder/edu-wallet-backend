@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net"
 	"net/url"
 	"strings"
 	"time"
@@ -29,6 +30,7 @@ type AppConfig struct {
 	Name               string        `env:"APP_NAME"         envDefault:"eduwallet"`
 	ExternalURL        string        `env:"APP_EXTERNAL_URL"`
 	CORSOrigins        []string      `env:"CORS_ALLOWED_ORIGINS" envSeparator:","`
+	TrustedProxies     []string      `env:"TRUSTED_PROXIES" envSeparator:","`
 	WorkerPollInterval time.Duration `env:"WORKER_POLL_INTERVAL" envDefault:"5s"`
 }
 
@@ -80,14 +82,28 @@ func Load() (*Config, error) {
 }
 
 func validate(cfg *Config) error {
-	if len(cfg.JWT.AccessSecret) < 32 || strings.Contains(cfg.JWT.AccessSecret, "change-me") {
-		return fmt.Errorf("JWT_ACCESS_SECRET must be at least 32 characters and not a placeholder")
+	if err := validateJWTSecret("JWT_ACCESS_SECRET", cfg.JWT.AccessSecret); err != nil {
+		return err
 	}
-	if len(cfg.JWT.RefreshSecret) < 32 || strings.Contains(cfg.JWT.RefreshSecret, "change-me") {
-		return fmt.Errorf("JWT_REFRESH_SECRET must be at least 32 characters and not a placeholder")
+	if err := validateJWTSecret("JWT_REFRESH_SECRET", cfg.JWT.RefreshSecret); err != nil {
+		return err
+	}
+	if cfg.JWT.AccessSecret == cfg.JWT.RefreshSecret {
+		return fmt.Errorf("JWT_ACCESS_SECRET and JWT_REFRESH_SECRET must be different")
 	}
 	if cfg.App.Mode != "api" && cfg.App.Mode != "worker" {
 		return fmt.Errorf("APP_MODE must be api or worker")
+	}
+	for _, proxy := range cfg.App.TrustedProxies {
+		proxy = strings.TrimSpace(proxy)
+		if proxy == "" {
+			continue
+		}
+		if net.ParseIP(proxy) == nil {
+			if _, _, err := net.ParseCIDR(proxy); err != nil {
+				return fmt.Errorf("TRUSTED_PROXIES contains invalid IP or CIDR %q", proxy)
+			}
+		}
 	}
 	if cfg.DB.DatabaseURL == "" && cfg.DB.Password == "" {
 		return fmt.Errorf("either DATABASE_URL or DB_PASSWORD must be provided")
@@ -111,9 +127,6 @@ func validate(cfg *Config) error {
 }
 
 func validateProduction(cfg *Config) error {
-	if cfg.JWT.AccessSecret == cfg.JWT.RefreshSecret {
-		return fmt.Errorf("JWT_ACCESS_SECRET and JWT_REFRESH_SECRET must be different in production")
-	}
 	if cfg.Auth.SuperAdminBootstrapEnabled && isWeakBootstrapPassword(cfg.Auth.SuperAdminPassword) {
 		return fmt.Errorf("SUPER_ADMIN_PASSWORD must be changed before enabling super admin bootstrap in production")
 	}
@@ -165,6 +178,14 @@ func validateProduction(cfg *Config) error {
 		strings.EqualFold(cfg.Payments.RazorpayKeySecret, "change-me") ||
 		strings.EqualFold(cfg.Payments.RazorpayWebhookSecret, "change-me") {
 		return fmt.Errorf("razorpay credentials cannot be placeholders in production")
+	}
+	return nil
+}
+
+func validateJWTSecret(name, value string) error {
+	normalized := strings.TrimSpace(value)
+	if len(normalized) < 32 || strings.Contains(strings.ToLower(normalized), "change-me") {
+		return fmt.Errorf("%s must be at least 32 characters and not a placeholder", name)
 	}
 	return nil
 }

@@ -138,7 +138,10 @@ func TestBillingFeeSetupInvoiceLedger_E2E(t *testing.T) {
 	assert.Equal(t, float64(1), meta["total"])
 	assert.Equal(t, float64(1), meta["page_size"])
 
-	w = doRequest(suite.Server, http.MethodGet, "/api/v1/parent/children/"+studentID.String()+"/dues?search="+invoice["invoice_number"].(string)+"&status=pending&due_from=2026-06-01&due_to=2026-06-10", nil, bearer(parentToken))
+	// The test date is intentionally historical, so this invoice is allowed to
+	// transition from issued to overdue as calendar time advances. Omit a
+	// lifecycle status filter and assert the outstanding balance instead.
+	w = doRequest(suite.Server, http.MethodGet, "/api/v1/parent/children/"+studentID.String()+"/dues?search="+invoice["invoice_number"].(string)+"&due_from=2026-06-01&due_to=2026-06-10", nil, bearer(parentToken))
 	require.Equal(t, http.StatusOK, w.Code)
 	body = parseJSON(t, w)
 	dues := body["data"].(map[string]any)

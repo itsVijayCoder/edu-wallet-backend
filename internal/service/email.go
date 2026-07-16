@@ -3,7 +3,9 @@ package service
 import (
 	"context"
 	"fmt"
+	"html"
 	"log/slog"
+	"net/url"
 
 	"github.com/itsVijayCoder/edu-wallet-backend/pkg/email"
 )
@@ -19,14 +21,14 @@ func NewEmailService(client *email.Client, externalURL string, log *slog.Logger)
 }
 
 func (s *emailService) SendPasswordReset(ctx context.Context, to, token string) error {
-	resetURL := fmt.Sprintf("%s/reset-password?token=%s", s.externalURL, token)
+	resetURL := fmt.Sprintf("%s/reset-password?token=%s", s.externalURL, url.QueryEscape(token))
 	html := fmt.Sprintf(`
 		<h2>Password Reset</h2>
 		<p>Click the link below to reset your password:</p>
 		<p><a href="%s">Reset Password</a></p>
 		<p>This link expires in 1 hour.</p>
 		<p>If you didn't request this, you can safely ignore this email.</p>
-	`, resetURL)
+	`, html.EscapeString(resetURL))
 
 	if err := s.client.Send(ctx, to, "Password Reset", html); err != nil {
 		s.log.Error("failed to send password reset email", "to", to, "error", err)
@@ -39,7 +41,7 @@ func (s *emailService) SendWelcome(ctx context.Context, to, name string) error {
 	html := fmt.Sprintf(`
 		<h2>Welcome, %s!</h2>
 		<p>Your account has been created successfully.</p>
-	`, name)
+	`, html.EscapeString(name))
 
 	if err := s.client.Send(ctx, to, "Welcome", html); err != nil {
 		s.log.Error("failed to send welcome email", "to", to, "error", err)
