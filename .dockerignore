@@ -7,7 +7,6 @@ bin
 coverage
 tmp
 *.log
-tests
 docs
 README.md
 Makefile
