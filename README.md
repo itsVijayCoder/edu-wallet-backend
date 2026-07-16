@@ -113,6 +113,8 @@ make swagger
 |--------|-----------------------------------|----------------------------|
 | POST   | `/api/v1/auth/register`           | Register new user          |
 | POST   | `/api/v1/auth/login`              | Login (returns tokens)     |
+| POST   | `/api/v1/auth/send-otp`           | Send an OTP to a linked parent guardian phone |
+| POST   | `/api/v1/auth/verify-otp`         | Verify parent OTP (returns tenant-scoped parent tokens) |
 | POST   | `/api/v1/auth/refresh`            | Refresh access token       |
 | POST   | `/api/v1/auth/select-tenant`      | Select tenant context      |
 | POST   | `/api/v1/auth/logout`             | Logout (requires auth)     |

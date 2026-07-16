@@ -527,6 +527,8 @@ var endpointCatalog = []Endpoint{
 	endpoint(http.MethodGet, "/api/v1/readyz", "Health", "Readiness probe"),
 
 	endpoint(http.MethodPost, "/api/v1/auth/login", "Auth", "Login", body("LoginRequest"), rateLimited()),
+	endpoint(http.MethodPost, "/api/v1/auth/send-otp", "Auth", "Send parent OTP", body("SendOTPRequest"), rateLimited()),
+	endpoint(http.MethodPost, "/api/v1/auth/verify-otp", "Auth", "Verify parent OTP", body("VerifyOTPRequest"), rateLimited()),
 	endpoint(http.MethodPost, "/api/v1/auth/register", "Auth", "Register user", body("RegisterRequest"), created(), rateLimited()),
 	endpoint(http.MethodPost, "/api/v1/auth/refresh", "Auth", "Refresh access token", body("RefreshRequest")),
 	endpoint(http.MethodPost, "/api/v1/auth/select-tenant", "Auth", "Select tenant context", secured(), body("SelectTenantRequest"), rateLimited()),
@@ -691,6 +693,14 @@ func schemaComponents() map[string]any {
 		"LoginRequest": object([]string{"email", "password"}, map[string]any{
 			"email":    stringSchema("email"),
 			"password": stringSchema("password"),
+		}),
+		"SendOTPRequest": object([]string{"phone"}, map[string]any{
+			"phone":       stringSchema(""),
+			"tenant_slug": stringSchema(""),
+		}),
+		"VerifyOTPRequest": object([]string{"phone", "otp"}, map[string]any{
+			"phone": stringSchema(""),
+			"otp":   stringSchema(""),
 		}),
 		"RegisterRequest": object([]string{"email", "password", "first_name", "last_name"}, map[string]any{
 			"email":      stringSchema("email"),

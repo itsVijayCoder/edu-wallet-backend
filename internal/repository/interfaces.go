@@ -101,6 +101,7 @@ type AcademicRepository interface {
 	GetGuardian(ctx context.Context, tenantID, id uuid.UUID) (*model.Guardian, error)
 	GetGuardianByUserID(ctx context.Context, tenantID, userID uuid.UUID) (*model.Guardian, error)
 	FindGuardianByContact(ctx context.Context, tenantID uuid.UUID, email, phone *string) (*model.Guardian, error)
+	FindParentLoginCandidatesByPhone(ctx context.Context, phone string) ([]model.ParentLoginCandidate, error)
 	ListGuardians(ctx context.Context, tenantID uuid.UUID, filter model.GuardianFilter, params model.PaginationParams) (*model.PaginatedResult[model.Guardian], error)
 	UpdateGuardian(ctx context.Context, guardian *model.Guardian) error
 	SoftDeleteGuardian(ctx context.Context, tenantID, id uuid.UUID) error

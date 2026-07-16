@@ -36,6 +36,11 @@ var (
 	ErrValidationFailed           = New("VALIDATION_FAILED", "validation failed", http.StatusBadRequest)
 	ErrInternal                   = New("INTERNAL_ERROR", "an unexpected error occurred", http.StatusInternalServerError)
 	ErrPublicRegistrationDisabled = New("AUTH_REGISTRATION_DISABLED", "public registration is disabled", http.StatusForbidden)
+	ErrPhoneNotFound              = New("AUTH_PHONE_NOT_FOUND", "phone number was not found", http.StatusNotFound)
+	ErrOTPRateLimited             = New("AUTH_RATE_LIMITED", "too many OTP requests, please wait before retrying", http.StatusTooManyRequests)
+	ErrTenantSelectionRequired    = New("AUTH_TENANT_REQUIRED", "tenant_slug is required for this phone number", http.StatusBadRequest)
+	ErrOTPInvalid                 = New("AUTH_OTP_INVALID", "invalid OTP", http.StatusUnauthorized)
+	ErrOTPExpired                 = New("AUTH_OTP_EXPIRED", "OTP has expired", http.StatusUnauthorized)
 	ErrTenantRequired             = New("TENANT_REQUIRED", "tenant context is required", http.StatusForbidden)
 	ErrTenantAccessDenied         = New("TENANT_ACCESS_DENIED", "tenant access denied", http.StatusForbidden)
 

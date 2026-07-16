@@ -520,6 +520,44 @@ func (r *academicRepository) FindGuardianByContact(ctx context.Context, tenantID
 	return r.scanGuardian(ctx, query, args...)
 }
 
+func (r *academicRepository) FindParentLoginCandidatesByPhone(ctx context.Context, phone string) ([]model.ParentLoginCandidate, error) {
+	const query = `SELECT
+		g.tenant_id, t.name, t.slug, t.status, g.user_id
+		FROM guardians g
+		JOIN tenants t ON t.id = g.tenant_id AND t.deleted_at IS NULL
+		JOIN users u ON u.id = g.user_id AND u.deleted_at IS NULL
+		WHERE g.phone = $1
+			AND g.user_id IS NOT NULL
+			AND g.deleted_at IS NULL
+			AND t.status IN ('active', 'trial')
+		ORDER BY t.slug ASC`
+
+	rows, err := r.db.Query(ctx, query, phone)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	candidates := make([]model.ParentLoginCandidate, 0)
+	for rows.Next() {
+		var candidate model.ParentLoginCandidate
+		if err := rows.Scan(
+			&candidate.TenantID,
+			&candidate.TenantName,
+			&candidate.TenantSlug,
+			&candidate.TenantStatus,
+			&candidate.UserID,
+		); err != nil {
+			return nil, err
+		}
+		candidates = append(candidates, candidate)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return candidates, nil
+}
+
 func (r *academicRepository) ListGuardians(ctx context.Context, tenantID uuid.UUID, filter model.GuardianFilter, params model.PaginationParams) (*model.PaginatedResult[model.Guardian], error) {
 	params.Normalize()
 	where, args := guardianWhere(tenantID, filter)

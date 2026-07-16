@@ -77,6 +77,8 @@ func New(log *slog.Logger, cfg RouterConfig, tokenMgr jwt.TokenManager, rdb *red
 		auth := v1.Group("/auth")
 		{
 			auth.POST("/login", middleware.BodySizeLimit(authBodyLimitBytes), middleware.RateLimit(rdb, 5, time.Minute), h.Auth.Login)
+			auth.POST("/send-otp", middleware.BodySizeLimit(authBodyLimitBytes), h.Auth.SendOTP)
+			auth.POST("/verify-otp", middleware.BodySizeLimit(authBodyLimitBytes), middleware.RateLimit(rdb, 10, 5*time.Minute), h.Auth.VerifyOTP)
 			auth.POST("/register", middleware.BodySizeLimit(authBodyLimitBytes), middleware.RateLimit(rdb, 5, time.Minute), h.Auth.Register)
 			auth.POST("/refresh", h.Auth.Refresh)
 			auth.POST("/select-tenant", middleware.BodySizeLimit(authBodyLimitBytes), middleware.RateLimit(rdb, 20, time.Minute), middleware.Auth(tokenMgr), h.Auth.SelectTenant)
