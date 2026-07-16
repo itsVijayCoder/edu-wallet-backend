@@ -1,0 +1,116 @@
+# jarvis (Mac mini) overlay — co-tenant docker-compose stack under the Lima engine.
+# Base file: ../docker-compose.yml (postgres + redis + api). This overlay:
+#   - strips host port publishes from postgres/redis (internal network only)
+#   - publishes the api on 127.0.0.1:8130 only (reached via the shared cloudflared tunnel)
+#   - adds a one-shot `migrate` service that owns schema migrations (api/worker skip render-start.sh)
+#   - adds the reminder-delivery `worker` (APP_MODE=worker, no HTTP port)
+#   - lifts the hardening from docker-compose.production.yml (read_only, cap_drop, limits, local logging)
+#
+# Run from the deploy dir (/Users/jarvis/eduwallet):
+#   /opt/homebrew/bin/docker compose -p eduwallet -f docker-compose.yml -f deploy/docker-compose.macmini.yml up -d --build
+services:
+  postgres:
+    ports: !reset []
+    restart: unless-stopped
+
+  redis:
+    ports: !reset []
+    restart: unless-stopped
+
+  migrate:
+    # Reuses the app image: the migrate binary + /app/migrations are bundled by the Dockerfile.
+    # config.Load() runs full validation, so this service needs the complete .env as well.
+    image: eduwallet-backend:latest
+    command: ["./eduwallet-migrate", "up"]
+    env_file:
+      - .env
+    environment:
+      DB_HOST: postgres
+      REDIS_HOST: redis
+      # golang-migrate connects via lib/pq, which rejects sslmode=prefer, while the
+      # production gate rejects sslmode=disable. So migrate alone runs non-production
+      # with disable; api/worker (pgx, which supports prefer) keep the .env values.
+      APP_ENV: development
+      DB_SSL_MODE: disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - eduwallet-net
+    restart: "no"
+
+  api:
+    # Tag the built image so migrate/worker reuse it without their own build.
+    image: eduwallet-backend:latest
+    # Skip render-start.sh: the migrate service owns migrations.
+    command: ["./api"]
+    ports: !override
+      - "127.0.0.1:8130:8080"
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/api/v1/healthz || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          memory: 256M
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+        max-file: "3"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  worker:
+    image: eduwallet-backend:latest
+    command: ["./api"]
+    env_file:
+      - .env
+    environment:
+      APP_MODE: worker
+      DB_HOST: postgres
+      REDIS_HOST: redis
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          memory: 128M
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+        max-file: "3"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - eduwallet-net
