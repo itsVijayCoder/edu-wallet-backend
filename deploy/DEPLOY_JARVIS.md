@@ -1,6 +1,8 @@
 # EduWallet — jarvis (Mac mini) Deployment Plan & Runbook
 
-**Status: PLANNED — artifacts prepped 2026-07-17, not yet deployed. Railway is still the live instance until cutover below is executed.**
+**Status: DEPLOYED 2026-07-17 — fresh DB (no Railway data), api + worker running, locally
+verified (readyz, swagger, api-test, seeded admin login). Public URL live after the
+one-time tunnel reload. Railway instance still up in parallel until decommissioned.**
 
 Migration of the EduWallet backend from Railway to the jarvis Mac mini, following the
 worqplace reference pattern (co-tenant docker-compose stack under the Lima engine,
@@ -161,7 +163,28 @@ open https://eduwallet-api.udhaykumarbala.dev/api/v1/docs   # Swagger (server UR
 5. Decommission Railway once traffic is confirmed on the new URL (rollback = just keep
    Railway until then; nothing on jarvis touches it).
 
-## Redeploy (code changes)
+## Team deploys (pull-based — no jarvis access needed)
+
+**Push or merge to `main` on `github.com/susanoox/edu-wallet-backend`; jarvis deploys it
+within ~5 minutes.** The LaunchAgent `com.udhay.eduwallet-autodeploy` runs
+`deploy/auto-deploy-poll.sh` (from `/Users/jarvis/eduwallet/deploy/`, refreshed by every
+deploy) every 300s: it fetches `origin/main` into the dedicated clean clone
+`/Users/jarvis/eduwallet-src` and, on a new commit, resets to it and runs
+`deploy/deploy-local.sh` (build → migrate → restart → health gate).
+
+- Last deployed SHA: `/Users/jarvis/eduwallet/.deployed-sha` — written only on success;
+  a failed deploy is retried on every poll (watch the log).
+- Logs: `~/Library/Logs/eduwallet-autodeploy.{out,err}.log`
+- Schema migrations in pushed commits apply automatically (one-shot migrate service).
+- Rollback: revert the bad commit on `main` — the poller deploys the revert. (Manual
+  alternative on the box: reset `eduwallet-src` to a good SHA, run
+  `deploy/deploy-local.sh`, then write that SHA to `.deployed-sha`.)
+- The developer working repo (`/Users/jarvis/susanoox/edu-wallet-backend`) is never
+  touched by the poller.
+- Agent management: `launchctl kickstart -k gui/501/com.udhay.eduwallet-autodeploy`
+  (deploy now), `launchctl bootout gui/501/com.udhay.eduwallet-autodeploy` (disable).
+
+## Manual redeploy (from the box)
 
 ```bash
 cd /Users/jarvis/susanoox/edu-wallet-backend && bash deploy/deploy-local.sh
