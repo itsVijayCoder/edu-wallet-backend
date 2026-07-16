@@ -75,6 +75,8 @@ func New(log *slog.Logger, cfg RouterConfig, tokenMgr jwt.TokenManager, rdb *red
 		v1.GET("/docs/api-test", h.Docs.APITestGuide)
 		v1.GET("/docs/openapi.json", h.Docs.OpenAPIJSON)
 		v1.GET("/docs/swagger.json", h.Docs.OpenAPIJSON)
+		v1.GET("/docs/deployments", h.Docs.Deployments)
+		v1.GET("/docs/deploy-status", h.Docs.DeployStatus)
 
 		// Health probes (no auth required).
 		v1.GET("/healthz", h.Health.Healthz)

@@ -5,6 +5,9 @@
 #   - adds a one-shot `migrate` service that owns schema migrations (api/worker skip render-start.sh)
 #   - adds the reminder-delivery `worker` (APP_MODE=worker, no HTTP port)
 #   - lifts the hardening from docker-compose.production.yml (read_only, cap_drop, limits, local logging)
+#   - stamps build identity into the api image (GIT_SHA/BUILD_TIME build args, set by
+#     deploy-local.sh) and exposes the read-only deploy-state dir so the API can serve
+#     /api/v1/docs/deploy-status + /api/v1/docs/deployments
 #
 # Run from the deploy dir (/Users/jarvis/eduwallet):
 #   /opt/homebrew/bin/docker compose -p eduwallet -f docker-compose.yml -f deploy/docker-compose.macmini.yml up -d --build
@@ -40,12 +43,27 @@ services:
     restart: "no"
 
   api:
+    # Base file has `build: .`; keep that context but stamp build identity in.
+    # deploy-local.sh exports GIT_SHA (40hex of the deployed commit) + BUILD_TIME
+    # (RFC3339 UTC); the Dockerfile bakes them into the binary via -ldflags so the
+    # running build reports itself at /api/v1/docs/deploy-status.
+    build:
+      context: .
+      args:
+        GIT_SHA: "${GIT_SHA:-dev}"
+        BUILD_TIME: "${BUILD_TIME:-unknown}"
     # Tag the built image so migrate/worker reuse it without their own build.
     image: eduwallet-backend:latest
     # Skip render-start.sh: the migrate service owns migrations.
     command: ["./api"]
     ports: !override
       - "127.0.0.1:8130:8080"
+    # Deploy status file is written host-side by the pipeline and mounted read-only.
+    # When the dir/file is absent the endpoint just reports "deployments": null.
+    environment:
+      DEPLOY_STATUS_FILE: /app/deploy-state/status.json
+    volumes:
+      - /Users/jarvis/eduwallet/deploy-state:/app/deploy-state:ro
     restart: unless-stopped
     read_only: true
     tmpfs:

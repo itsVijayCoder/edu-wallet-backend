@@ -2,16 +2,23 @@ package handler
 
 import (
 	_ "embed"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/itsVijayCoder/edu-wallet-backend/internal/apidoc"
+	"github.com/itsVijayCoder/edu-wallet-backend/internal/buildinfo"
 )
 
 //go:embed api-test.html
 var apiTestHTML []byte
+
+//go:embed deployments.html
+var deploymentsHTML []byte
 
 const swaggerUIHTML = `<!doctype html>
 <html lang="en">
@@ -44,13 +51,22 @@ const swaggerUIHTML = `<!doctype html>
 type DocsHandler struct {
 	serverURL string
 	specPath  string
+	// deployStatusFile is the path to the pipeline-written status.json, bind-mounted
+	// read-only into the container. Empty when unset (local dev) → deployments null.
+	deployStatusFile string
 }
 
 // NewDocsHandler creates a docs handler for the configured public server URL.
+//
+// The deployment status file path is read from the DEPLOY_STATUS_FILE environment
+// variable at construction. It is infrastructure metadata written by the deploy
+// pipeline and not part of the typed application config, so os.Getenv is used here
+// rather than threading it through config/DI.
 func NewDocsHandler(serverURL string) *DocsHandler {
 	return &DocsHandler{
-		serverURL: serverURL,
-		specPath:  "/api/v1/docs/openapi.json",
+		serverURL:        serverURL,
+		specPath:         "/api/v1/docs/openapi.json",
+		deployStatusFile: os.Getenv("DEPLOY_STATUS_FILE"),
 	}
 }
 
@@ -72,4 +88,38 @@ func (h *DocsHandler) OpenAPIJSON(c *gin.Context) {
 		return
 	}
 	c.Data(http.StatusOK, "application/json; charset=utf-8", payload)
+}
+
+// Deployments serves the self-contained deployment status dashboard page.
+func (h *DocsHandler) Deployments(c *gin.Context) {
+	c.Data(http.StatusOK, "text/html; charset=utf-8", deploymentsHTML)
+}
+
+// DeployStatus returns build identity, uptime, and the pipeline-written deployment
+// status document. It is public (no auth) and intended for the deployments dashboard.
+func (h *DocsHandler) DeployStatus(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"build": gin.H{
+			"sha":        buildinfo.SHA,
+			"sha_short":  buildinfo.ShortSHA(),
+			"build_time": buildinfo.BuildTime,
+		},
+		"uptime_seconds": int64(time.Since(buildinfo.StartedAt).Seconds()),
+		"server_time":    time.Now().UTC().Format(time.RFC3339),
+		"deployments":    h.readDeployments(),
+	})
+}
+
+// readDeployments reads and passes through the pipeline status.json verbatim. It
+// returns a nil RawMessage (marshals to JSON null) when the file is unset, missing,
+// unreadable, or not valid JSON — the graceful "no deployment data" state.
+func (h *DocsHandler) readDeployments() json.RawMessage {
+	if h.deployStatusFile == "" {
+		return nil
+	}
+	data, err := os.ReadFile(h.deployStatusFile)
+	if err != nil || !json.Valid(data) {
+		return nil
+	}
+	return json.RawMessage(data)
 }

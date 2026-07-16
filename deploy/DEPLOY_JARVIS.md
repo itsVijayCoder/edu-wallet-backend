@@ -123,12 +123,15 @@ refresh-token store — meaning **every user logs in once after cutover**; the P
 
 ```bash
 cd /Users/jarvis/susanoox/edu-wallet-backend
-bash deploy/deploy-local.sh
+bash deploy/deploy-local.sh              # manual (trigger=manual)
 ```
 
-The script: preflight → rsync → .env check → compose build/up (migrate → api+worker) →
-local `readyz` gate → cloudflared ingress insert (backup + validate + auto-rollback) →
-DNS route → prints the reload command.
+The script runs a **self-protecting phased pipeline** — every phase is recorded to
+`deploy-state/status.json` and served live at `/api/v1/docs/deploy-status` +
+the `/api/v1/docs/deployments` page (see "Self-protecting pipeline" below). Around
+the pipeline it still does: rsync → first-run `.env` bootstrap → cloudflared ingress
+insert (backup + validate + auto-rollback) → DNS route → prints the reload command.
+Phases: **prechecks → build → backup → migrate+swap → postchecks → success | revert**.
 
 ### Step 3 — tunnel reload (first deploy only, needs sudo+TTY)
 
@@ -170,10 +173,35 @@ within ~5 minutes.** The LaunchAgent `com.udhay.eduwallet-autodeploy` runs
 `deploy/auto-deploy-poll.sh` (from `/Users/jarvis/eduwallet/deploy/`, refreshed by every
 deploy) every 300s: it fetches `origin/main` into the dedicated clean clone
 `/Users/jarvis/eduwallet-src` and, on a new commit, resets to it and runs
-`deploy/deploy-local.sh` (build → migrate → restart → health gate).
+`deploy/deploy-local.sh --trigger=auto` (the full phased pipeline below).
 
-- Last deployed SHA: `/Users/jarvis/eduwallet/.deployed-sha` — written only on success;
-  a failed deploy is retried on every poll (watch the log).
+- **Live status:** every deploy is recorded and shown at
+  `https://eduwallet-api.udhaykumarbala.dev/api/v1/docs/deployments` (auto-refreshes;
+  running version, "Up to date / Behind main / HELD" badge, per-attempt phases + error
+  tails). Raw JSON: `/api/v1/docs/deploy-status`.
+- **Every poll refreshes `latest_main`** in `deploy-state/status.json` (fuels the
+  "Behind main" badge) even when nothing is deployed.
+- Last deployed SHA: `/Users/jarvis/eduwallet/.deployed-sha` — written only on a
+  successful deploy; a failed deploy is retried on the next poll — **until it is held**.
+- **Hold (auto-stop retrying a bad commit):** after **2 consecutive
+  failed/rolled_back** attempts for the *same* `origin/main` SHA, the poller stops
+  retrying it (records `held` in status.json, logs `HELD`, the page shows a HELD badge)
+  and waits. **Clearing a hold, two ways:**
+  1. **Push a new commit to `main`** (the normal path — a fix or a revert). The poller
+     sees the new `origin/main` SHA and clears the hold automatically on the next poll.
+  2. **Manually delete the `held` key** on the box (e.g. to retry the same SHA after
+     fixing the *environment* rather than the code), then force a poll:
+     ```bash
+     python3 - <<'PY'
+     import json, os
+     p = "/Users/jarvis/eduwallet/deploy-state/status.json"
+     d = json.load(open(p)); d["held"] = None
+     json.dump(d, open(p + ".tmp", "w"), indent=2); os.replace(p + ".tmp", p)
+     PY
+     launchctl kickstart -k gui/501/com.udhay.eduwallet-autodeploy
+     ```
+     (This only un-pauses the poller; if the commit is still broken it re-holds after 2
+     more failed attempts.)
 - Logs: `~/Library/Logs/eduwallet-autodeploy.{out,err}.log`
 - Schema migrations in pushed commits apply automatically (one-shot migrate service).
 - Rollback: revert the bad commit on `main` — the poller deploys the revert. (Manual
@@ -183,6 +211,41 @@ deploy) every 300s: it fetches `origin/main` into the dedicated clean clone
   touched by the poller.
 - Agent management: `launchctl kickstart -k gui/501/com.udhay.eduwallet-autodeploy`
   (deploy now), `launchctl bootout gui/501/com.udhay.eduwallet-autodeploy` (disable).
+
+## Self-protecting pipeline (deploy-local.sh)
+
+Both manual and auto deploys run the same phased pipeline. Each phase is timed and
+recorded (with a one-line `detail`) to `deploy-state/status.json`; the attempt is
+written **pessimistically as `failed` up front and flushed at every phase boundary**, so
+a killed/crashed run still leaves a coherent record (an `EXIT` trap finalizes any
+unfinished attempt). All timestamps are UTC RFC3339. status.json keeps the **newest 20**
+attempts.
+
+| Phase | What it does | Failure handling |
+|---|---|---|
+| **prechecks** | docker reachable, `compose config -q`, `.env` has no `FILL_ME`, ≥5GB free on `/Users` (docker `system df` informational), port 8130 not held by a foreign process, `schema_migrations.dirty` not true (skipped if pg/table absent) | record `failed`, exit 1 — running stack untouched |
+| **build** | export `GIT_SHA` (deployed 40-hex) + `BUILD_TIME`, `compose build` (separately, not `up --build`). First run tags the existing `:latest`→`:good` as a revert baseline | record `failed`, exit 1 |
+| **backup** | if postgres up: `pg_dump \| gzip` → `deploy-state/backups/pre-<id>-<sha_short>.sql.gz`, keep newest **7** | record `failed`, exit 1 (skipped if pg down) |
+| **migrate+swap** | `compose up -d` (one-shot `migrate` gates api+worker), verify migrate exit 0 | record `failed` (with migrate logs), exit 1 |
+| **postchecks** | local `readyz` 200 ≤90s; `deploy-status` reports `build.sha == GIT_SHA` (proves the NEW binary is serving); `/api/v1/docs` 200; login probe returns 4xx (not 5xx/refused); 30s stability window (healthz every 5s + api `RestartCount == 0`); public healthz **warn-only** | on any failure → **revert** |
+| **success** | `docker tag :latest :good` (new known-healthy baseline), record `success` | — |
+| **revert** | `docker tag :good :latest` → `compose up -d --no-build api worker` → wait `readyz` ≤90s; record **`rolled_back`**. If revert itself is unhealthy: detail `REVERT UNHEALTHY — manual intervention` | exit 1 |
+
+**Revert semantics — read this.** Revert swaps the **container image** back to the last
+known-healthy `:good` build. It does **NOT** revert the database schema: the
+`migrate+swap` phase has already applied any new migrations, and rolling the image back
+runs the *old* binary against the *new* schema. That is safe for additive migrations but
+**a destructive/renaming migration paired with a bad build can leave the old binary
+unable to serve** — in that case restore from the pre-deploy dump:
+
+```bash
+gunzip -c /Users/jarvis/eduwallet/deploy-state/backups/pre-<id>-<sha_short>.sql.gz \
+  | /opt/homebrew/bin/docker exec -i eduwallet-postgres-1 psql -U eduwallet -d eduwallet_db
+```
+
+Backups live in `deploy-state/backups/` (newest 7 kept). The `deploy-state/` dir is
+created by the pipeline, bind-mounted **read-only** into the api container at
+`/app/deploy-state`, and is never rsync'd (excluded alongside `.env`).
 
 ## Manual redeploy (from the box)
 

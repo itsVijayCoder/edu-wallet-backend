@@ -522,6 +522,8 @@ var endpointCatalog = []Endpoint{
 	endpoint(http.MethodGet, "/api/v1/docs/api-test", "Docs", "Open API tester guide"),
 	endpoint(http.MethodGet, "/api/v1/docs/openapi.json", "Docs", "Download OpenAPI JSON"),
 	endpoint(http.MethodGet, "/api/v1/docs/swagger.json", "Docs", "Download Swagger-compatible JSON"),
+	endpoint(http.MethodGet, "/api/v1/docs/deployments", "Docs", "Open deployment status dashboard"),
+	endpoint(http.MethodGet, "/api/v1/docs/deploy-status", "Docs", "Get build identity and deployment status"),
 
 	endpoint(http.MethodGet, "/api/v1/healthz", "Health", "Liveness probe"),
 	endpoint(http.MethodGet, "/api/v1/readyz", "Health", "Readiness probe"),

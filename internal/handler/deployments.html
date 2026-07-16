@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EduWallet Deployment Status</title>
+  <link rel="icon" href="data:,">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b1120;
+      --surface: #0f172a;
+      --surface-2: #131c31;
+      --surface-3: #1b2740;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --faint: #64748b;
+      --line: #1e2b45;
+      --strong-line: #2b3a5c;
+      --accent: #38bdf8;
+      --ok: #22c55e;
+      --ok-bg: rgba(34, 197, 94, 0.14);
+      --ok-line: rgba(34, 197, 94, 0.4);
+      --fail: #f87171;
+      --fail-bg: rgba(248, 113, 113, 0.14);
+      --fail-line: rgba(248, 113, 113, 0.4);
+      --warn: #fbbf24;
+      --warn-bg: rgba(251, 191, 36, 0.14);
+      --warn-line: rgba(251, 191, 36, 0.42);
+      --skip: #64748b;
+      --skip-bg: rgba(100, 116, 139, 0.16);
+      --radius: 10px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 15px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .wrap {
+      width: min(1180px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 28px 0 64px;
+    }
+
+    header.top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+      flex-wrap: wrap;
+      margin-bottom: 22px;
+    }
+
+    header.top h1 {
+      margin: 0 0 4px;
+      font-size: 22px;
+      letter-spacing: -0.01em;
+    }
+
+    header.top .subtitle {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13.5px;
+    }
+
+    .top-links { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 13px;
+      border-radius: 8px;
+      border: 1px solid var(--strong-line);
+      background: var(--surface-2);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .btn:hover { background: var(--surface-3); text-decoration: none; }
+
+    /* Version / freshness cards */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+    }
+
+    .card .label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--faint);
+      margin-bottom: 8px;
+    }
+
+    .card .value { font-size: 20px; font-weight: 600; }
+    .card .value.mono { font-family: var(--mono); font-size: 17px; }
+    .card .meta { color: var(--muted); font-size: 12.5px; margin-top: 6px; }
+    .card .meta.mono { font-family: var(--mono); font-size: 12px; }
+
+    .freshness .value { display: inline-flex; align-items: center; gap: 9px; }
+    .dot {
+      width: 11px; height: 11px; border-radius: 50%;
+      flex: none; box-shadow: 0 0 0 4px rgba(255,255,255,0.04);
+    }
+    .dot.ok { background: var(--ok); }
+    .dot.warn { background: var(--warn); }
+    .dot.fail { background: var(--fail); }
+    .dot.neutral { background: var(--faint); }
+
+    /* Held banner */
+    .banner {
+      display: none;
+      border: 1px solid var(--fail-line);
+      background: var(--fail-bg);
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      margin-bottom: 20px;
+    }
+    .banner.show { display: block; }
+    .banner h3 { margin: 0 0 4px; font-size: 15px; color: var(--fail); }
+    .banner p { margin: 0; color: var(--text); font-size: 13.5px; }
+    .banner .mono { font-family: var(--mono); }
+
+    /* Attempts */
+    .section-head {
+      display: flex; align-items: baseline; justify-content: space-between;
+      gap: 12px; margin: 6px 0 12px;
+    }
+    .section-head h2 { margin: 0; font-size: 15px; }
+    .section-head .hint { color: var(--faint); font-size: 12.5px; }
+
+    .attempts { display: flex; flex-direction: column; gap: 12px; }
+
+    .attempt {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-left: 3px solid var(--strong-line);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+    }
+    .attempt.success { border-left-color: var(--ok); }
+    .attempt.failed { border-left-color: var(--fail); }
+    .attempt.rolled_back { border-left-color: var(--warn); }
+
+    .attempt-head {
+      display: flex; align-items: center; gap: 12px;
+      flex-wrap: wrap; justify-content: space-between;
+    }
+    .attempt-id { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .attempt-sha {
+      font-family: var(--mono); font-size: 13.5px; font-weight: 600;
+      color: var(--text);
+    }
+    .attempt-subject { color: var(--muted); font-size: 13px; }
+    .attempt-meta { color: var(--faint); font-size: 12px; font-family: var(--mono); }
+
+    .badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 3px 10px; border-radius: 999px;
+      font-size: 11.5px; font-weight: 600; letter-spacing: 0.02em;
+      text-transform: uppercase; border: 1px solid transparent;
+    }
+    .badge.success { color: var(--ok); background: var(--ok-bg); border-color: var(--ok-line); }
+    .badge.failed { color: var(--fail); background: var(--fail-bg); border-color: var(--fail-line); }
+    .badge.rolled_back { color: var(--warn); background: var(--warn-bg); border-color: var(--warn-line); }
+
+    .badge.trigger { text-transform: none; font-weight: 500; color: var(--muted); background: var(--surface-3); }
+
+    .phases { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 2px; }
+    .chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 3px 9px; border-radius: 6px;
+      font-size: 11.5px; font-family: var(--mono);
+      border: 1px solid var(--line); background: var(--surface-2);
+      color: var(--muted);
+    }
+    .chip .cdot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+    .chip.ok { color: var(--text); border-color: var(--ok-line); }
+    .chip.ok .cdot { background: var(--ok); }
+    .chip.failed { color: var(--fail); border-color: var(--fail-line); background: var(--fail-bg); }
+    .chip.failed .cdot { background: var(--fail); }
+    .chip.skipped { color: var(--faint); }
+    .chip.skipped .cdot { background: var(--skip); }
+    .chip .dur { color: var(--faint); }
+
+    details.error-tail {
+      margin-top: 10px;
+      border: 1px solid var(--fail-line);
+      border-radius: 8px;
+      background: rgba(248, 113, 113, 0.06);
+    }
+    details.error-tail summary {
+      cursor: pointer; padding: 8px 12px;
+      font-size: 12.5px; color: var(--fail); user-select: none;
+    }
+    details.error-tail summary::-webkit-details-marker { color: var(--fail); }
+    details.error-tail pre {
+      margin: 0; padding: 12px;
+      border-top: 1px solid var(--fail-line);
+      font-family: var(--mono); font-size: 12px; line-height: 1.55;
+      color: #fecaca; white-space: pre-wrap; word-break: break-word;
+      max-height: 340px; overflow: auto;
+    }
+
+    /* Empty / error states */
+    .placeholder {
+      background: var(--surface);
+      border: 1px dashed var(--strong-line);
+      border-radius: var(--radius);
+      padding: 34px 24px;
+      text-align: center;
+      color: var(--muted);
+    }
+    .placeholder h3 { margin: 0 0 6px; color: var(--text); font-size: 15px; }
+    .placeholder p { margin: 0; font-size: 13.5px; }
+
+    footer.foot {
+      margin-top: 26px; display: flex; gap: 12px; flex-wrap: wrap;
+      align-items: center; justify-content: space-between;
+      color: var(--faint); font-size: 12px;
+    }
+    .live { display: inline-flex; align-items: center; gap: 7px; }
+    .live .pulse {
+      width: 8px; height: 8px; border-radius: 50%; background: var(--ok);
+      box-shadow: 0 0 0 0 rgba(34,197,94,0.5); animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(34,197,94,0.45); }
+      70% { box-shadow: 0 0 0 7px rgba(34,197,94,0); }
+      100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
+    }
+
+    .hidden { display: none !important; }
+
+    @media (max-width: 640px) {
+      .attempt-head { align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <div>
+        <h1>Deployment Status</h1>
+        <p class="subtitle">Running build identity and the self-protecting deploy pipeline history.</p>
+      </div>
+      <div class="top-links">
+        <a class="btn" href="/api/v1/docs/api-test">API Tester</a>
+        <a class="btn" href="/api/v1/docs">Swagger</a>
+        <a class="btn" href="/api/v1/docs/deploy-status" target="_blank" rel="noreferrer">Raw JSON</a>
+      </div>
+    </header>
+
+    <div class="banner" id="heldBanner">
+      <h3>Deployments held</h3>
+      <p id="heldText"></p>
+    </div>
+
+    <section class="cards">
+      <div class="card">
+        <div class="label">Running version</div>
+        <div class="value mono" id="runningSha">—</div>
+        <div class="meta" id="buildTime">build time unknown</div>
+      </div>
+      <div class="card">
+        <div class="label">Uptime</div>
+        <div class="value" id="uptime">—</div>
+        <div class="meta mono" id="serverTime">—</div>
+      </div>
+      <div class="card freshness">
+        <div class="label">Freshness</div>
+        <div class="value"><span class="dot neutral" id="freshDot"></span><span id="freshLabel">Loading…</span></div>
+        <div class="meta mono" id="freshMeta">checking origin/main…</div>
+      </div>
+    </section>
+
+    <div class="section-head">
+      <h2>Deploy attempts</h2>
+      <span class="hint" id="attemptsHint"></span>
+    </div>
+
+    <div id="attemptsHost">
+      <div class="placeholder" id="loadingState">
+        <h3>Loading…</h3>
+        <p>Fetching deployment status.</p>
+      </div>
+    </div>
+
+    <footer class="foot">
+      <span class="live"><span class="pulse"></span> Auto-refresh every 30s</span>
+      <span id="lastUpdated"></span>
+    </footer>
+  </div>
+
+  <script>
+    "use strict";
+
+    var REFRESH_MS = 30000;
+
+    function esc(s) {
+      return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+        return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+      });
+    }
+
+    function fmtDuration(sec) {
+      sec = Math.max(0, Math.floor(Number(sec) || 0));
+      var d = Math.floor(sec / 86400);
+      var h = Math.floor((sec % 86400) / 3600);
+      var m = Math.floor((sec % 3600) / 60);
+      var s = sec % 60;
+      if (d > 0) return d + "d " + h + "h";
+      if (h > 0) return h + "h " + m + "m";
+      if (m > 0) return m + "m " + s + "s";
+      return s + "s";
+    }
+
+    function fmtTime(iso) {
+      if (!iso) return "—";
+      var t = new Date(iso);
+      if (isNaN(t.getTime())) return String(iso);
+      return t.toLocaleString(undefined, {
+        year: "numeric", month: "short", day: "2-digit",
+        hour: "2-digit", minute: "2-digit", second: "2-digit"
+      });
+    }
+
+    function relTime(iso) {
+      if (!iso) return "";
+      var t = new Date(iso).getTime();
+      if (isNaN(t)) return "";
+      var diff = Math.round((Date.now() - t) / 1000);
+      if (diff < 60) return diff + "s ago";
+      if (diff < 3600) return Math.round(diff / 60) + "m ago";
+      if (diff < 86400) return Math.round(diff / 3600) + "h ago";
+      return Math.round(diff / 86400) + "d ago";
+    }
+
+    function setFreshness(dotClass, label, meta) {
+      var dot = document.getElementById("freshDot");
+      dot.className = "dot " + dotClass;
+      document.getElementById("freshLabel").textContent = label;
+      document.getElementById("freshMeta").textContent = meta;
+    }
+
+    function renderHeld(held) {
+      var banner = document.getElementById("heldBanner");
+      if (!held) { banner.classList.remove("show"); return; }
+      banner.classList.add("show");
+      var shaShort = (held.sha || "").slice(0, 12);
+      var parts = [];
+      parts.push('<span class="mono">' + esc(shaShort) + "</span>");
+      if (held.reason) parts.push(esc(held.reason));
+      if (held.failures != null) parts.push(esc(held.failures) + " consecutive failures");
+      if (held.since) parts.push("since " + esc(fmtTime(held.since)));
+      document.getElementById("heldText").innerHTML =
+        "Automatic deploys are paused for " + parts.join(" · ") +
+        ". A new commit on <span class=\"mono\">origin/main</span> will clear the hold.";
+    }
+
+    function renderFreshness(build, deployments) {
+      if (!deployments) {
+        setFreshness("neutral", "No pipeline data", "running locally or status file unset");
+        return;
+      }
+      if (deployments.held) {
+        setFreshness("fail", "HELD — last deploy failed",
+          "held at " + (deployments.held.sha || "").slice(0, 12));
+        return;
+      }
+      var latest = deployments.latest_main || {};
+      var latestSha = latest.sha || "";
+      var checked = latest.checked_at ? "origin/main checked " + relTime(latest.checked_at) : "";
+      if (!latestSha) {
+        setFreshness("neutral", "Unknown", "origin/main not yet recorded");
+        return;
+      }
+      if (build && build.sha && build.sha === latestSha) {
+        setFreshness("ok", "Up to date", checked || ("main @ " + latestSha.slice(0, 12)));
+      } else {
+        setFreshness("warn", "Behind main",
+          "main @ " + latestSha.slice(0, 12) + (checked ? " · " + checked : ""));
+      }
+    }
+
+    function phaseChip(p) {
+      var status = (p && p.status) || "skipped";
+      var cls = status === "ok" ? "ok" : status === "failed" ? "failed" : "skipped";
+      var dur = (p && p.duration_s != null) ? '<span class="dur">' + esc(fmtDuration(p.duration_s)) + "</span>" : "";
+      var title = (p && p.detail) ? ' title="' + esc(p.detail) + '"' : "";
+      return '<span class="chip ' + cls + '"' + title + '><span class="cdot"></span>' +
+        esc((p && p.name) || "?") + " " + dur + "</span>";
+    }
+
+    function renderAttempt(a) {
+      var outcome = a.outcome || "failed";
+      var oCls = outcome === "success" ? "success" : outcome === "rolled_back" ? "rolled_back" : "failed";
+      var oLabel = outcome === "rolled_back" ? "rolled back" : outcome;
+
+      var phases = (a.phases || []).map(phaseChip).join("");
+      var shaShort = a.sha_short || (a.sha || "").slice(0, 12);
+
+      var metaBits = [];
+      if (a.trigger) metaBits.push('<span class="badge trigger">' + esc(a.trigger) + "</span>");
+
+      var subject = a.commit_subject ? '<span class="attempt-subject">' + esc(a.commit_subject) + "</span>" : "";
+      var author = a.commit_author ? esc(a.commit_author) : "";
+      var started = a.started_at ? fmtTime(a.started_at) : (a.id || "");
+      var dur = a.duration_s != null ? " · " + fmtDuration(a.duration_s) : "";
+      var footMeta = esc(started) + (author ? " · " + author : "") + dur;
+
+      var errorBlock = "";
+      if (a.error_tail) {
+        errorBlock =
+          '<details class="error-tail"><summary>Error tail</summary><pre>' +
+          esc(a.error_tail) + "</pre></details>";
+      }
+
+      return '<div class="attempt ' + oCls + '">' +
+        '<div class="attempt-head">' +
+          '<div class="attempt-id">' +
+            '<span class="attempt-sha">' + esc(shaShort) + "</span>" +
+            subject +
+          "</div>" +
+          '<div class="attempt-id">' +
+            metaBits.join("") +
+            '<span class="badge ' + oCls + '">' + esc(oLabel) + "</span>" +
+          "</div>" +
+        "</div>" +
+        '<div class="attempt-meta">' + footMeta + "</div>" +
+        (phases ? '<div class="phases">' + phases + "</div>" : "") +
+        errorBlock +
+      "</div>";
+    }
+
+    function renderAttempts(deployments) {
+      var host = document.getElementById("attemptsHost");
+      var hint = document.getElementById("attemptsHint");
+      if (!deployments) {
+        hint.textContent = "";
+        host.innerHTML =
+          '<div class="placeholder"><h3>No deployment data</h3>' +
+          "<p>This instance has no pipeline status file (local dev, or " +
+          "<span style=\"font-family:var(--mono)\">DEPLOY_STATUS_FILE</span> is unset). " +
+          "Build identity above still reflects the running binary.</p></div>";
+        return;
+      }
+      var attempts = deployments.attempts || [];
+      if (!attempts.length) {
+        hint.textContent = "";
+        host.innerHTML =
+          '<div class="placeholder"><h3>No attempts recorded yet</h3>' +
+          "<p>The pipeline has not run a deploy on this host yet.</p></div>";
+        return;
+      }
+      hint.textContent = attempts.length + (attempts.length === 1 ? " attempt" : " attempts") + " (newest first)";
+      host.innerHTML = '<div class="attempts">' + attempts.map(renderAttempt).join("") + "</div>";
+    }
+
+    function render(data) {
+      var build = data.build || {};
+      document.getElementById("runningSha").textContent = build.sha_short || build.sha || "—";
+      document.getElementById("buildTime").textContent =
+        "built " + (build.build_time && build.build_time !== "unknown" ? fmtTime(build.build_time) : "unknown");
+      document.getElementById("uptime").textContent = fmtDuration(data.uptime_seconds);
+      document.getElementById("serverTime").textContent = "server " + fmtTime(data.server_time);
+
+      var deployments = data.deployments || null;
+      renderHeld(deployments && deployments.held);
+      renderFreshness(build, deployments);
+      renderAttempts(deployments);
+
+      document.getElementById("lastUpdated").textContent = "Updated " + fmtTime(new Date().toISOString());
+    }
+
+    function showError(msg) {
+      document.getElementById("attemptsHost").innerHTML =
+        '<div class="placeholder"><h3>Unable to load status</h3><p>' + esc(msg) + "</p></div>";
+      setFreshness("fail", "Unavailable", "could not reach deploy-status endpoint");
+    }
+
+    function load() {
+      fetch("/api/v1/docs/deploy-status", { headers: { "Accept": "application/json" }, cache: "no-store" })
+        .then(function (r) {
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          return r.json();
+        })
+        .then(render)
+        .catch(function (e) { showError(e && e.message ? e.message : "network error"); });
+    }
+
+    load();
+    setInterval(load, REFRESH_MS);
+  </script>
+</body>
+</html>

@@ -10,8 +10,15 @@ RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /bin/api ./cmd/api
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /bin/eduwallet-migrate ./cmd/migrate
+# Fail the build if unit tests fail (CGO disabled, so no -race).
+RUN CGO_ENABLED=0 go test -short -count=1 ./...
+
+# Build identity injected via ldflags; deploy pipeline passes the real values.
+ARG GIT_SHA=dev
+ARG BUILD_TIME=unknown
+
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-w -s -X github.com/itsVijayCoder/edu-wallet-backend/internal/buildinfo.SHA=${GIT_SHA} -X github.com/itsVijayCoder/edu-wallet-backend/internal/buildinfo.BuildTime=${BUILD_TIME}" -o /bin/api ./cmd/api
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-w -s -X github.com/itsVijayCoder/edu-wallet-backend/internal/buildinfo.SHA=${GIT_SHA} -X github.com/itsVijayCoder/edu-wallet-backend/internal/buildinfo.BuildTime=${BUILD_TIME}" -o /bin/eduwallet-migrate ./cmd/migrate
 
 # ── Stage 2: Runtime ──────────────────────────────────────────
 FROM alpine:3.20
