@@ -8,28 +8,27 @@
   <style>
     :root {
       color-scheme: dark;
-      --bg: #0b1120;
-      --surface: #0f172a;
-      --surface-2: #131c31;
-      --surface-3: #1b2740;
-      --text: #e2e8f0;
-      --muted: #94a3b8;
-      --faint: #64748b;
-      --line: #1e2b45;
-      --strong-line: #2b3a5c;
-      --accent: #38bdf8;
-      --ok: #22c55e;
-      --ok-bg: rgba(34, 197, 94, 0.14);
-      --ok-line: rgba(34, 197, 94, 0.4);
-      --fail: #f87171;
-      --fail-bg: rgba(248, 113, 113, 0.14);
-      --fail-line: rgba(248, 113, 113, 0.4);
-      --warn: #fbbf24;
-      --warn-bg: rgba(251, 191, 36, 0.14);
-      --warn-line: rgba(251, 191, 36, 0.42);
-      --skip: #64748b;
-      --skip-bg: rgba(100, 116, 139, 0.16);
-      --radius: 10px;
+      --bg: #0d1117;
+      --surface: #151b23;
+      --surface-2: #1b222c;
+      --surface-3: #232b37;
+      --line: #262d38;
+      --line-strong: #333c4a;
+      --ink: #e6edf3;
+      --ink-2: #9aa5b1;
+      --ink-muted: #6b7481;
+      --accent: #4d9fff;
+      --accent-bg: rgba(77, 159, 255, 0.12);
+      --accent-line: rgba(77, 159, 255, 0.5);
+      --good: #0ca30c;
+      --good-bg: rgba(12, 163, 12, 0.14);
+      --good-line: rgba(12, 163, 12, 0.44);
+      --warn: #fab219;
+      --warn-bg: rgba(250, 178, 25, 0.13);
+      --warn-line: rgba(250, 178, 25, 0.44);
+      --crit: #d03b3b;
+      --crit-bg: rgba(208, 59, 59, 0.15);
+      --crit-line: rgba(208, 59, 59, 0.46);
       --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
       --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
@@ -39,262 +38,385 @@
     body {
       margin: 0;
       background: var(--bg);
-      color: var(--text);
+      color: var(--ink);
       font-family: var(--sans);
       font-size: 15px;
-      line-height: 1.5;
+      line-height: 1.55;
       -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
     }
 
     a { color: var(--accent); text-decoration: none; }
     a:hover { text-decoration: underline; }
 
+    .sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+    .ic {
+      width: 1em; height: 1em; display: inline-block; flex: none;
+      fill: none; stroke: currentColor; stroke-width: 2;
+      stroke-linecap: round; stroke-linejoin: round;
+    }
+
+    .mono { font-family: var(--mono); }
+
     .wrap {
-      width: min(1180px, calc(100vw - 32px));
+      width: min(1100px, calc(100vw - 32px));
       margin: 0 auto;
-      padding: 28px 0 64px;
+      padding: 30px 0 60px;
     }
 
-    header.top {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 18px;
-      flex-wrap: wrap;
-      margin-bottom: 22px;
+    /* ---- header ---- */
+    .top {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 20px; flex-wrap: wrap; margin-bottom: 24px;
     }
-
-    header.top h1 {
-      margin: 0 0 4px;
-      font-size: 22px;
-      letter-spacing: -0.01em;
-    }
-
-    header.top .subtitle {
-      margin: 0;
-      color: var(--muted);
-      font-size: 13.5px;
-    }
-
-    .top-links { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .top h1 { margin: 0 0 5px; font-size: 22px; font-weight: 650; letter-spacing: -0.02em; }
+    .top .sub { margin: 0; color: var(--ink-2); font-size: 13.5px; max-width: 54ch; }
+    .actions { display: flex; gap: 9px; flex-wrap: wrap; align-items: center; }
 
     .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 7px 13px;
-      border-radius: 8px;
-      border: 1px solid var(--strong-line);
-      background: var(--surface-2);
-      color: var(--text);
-      font-size: 13px;
-      font-weight: 500;
-      cursor: pointer;
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 13px; border-radius: 9px;
+      border: 1px solid var(--line); background: var(--surface);
+      color: var(--ink-2); font-size: 13px; font-weight: 500;
+      font-family: var(--sans); cursor: pointer;
+      transition: background .12s ease, border-color .12s ease, color .12s ease;
     }
-    .btn:hover { background: var(--surface-3); text-decoration: none; }
+    .btn:hover { background: var(--surface-3); color: var(--ink); border-color: var(--line-strong); text-decoration: none; }
+    .btn .ic { width: 15px; height: 15px; }
+    .btn.primary { background: var(--accent-bg); border-color: var(--accent-line); color: #cfe4ff; }
+    .btn.primary:hover { background: rgba(77, 159, 255, 0.2); color: #eaf3ff; border-color: var(--accent); }
 
-    /* Version / freshness cards */
-    .cards {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-      gap: 14px;
-      margin-bottom: 20px;
+    /* ---- notices ---- */
+    .notice {
+      border: 1px solid var(--warn-line); background: var(--warn-bg);
+      border-radius: 10px; padding: 12px 16px; margin-bottom: 16px;
+      color: var(--ink); font-size: 13.5px;
     }
-
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      padding: 16px 18px;
+    .errstrip {
+      display: flex; align-items: center; gap: 9px;
+      border: 1px solid var(--crit-line); background: var(--crit-bg);
+      border-radius: 10px; padding: 10px 14px; margin-bottom: 16px;
+      color: var(--ink-2); font-size: 13px;
     }
+    .errstrip[hidden] { display: none; }
+    .errstrip .ic { width: 16px; height: 16px; color: var(--crit); }
 
-    .card .label {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--faint);
-      margin-bottom: 8px;
-    }
-
-    .card .value { font-size: 20px; font-weight: 600; }
-    .card .value.mono { font-family: var(--mono); font-size: 17px; }
-    .card .meta { color: var(--muted); font-size: 12.5px; margin-top: 6px; }
-    .card .meta.mono { font-family: var(--mono); font-size: 12px; }
-
-    .freshness .value { display: inline-flex; align-items: center; gap: 9px; }
-    .dot {
-      width: 11px; height: 11px; border-radius: 50%;
-      flex: none; box-shadow: 0 0 0 4px rgba(255,255,255,0.04);
-    }
-    .dot.ok { background: var(--ok); }
-    .dot.warn { background: var(--warn); }
-    .dot.fail { background: var(--fail); }
-    .dot.neutral { background: var(--faint); }
-
-    /* Held banner */
+    /* ---- held banner ---- */
     .banner {
-      display: none;
-      border: 1px solid var(--fail-line);
-      background: var(--fail-bg);
-      border-radius: var(--radius);
-      padding: 14px 18px;
-      margin-bottom: 20px;
+      display: none; gap: 12px; align-items: flex-start;
+      border: 1px solid var(--crit-line); background: var(--crit-bg);
+      border-radius: 12px; padding: 14px 16px; margin-bottom: 18px;
     }
-    .banner.show { display: block; }
-    .banner h3 { margin: 0 0 4px; font-size: 15px; color: var(--fail); }
-    .banner p { margin: 0; color: var(--text); font-size: 13.5px; }
-    .banner .mono { font-family: var(--mono); }
+    .banner.show { display: flex; }
+    .banner > .ic { width: 20px; height: 20px; color: var(--crit); margin-top: 1px; }
+    .banner h3 { margin: 0 0 4px; font-size: 14.5px; font-weight: 600; color: var(--ink); display: flex; align-items: center; gap: 9px; }
+    .banner .htag {
+      font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; color: var(--crit);
+      border: 1px solid var(--crit-line); border-radius: 999px; padding: 1px 7px; text-transform: uppercase;
+    }
+    .banner p { margin: 0; color: var(--ink-2); font-size: 13px; }
+    .banner p .mono { color: var(--ink); }
 
-    /* Attempts */
+    /* ---- stat tiles ---- */
+    .tiles {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 14px; margin-bottom: 6px;
+    }
+    .tile {
+      background: var(--surface); border: 1px solid var(--line);
+      border-radius: 12px; padding: 16px 18px;
+    }
+    .tlabel {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 13px; color: var(--ink-2); margin-bottom: 11px;
+    }
+    .tlabel .ic { width: 14px; height: 14px; color: var(--ink-muted); }
+    .tvalue {
+      font-size: 26px; font-weight: 600; line-height: 1.15; letter-spacing: -0.01em;
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-height: 30px;
+    }
+    .tvalue.mono { font-family: var(--mono); font-size: 21px; letter-spacing: 0; }
+    .tctx { margin-top: 10px; font-size: 12.5px; color: var(--ink-muted); }
+
+    .copy-btn {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 4px 9px; border-radius: 7px;
+      border: 1px solid var(--line); background: var(--surface-2);
+      color: var(--ink-2); font-size: 11.5px; font-weight: 500;
+      font-family: var(--sans); cursor: pointer;
+      transition: background .12s ease, border-color .12s ease, color .12s ease;
+    }
+    .copy-btn:hover { background: var(--surface-3); color: var(--ink); border-color: var(--line-strong); }
+    .copy-btn .ic { width: 13px; height: 13px; }
+    .copy-btn.copied { color: var(--good); border-color: var(--good-line); background: var(--good-bg); }
+    .copy-btn[hidden] { display: none; }
+
+    /* ---- badges / pills / sync ---- */
+    .sbadge {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 5px 11px; border-radius: 9px;
+      font-size: 15px; font-weight: 600; border: 1px solid transparent;
+    }
+    .sbadge .ic { width: 16px; height: 16px; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 9px 3px 8px; border-radius: 999px;
+      font-size: 11.5px; font-weight: 600; letter-spacing: 0.02em;
+      text-transform: uppercase; border: 1px solid transparent; white-space: nowrap;
+    }
+    .badge .ic { width: 13px; height: 13px; }
+    .sbadge.good, .badge.good { color: var(--good); background: var(--good-bg); border-color: var(--good-line); }
+    .sbadge.warn, .badge.warn { color: var(--warn); background: var(--warn-bg); border-color: var(--warn-line); }
+    .sbadge.crit, .badge.crit { color: var(--crit); background: var(--crit-bg); border-color: var(--crit-line); }
+    .sbadge.muted, .badge.muted { color: var(--ink-2); background: var(--surface-2); border-color: var(--line); }
+
+    .pill {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 2px 9px; border-radius: 999px;
+      font-size: 11px; font-weight: 600; letter-spacing: 0.03em;
+      border: 1px solid var(--line); color: var(--ink-2); background: var(--surface-2);
+      text-transform: uppercase; white-space: nowrap;
+    }
+    .pill.trigger { text-transform: none; font-weight: 500; }
+    .pill.run { color: var(--accent); border-color: var(--accent-line); background: var(--accent-bg); }
+    .pill.run .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px rgba(77, 159, 255, 0.15); }
+
+    /* ---- attempts ---- */
     .section-head {
       display: flex; align-items: baseline; justify-content: space-between;
-      gap: 12px; margin: 6px 0 12px;
+      gap: 12px; margin: 26px 0 12px;
     }
-    .section-head h2 { margin: 0; font-size: 15px; }
-    .section-head .hint { color: var(--faint); font-size: 12.5px; }
+    .section-head h2 { margin: 0; font-size: 15px; font-weight: 600; }
+    .section-head .hint { color: var(--ink-muted); font-size: 12.5px; }
 
     .attempts { display: flex; flex-direction: column; gap: 12px; }
-
     .attempt {
-      background: var(--surface);
-      border: 1px solid var(--line);
-      border-left: 3px solid var(--strong-line);
-      border-radius: var(--radius);
-      padding: 14px 16px;
+      background: var(--surface); border: 1px solid var(--line);
+      border-left: 3px solid var(--line-strong); border-radius: 12px;
+      padding: 15px 17px;
     }
-    .attempt.success { border-left-color: var(--ok); }
-    .attempt.failed { border-left-color: var(--fail); }
-    .attempt.rolled_back { border-left-color: var(--warn); }
+    .attempt.success { border-left-color: var(--good); }
+    .attempt.failed { border-left-color: var(--crit); }
+    .attempt.rolled { border-left-color: var(--warn); }
 
-    .attempt-head {
-      display: flex; align-items: center; gap: 12px;
-      flex-wrap: wrap; justify-content: space-between;
+    .a-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: space-between; }
+    .a-id { display: flex; align-items: baseline; gap: 11px; flex-wrap: wrap; min-width: 0; }
+    .a-sha { font-family: var(--mono); font-size: 14px; font-weight: 600; color: var(--ink); }
+    .a-subject { color: var(--ink-2); font-size: 13.5px; }
+    .a-tags { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .a-meta { margin-top: 7px; color: var(--ink-muted); font-size: 12.5px; }
+
+    /* ---- phase stepper ---- */
+    .stepper { display: flex; flex-wrap: wrap; align-items: center; row-gap: 8px; margin-top: 13px; }
+    .step { display: inline-flex; align-items: center; }
+    .step:not(:first-child)::before {
+      content: ""; width: 14px; height: 1px; background: var(--line-strong);
+      margin: 0 7px; flex: none;
     }
-    .attempt-id { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-    .attempt-sha {
-      font-family: var(--mono); font-size: 13.5px; font-weight: 600;
-      color: var(--text);
-    }
-    .attempt-subject { color: var(--muted); font-size: 13px; }
-    .attempt-meta { color: var(--faint); font-size: 12px; font-family: var(--mono); }
-
-    .badge {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 3px 10px; border-radius: 999px;
-      font-size: 11.5px; font-weight: 600; letter-spacing: 0.02em;
-      text-transform: uppercase; border: 1px solid transparent;
-    }
-    .badge.success { color: var(--ok); background: var(--ok-bg); border-color: var(--ok-line); }
-    .badge.failed { color: var(--fail); background: var(--fail-bg); border-color: var(--fail-line); }
-    .badge.rolled_back { color: var(--warn); background: var(--warn-bg); border-color: var(--warn-line); }
-
-    .badge.trigger { text-transform: none; font-weight: 500; color: var(--muted); background: var(--surface-3); }
-
-    .phases { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 2px; }
     .chip {
       display: inline-flex; align-items: center; gap: 6px;
-      padding: 3px 9px; border-radius: 6px;
-      font-size: 11.5px; font-family: var(--mono);
+      padding: 4px 10px; border-radius: 7px; font-size: 12px;
       border: 1px solid var(--line); background: var(--surface-2);
-      color: var(--muted);
+      color: var(--ink-2); white-space: nowrap;
     }
-    .chip .cdot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
-    .chip.ok { color: var(--text); border-color: var(--ok-line); }
-    .chip.ok .cdot { background: var(--ok); }
-    .chip.failed { color: var(--fail); border-color: var(--fail-line); background: var(--fail-bg); }
-    .chip.failed .cdot { background: var(--fail); }
-    .chip.skipped { color: var(--faint); }
-    .chip.skipped .cdot { background: var(--skip); }
-    .chip .dur { color: var(--faint); }
+    .chip .ic { width: 13px; height: 13px; }
+    .chip .cname { font-weight: 500; }
+    .chip .cdur { color: var(--ink-muted); font-family: var(--mono); font-size: 11px; font-variant-numeric: tabular-nums; }
+    .chip.ok { border-color: var(--good-line); color: var(--ink); }
+    .chip.ok .ic { color: var(--good); }
+    .chip.failed { border-color: var(--crit-line); background: var(--crit-bg); color: var(--ink); }
+    .chip.failed .ic { color: var(--crit); }
+    .chip.skipped { color: var(--ink-muted); }
+    .chip.skipped .ic { color: var(--ink-muted); }
 
-    details.error-tail {
-      margin-top: 10px;
-      border: 1px solid var(--fail-line);
-      border-radius: 8px;
-      background: rgba(248, 113, 113, 0.06);
+    /* ---- error tail ---- */
+    details.tail {
+      margin-top: 12px; border: 1px solid var(--line);
+      border-radius: 8px; background: var(--surface-2); overflow: hidden;
     }
-    details.error-tail summary {
-      cursor: pointer; padding: 8px 12px;
-      font-size: 12.5px; color: var(--fail); user-select: none;
+    details.tail > summary {
+      cursor: pointer; padding: 8px 12px; font-size: 12.5px; color: var(--ink-2);
+      user-select: none; list-style: none; display: flex; align-items: center; gap: 8px;
     }
-    details.error-tail summary::-webkit-details-marker { color: var(--fail); }
-    details.error-tail pre {
-      margin: 0; padding: 12px;
-      border-top: 1px solid var(--fail-line);
-      font-family: var(--mono); font-size: 12px; line-height: 1.55;
-      color: #fecaca; white-space: pre-wrap; word-break: break-word;
-      max-height: 340px; overflow: auto;
+    details.tail > summary::-webkit-details-marker { display: none; }
+    details.tail > summary::before {
+      content: ""; width: 6px; height: 6px;
+      border-right: 1.5px solid var(--ink-muted); border-bottom: 1.5px solid var(--ink-muted);
+      transform: rotate(-45deg); transition: transform .15s ease; flex: none;
+    }
+    details.tail[open] > summary::before { transform: rotate(45deg); }
+    details.tail > summary:hover { color: var(--ink); }
+    details.tail pre {
+      margin: 0; padding: 12px 14px; border-top: 1px solid var(--line);
+      background: #0a0e15; font-family: var(--mono); font-size: 12px; line-height: 1.6;
+      color: var(--ink-2); white-space: pre-wrap; word-break: break-word;
+      max-height: 320px; overflow: auto;
     }
 
-    /* Empty / error states */
+    /* ---- placeholders ---- */
     .placeholder {
-      background: var(--surface);
-      border: 1px dashed var(--strong-line);
-      border-radius: var(--radius);
-      padding: 34px 24px;
-      text-align: center;
-      color: var(--muted);
+      background: var(--surface); border: 1px dashed var(--line-strong);
+      border-radius: 12px; padding: 40px 24px; text-align: center; color: var(--ink-2);
     }
-    .placeholder h3 { margin: 0 0 6px; color: var(--text); font-size: 15px; }
-    .placeholder p { margin: 0; font-size: 13.5px; }
+    .placeholder .ic { width: 26px; height: 26px; color: var(--ink-muted); margin-bottom: 12px; }
+    .placeholder h3 { margin: 0 0 6px; color: var(--ink); font-size: 15px; font-weight: 600; }
+    .placeholder p { margin: 0 auto; font-size: 13.5px; max-width: 58ch; }
 
-    footer.foot {
-      margin-top: 26px; display: flex; gap: 12px; flex-wrap: wrap;
-      align-items: center; justify-content: space-between;
-      color: var(--faint); font-size: 12px;
+    /* ---- footer ---- */
+    .foot {
+      margin-top: 30px; padding-top: 16px; border-top: 1px solid var(--line);
+      display: flex; gap: 12px; flex-wrap: wrap; align-items: center; justify-content: space-between;
+      color: var(--ink-muted); font-size: 12px;
     }
-    .live { display: inline-flex; align-items: center; gap: 7px; }
+    .live { display: inline-flex; align-items: center; gap: 8px; }
     .live .pulse {
-      width: 8px; height: 8px; border-radius: 50%; background: var(--ok);
-      box-shadow: 0 0 0 0 rgba(34,197,94,0.5); animation: pulse 2s infinite;
+      width: 8px; height: 8px; border-radius: 50%; background: var(--good);
+      box-shadow: 0 0 0 0 rgba(12, 163, 12, 0.5); animation: pulse 2.4s infinite;
     }
+    .live.err .pulse { background: var(--warn); animation: none; }
     @keyframes pulse {
-      0% { box-shadow: 0 0 0 0 rgba(34,197,94,0.45); }
-      70% { box-shadow: 0 0 0 7px rgba(34,197,94,0); }
-      100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
+      0% { box-shadow: 0 0 0 0 rgba(12, 163, 12, 0.45); }
+      70% { box-shadow: 0 0 0 7px rgba(12, 163, 12, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(12, 163, 12, 0); }
     }
 
-    .hidden { display: none !important; }
+    /* ---- modal ---- */
+    .overlay {
+      position: fixed; inset: 0; z-index: 50;
+      background: rgba(3, 6, 12, 0.72); backdrop-filter: blur(2px);
+      display: flex; align-items: flex-start; justify-content: center;
+      padding: 5vh 16px; overflow-y: auto;
+    }
+    .overlay[hidden] { display: none; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--line-strong);
+      border-radius: 14px; width: min(680px, 100%); margin: auto;
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.5);
+    }
+    .modal-head {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 18px 20px; border-bottom: 1px solid var(--line);
+      position: sticky; top: 0; background: var(--surface); border-radius: 14px 14px 0 0;
+    }
+    .modal-head h2 { margin: 0; font-size: 17px; font-weight: 600; }
+    .icon-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 32px; height: 32px; border-radius: 8px; flex: none;
+      border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-2); cursor: pointer;
+      transition: background .12s ease, color .12s ease;
+    }
+    .icon-btn:hover { background: var(--surface-3); color: var(--ink); }
+    .icon-btn .ic { width: 16px; height: 16px; }
+    .modal-body { padding: 6px 20px 20px; }
+    .ms { padding: 15px 0; border-bottom: 1px solid var(--line); }
+    .ms:last-child { border-bottom: none; padding-bottom: 4px; }
+    .ms h3 { margin: 0 0 9px; font-size: 14px; font-weight: 600; color: var(--ink); }
+    .ms p { margin: 0 0 8px; color: var(--ink-2); font-size: 13.5px; line-height: 1.6; }
+    .ms p:last-child { margin-bottom: 0; }
+    .ms strong { color: var(--ink); font-weight: 600; }
+    .ms .pill { vertical-align: middle; }
 
-    @media (max-width: 640px) {
-      .attempt-head { align-items: flex-start; }
+    .vstepper { list-style: none; margin: 8px 0 0; padding: 0; position: relative; }
+    .vstepper li { display: flex; gap: 13px; padding: 0 0 16px; position: relative; }
+    .vstepper li:last-child { padding-bottom: 0; }
+    .vstepper li:not(:last-child)::before {
+      content: ""; position: absolute; left: 13px; top: 27px; bottom: 3px; width: 1px; background: var(--line-strong);
+    }
+    .vs-num {
+      flex: none; width: 27px; height: 27px; border-radius: 50%;
+      border: 1px solid var(--accent-line); background: var(--accent-bg); color: var(--accent);
+      font-size: 12.5px; font-weight: 600; font-family: var(--mono);
+      display: flex; align-items: center; justify-content: center; z-index: 1;
+    }
+    .vs-b { padding-top: 3px; }
+    .vs-name { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 2px; }
+    .vs-b p { margin: 0; font-size: 13px; color: var(--ink-2); line-height: 1.55; }
+
+    .plain { margin: 4px 0 0; padding-left: 20px; }
+    .plain li { color: var(--ink-2); font-size: 13.5px; line-height: 1.6; margin-bottom: 8px; }
+    .plain li:last-child { margin-bottom: 0; }
+    .plain .badge { vertical-align: middle; text-transform: none; font-size: 11px; }
+
+    .legend { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+    .legend > div { display: flex; align-items: center; gap: 11px; font-size: 12.5px; color: var(--ink-2); flex-wrap: wrap; }
+    .legend .badge, .legend .sbadge, .legend .pill { flex: none; }
+    .legend .sbadge { font-size: 12.5px; padding: 3px 9px; }
+    .legend .sbadge .ic { width: 13px; height: 13px; }
+    .legend .badge { text-transform: none; }
+
+    @media (max-width: 760px) {
+      .tiles { grid-template-columns: 1fr; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
     }
   </style>
 </head>
 <body>
+  <svg class="sprite" aria-hidden="true" focusable="false"><defs>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="M6 6l12 12"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></symbol>
+    <symbol id="i-dash" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></symbol>
+    <symbol id="i-sync" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/></symbol>
+    <symbol id="i-box" viewBox="0 0 24 24"><path d="M21 8v8a2 2 0 0 1-1 1.73l-7 4a2 2 0 0 1-2 0l-7-4A2 2 0 0 1 3 16V8a2 2 0 0 1 1-1.73l7-4a2 2 0 0 1 2 0l7 4A2 2 0 0 1 21 8z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></symbol>
+    <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></symbol>
+    <symbol id="i-external" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></symbol>
+  </defs></svg>
+
   <div class="wrap">
     <header class="top">
       <div>
         <h1>Deployment Status</h1>
-        <p class="subtitle">Running build identity and the self-protecting deploy pipeline history.</p>
+        <p class="sub">The running build identity and the history of this service's self-protecting deploy pipeline.</p>
       </div>
-      <div class="top-links">
+      <div class="actions">
+        <button class="btn primary" id="howBtn" type="button"><svg class="ic"><use href="#i-help"/></svg>How it works</button>
         <a class="btn" href="/api/v1/docs/api-test">API Tester</a>
         <a class="btn" href="/api/v1/docs">Swagger</a>
-        <a class="btn" href="/api/v1/docs/deploy-status" target="_blank" rel="noreferrer">Raw JSON</a>
+        <a class="btn" href="/api/v1/docs/deploy-status" target="_blank" rel="noreferrer"><svg class="ic"><use href="#i-external"/></svg>Raw JSON</a>
       </div>
     </header>
 
-    <div class="banner" id="heldBanner">
-      <h3>Deployments held</h3>
-      <p id="heldText"></p>
+    <noscript>
+      <div class="notice">This page renders live deployment status with JavaScript. With it disabled, read the raw status at <span class="mono">/api/v1/docs/deploy-status</span>.</div>
+    </noscript>
+
+    <div class="errstrip" id="errStrip" hidden>
+      <svg class="ic"><use href="#i-alert"/></svg><span id="errText"></span>
     </div>
 
-    <section class="cards">
-      <div class="card">
-        <div class="label">Running version</div>
-        <div class="value mono" id="runningSha">—</div>
-        <div class="meta" id="buildTime">build time unknown</div>
+    <div class="banner" id="heldBanner">
+      <svg class="ic"><use href="#i-alert"/></svg>
+      <div>
+        <h3>Deployments held <span class="htag">Held</span></h3>
+        <p id="heldBody"></p>
       </div>
-      <div class="card">
-        <div class="label">Uptime</div>
-        <div class="value" id="uptime">—</div>
-        <div class="meta mono" id="serverTime">—</div>
+    </div>
+
+    <section class="tiles">
+      <div class="tile">
+        <div class="tlabel"><svg class="ic"><use href="#i-box"/></svg>Running version</div>
+        <div class="tvalue mono">
+          <span id="runningSha">&mdash;</span>
+          <button class="copy-btn" id="copyBtn" type="button" aria-label="Copy full commit SHA" data-sha="" hidden>
+            <svg class="ic"><use href="#i-copy"/></svg><span class="copy-label">Copy</span>
+          </button>
+        </div>
+        <div class="tctx" id="builtLine">Build time unknown</div>
       </div>
-      <div class="card freshness">
-        <div class="label">Freshness</div>
-        <div class="value"><span class="dot neutral" id="freshDot"></span><span id="freshLabel">Loading…</span></div>
-        <div class="meta mono" id="freshMeta">checking origin/main…</div>
+      <div class="tile">
+        <div class="tlabel"><svg class="ic"><use href="#i-clock"/></svg>Uptime</div>
+        <div class="tvalue" id="uptimeVal">&mdash;</div>
+        <div class="tctx" id="serverLine">Server time unknown</div>
+      </div>
+      <div class="tile">
+        <div class="tlabel"><svg class="ic"><use href="#i-sync"/></svg>Sync</div>
+        <div class="tvalue" id="syncBadge"><span class="sbadge muted">Loading&hellip;</span></div>
+        <div class="tctx" id="syncCtx">Checking origin/main&hellip;</div>
       </div>
     </section>
 
@@ -304,27 +426,88 @@
     </div>
 
     <div id="attemptsHost">
-      <div class="placeholder" id="loadingState">
-        <h3>Loading…</h3>
+      <div class="placeholder">
+        <svg class="ic"><use href="#i-sync"/></svg>
+        <h3>Loading&hellip;</h3>
         <p>Fetching deployment status.</p>
       </div>
     </div>
 
     <footer class="foot">
-      <span class="live"><span class="pulse"></span> Auto-refresh every 30s</span>
+      <span class="live" id="liveInd"><span class="pulse"></span> <span id="liveText">Auto-refreshing every 30s</span></span>
       <span id="lastUpdated"></span>
     </footer>
+  </div>
+
+  <div class="overlay" id="modalOverlay" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" id="modal">
+      <div class="modal-head">
+        <h2 id="modalTitle">How the deploy pipeline works</h2>
+        <button class="icon-btn" id="modalClose" type="button" aria-label="Close dialog"><svg class="ic"><use href="#i-x"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <section class="ms">
+          <h3>How a deploy starts</h3>
+          <p>Every change reaches production through <span class="mono">main</span> on <span class="mono">github.com/susanoox/edu-wallet-backend</span>. A poller on the host checks that branch <strong>every 5 minutes</strong>, so a merge is typically live within <strong>5&ndash;7 minutes</strong>.</p>
+          <p>The poller records its runs as <span class="pill trigger">auto</span>. A deploy kicked off by hand on the server shows <span class="pill trigger">manual</span> instead.</p>
+        </section>
+
+        <section class="ms">
+          <h3>The pipeline</h3>
+          <p>Each attempt runs these phases in order. Everything up to <span class="mono">swap</span> is safe &mdash; the current version keeps serving traffic until the swap actually happens.</p>
+          <ol class="vstepper">
+            <li><span class="vs-num">1</span><div class="vs-b"><div class="vs-name">prechecks</div><p>Validates the compose config, disk space, the port, and the DB migration state. Nothing is touched if this fails.</p></div></li>
+            <li><span class="vs-num">2</span><div class="vs-b"><div class="vs-name">build</div><p>Builds the Docker image. Unit tests run <strong>inside</strong> the build, so a failing test can never reach production.</p></div></li>
+            <li><span class="vs-num">3</span><div class="vs-b"><div class="vs-name">backup</div><p>Takes a pre-migration Postgres dump. The last 7 backups are kept.</p></div></li>
+            <li><span class="vs-num">4</span><div class="vs-b"><div class="vs-name">migrate</div><p>Applies schema migrations as a one-shot job. It gates the swap &mdash; no successful migration, no swap.</p></div></li>
+            <li><span class="vs-num">5</span><div class="vs-b"><div class="vs-name">swap</div><p>Replaces the running containers. Expect a few seconds of API downtime at this step.</p></div></li>
+            <li><span class="vs-num">6</span><div class="vs-b"><div class="vs-name">postchecks</div><p>Health check, then confirms the running binary reports the <strong>exact</strong> deployed commit SHA, runs an auth smoke probe, and watches for 30 seconds of stability.</p></div></li>
+          </ol>
+        </section>
+
+        <section class="ms">
+          <h3>When something goes wrong</h3>
+          <ul class="plain">
+            <li><strong>Failure before the swap</strong> &mdash; the running version is never touched; the attempt is recorded as <span class="badge crit"><svg class="ic"><use href="#i-x"/></svg>Failed</span>.</li>
+            <li><strong>Failure during postchecks</strong> &mdash; the pipeline automatically reverts to the last known-good image (<span class="badge warn"><svg class="ic"><use href="#i-undo"/></svg>Rolled back</span>), usually healthy again within about 2 minutes.</li>
+            <li><strong>Two failures in a row</strong> of the same commit put deploys in a <span class="badge crit"><svg class="ic"><use href="#i-alert"/></svg>Held</span> state until a new commit lands &mdash; this stops a bad commit from flapping.</li>
+            <li><strong>The database schema is never auto-reverted.</strong> Migrations are expected to stay backward-compatible; the pre-migration backups exist for manual recovery.</li>
+          </ul>
+        </section>
+
+        <section class="ms">
+          <h3>Reading this page</h3>
+          <p>This page is served by the running API itself, so a failed deploy stays visible &mdash; the previous version keeps serving this page. Here is what each state means:</p>
+          <div class="legend">
+            <div><span class="badge good"><svg class="ic"><use href="#i-check"/></svg>Success</span> the deploy completed and this build is live</div>
+            <div><span class="badge crit"><svg class="ic"><use href="#i-x"/></svg>Failed</span> stopped before the swap; the old version kept running</div>
+            <div><span class="badge warn"><svg class="ic"><use href="#i-undo"/></svg>Rolled back</span> swapped, failed postchecks, reverted to the last good image</div>
+            <div><span class="pill run"><span class="dot"></span>Running</span> the attempt whose commit this server is serving right now</div>
+            <div><span class="sbadge good"><svg class="ic"><use href="#i-check"/></svg>In sync with main</span> the running build equals origin/main HEAD</div>
+            <div><span class="sbadge warn"><svg class="ic"><use href="#i-sync"/></svg>Differs from main</span> a deploy may be in flight, or local commits are running</div>
+            <div><span class="sbadge crit"><svg class="ic"><use href="#i-alert"/></svg>Deploys held</span> paused after repeated failures until a new commit lands</div>
+            <div><span class="sbadge muted"><svg class="ic"><use href="#i-sync"/></svg>Awaiting first poll</span> origin/main has not been recorded yet</div>
+          </div>
+        </section>
+      </div>
+    </div>
   </div>
 
   <script>
     "use strict";
 
     var REFRESH_MS = 30000;
+    var hasData = false;
+    var copyTimer = null;
 
     function esc(s) {
       return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
         return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
       });
+    }
+
+    function icon(id) {
+      return '<svg class="ic"><use href="#' + id + '"></use></svg>';
     }
 
     function fmtDuration(sec) {
@@ -340,7 +523,7 @@
     }
 
     function fmtTime(iso) {
-      if (!iso) return "—";
+      if (!iso) return "unknown";
       var t = new Date(iso);
       if (isNaN(t.getTime())) return String(iso);
       return t.toLocaleString(undefined, {
@@ -354,153 +537,243 @@
       var t = new Date(iso).getTime();
       if (isNaN(t)) return "";
       var diff = Math.round((Date.now() - t) / 1000);
+      if (diff < 0) diff = 0;
       if (diff < 60) return diff + "s ago";
       if (diff < 3600) return Math.round(diff / 60) + "m ago";
       if (diff < 86400) return Math.round(diff / 3600) + "h ago";
       return Math.round(diff / 86400) + "d ago";
     }
 
-    function setFreshness(dotClass, label, meta) {
-      var dot = document.getElementById("freshDot");
-      dot.className = "dot " + dotClass;
-      document.getElementById("freshLabel").textContent = label;
-      document.getElementById("freshMeta").textContent = meta;
+    function setLive(ok) {
+      var el = document.getElementById("liveInd");
+      el.classList.toggle("err", !ok);
+      document.getElementById("liveText").textContent = ok ? "Auto-refreshing every 30s" : "Reconnecting…";
     }
+
+    function hideError() {
+      document.getElementById("errStrip").hidden = true;
+    }
+
+    /* ---- tiles ---- */
+
+    function renderVersionTile(build) {
+      document.getElementById("runningSha").textContent = build.sha_short || build.sha || "—";
+      var btn = document.getElementById("copyBtn");
+      if (build.sha) {
+        btn.setAttribute("data-sha", build.sha);
+        btn.hidden = false;
+      } else {
+        btn.hidden = true;
+      }
+      var bt = build.build_time;
+      var ctx;
+      if (bt && bt !== "unknown") {
+        ctx = "Built " + fmtTime(bt) + " · " + relTime(bt);
+      } else {
+        ctx = "Build time unknown";
+      }
+      document.getElementById("builtLine").textContent = ctx;
+    }
+
+    function renderUptimeTile(data) {
+      document.getElementById("uptimeVal").textContent = fmtDuration(data.uptime_seconds);
+      document.getElementById("serverLine").textContent =
+        data.server_time ? "Server time " + fmtTime(data.server_time) : "Server time unknown";
+    }
+
+    function setSyncBadge(state) {
+      var host = document.getElementById("syncBadge");
+      var title = state.title ? ' title="' + esc(state.title) + '"' : "";
+      host.innerHTML = '<span class="sbadge ' + state.cls + '"' + title + '>' +
+        icon(state.icon) + esc(state.label) + "</span>";
+      document.getElementById("syncCtx").textContent = state.ctx || "";
+    }
+
+    function renderSyncTile(build, deployments) {
+      if (!deployments) {
+        setSyncBadge({ cls: "muted", icon: "i-sync", label: "No pipeline data",
+          ctx: "Running locally or status file unset" });
+        return;
+      }
+      if (deployments.held) {
+        var f = deployments.held.failures;
+        setSyncBadge({ cls: "crit", icon: "i-alert", label: "Deploys held",
+          ctx: "Automatic deploys paused" + (f != null ? " after " + f + " failures" : "") });
+        return;
+      }
+      var lm = deployments.latest_main;
+      if (!lm || !lm.sha) {
+        setSyncBadge({ cls: "muted", icon: "i-sync", label: "Awaiting first poll",
+          ctx: "origin/main not yet recorded" });
+        return;
+      }
+      var ctx = "origin/main checked " + (relTime(lm.checked_at) || "recently");
+      if (build && build.sha && build.sha === lm.sha) {
+        setSyncBadge({ cls: "good", icon: "i-check", label: "In sync with main", ctx: ctx });
+      } else {
+        setSyncBadge({ cls: "warn", icon: "i-sync", label: "Differs from main", ctx: ctx,
+          title: "The running build is not origin/main HEAD — a deploy may be in flight, or local commits are running." });
+      }
+    }
+
+    /* ---- held banner ---- */
 
     function renderHeld(held) {
       var banner = document.getElementById("heldBanner");
       if (!held) { banner.classList.remove("show"); return; }
       banner.classList.add("show");
-      var shaShort = (held.sha || "").slice(0, 12);
-      var parts = [];
-      parts.push('<span class="mono">' + esc(shaShort) + "</span>");
-      if (held.reason) parts.push(esc(held.reason));
-      if (held.failures != null) parts.push(esc(held.failures) + " consecutive failures");
-      if (held.since) parts.push("since " + esc(fmtTime(held.since)));
-      document.getElementById("heldText").innerHTML =
-        "Automatic deploys are paused for " + parts.join(" · ") +
-        ". A new commit on <span class=\"mono\">origin/main</span> will clear the hold.";
+      var sha = (held.sha || "").slice(0, 12);
+      var bits = [];
+      if (held.reason) bits.push(esc(held.reason));
+      if (held.failures != null) bits.push(esc(held.failures) + " consecutive failures");
+      if (sha) bits.push('commit <span class="mono">' + esc(sha) + "</span>");
+      if (held.since) bits.push("held since " + esc(fmtTime(held.since)));
+      document.getElementById("heldBody").innerHTML =
+        "Automatic deploys are paused" + (bits.length ? ": " + bits.join(" · ") : "") +
+        '. A new commit on <span class="mono">origin/main</span> clears the hold.';
     }
 
-    function renderFreshness(build, deployments) {
-      if (!deployments) {
-        setFreshness("neutral", "No pipeline data", "running locally or status file unset");
-        return;
-      }
-      if (deployments.held) {
-        setFreshness("fail", "HELD — last deploy failed",
-          "held at " + (deployments.held.sha || "").slice(0, 12));
-        return;
-      }
-      var latest = deployments.latest_main || {};
-      var latestSha = latest.sha || "";
-      var checked = latest.checked_at ? "origin/main checked " + relTime(latest.checked_at) : "";
-      if (!latestSha) {
-        setFreshness("neutral", "Unknown", "origin/main not yet recorded");
-        return;
-      }
-      if (build && build.sha && build.sha === latestSha) {
-        setFreshness("ok", "Up to date", checked || ("main @ " + latestSha.slice(0, 12)));
-      } else {
-        setFreshness("warn", "Behind main",
-          "main @ " + latestSha.slice(0, 12) + (checked ? " · " + checked : ""));
-      }
-    }
+    /* ---- attempts ---- */
 
-    function phaseChip(p) {
+    function phaseStep(p) {
       var status = (p && p.status) || "skipped";
       var cls = status === "ok" ? "ok" : status === "failed" ? "failed" : "skipped";
-      var dur = (p && p.duration_s != null) ? '<span class="dur">' + esc(fmtDuration(p.duration_s)) + "</span>" : "";
+      var ic = status === "ok" ? "i-check" : status === "failed" ? "i-x" : "i-dash";
+      var dur = (p && p.duration_s != null)
+        ? '<span class="cdur">' + esc(fmtDuration(p.duration_s)) + "</span>" : "";
       var title = (p && p.detail) ? ' title="' + esc(p.detail) + '"' : "";
-      return '<span class="chip ' + cls + '"' + title + '><span class="cdot"></span>' +
-        esc((p && p.name) || "?") + " " + dur + "</span>";
+      return '<span class="step"><span class="chip ' + cls + '"' + title + ">" +
+        icon(ic) + '<span class="cname">' + esc((p && p.name) || "?") + "</span>" + dur + "</span></span>";
     }
 
-    function renderAttempt(a) {
+    function renderAttempt(a, buildSha) {
       var outcome = a.outcome || "failed";
-      var oCls = outcome === "success" ? "success" : outcome === "rolled_back" ? "rolled_back" : "failed";
-      var oLabel = outcome === "rolled_back" ? "rolled back" : outcome;
+      var cardCls = outcome === "success" ? "success" : outcome === "rolled_back" ? "rolled" : "failed";
+      var badgeCls = outcome === "success" ? "good" : outcome === "rolled_back" ? "warn" : "crit";
+      var badgeIcon = outcome === "success" ? "i-check" : outcome === "rolled_back" ? "i-undo" : "i-x";
+      var badgeLabel = outcome === "success" ? "Success" : outcome === "rolled_back" ? "Rolled back" : "Failed";
 
-      var phases = (a.phases || []).map(phaseChip).join("");
       var shaShort = a.sha_short || (a.sha || "").slice(0, 12);
+      var running = buildSha && a.sha === buildSha;
+
+      var tags = "";
+      if (running) tags += '<span class="pill run"><span class="dot"></span>Running</span>';
+      if (a.trigger) tags += '<span class="pill trigger">' + esc(a.trigger) + "</span>";
+      tags += '<span class="badge ' + badgeCls + '">' + icon(badgeIcon) + esc(badgeLabel) + "</span>";
+
+      var subject = a.commit_subject ? '<span class="a-subject">' + esc(a.commit_subject) + "</span>" : "";
 
       var metaBits = [];
-      if (a.trigger) metaBits.push('<span class="badge trigger">' + esc(a.trigger) + "</span>");
+      if (a.started_at) {
+        var rel = relTime(a.started_at);
+        metaBits.push(esc((rel ? rel + " · " : "") + fmtTime(a.started_at)));
+      } else if (a.id) {
+        metaBits.push(esc(a.id));
+      }
+      if (a.commit_author) metaBits.push(esc(a.commit_author));
+      if (a.duration_s != null) metaBits.push(esc(fmtDuration(a.duration_s)));
 
-      var subject = a.commit_subject ? '<span class="attempt-subject">' + esc(a.commit_subject) + "</span>" : "";
-      var author = a.commit_author ? esc(a.commit_author) : "";
-      var started = a.started_at ? fmtTime(a.started_at) : (a.id || "");
-      var dur = a.duration_s != null ? " · " + fmtDuration(a.duration_s) : "";
-      var footMeta = esc(started) + (author ? " · " + author : "") + dur;
+      var phases = (a.phases || []).map(phaseStep).join("");
 
       var errorBlock = "";
       if (a.error_tail) {
+        var lines = String(a.error_tail).replace(/\n+$/, "").split("\n").length;
         errorBlock =
-          '<details class="error-tail"><summary>Error tail</summary><pre>' +
-          esc(a.error_tail) + "</pre></details>";
+          '<details class="tail" data-aid="' + esc(a.id || "") + '">' +
+          "<summary>Error tail (" + lines + (lines === 1 ? " line" : " lines") + ")</summary>" +
+          "<pre>" + esc(a.error_tail) + "</pre></details>";
       }
 
-      return '<div class="attempt ' + oCls + '">' +
-        '<div class="attempt-head">' +
-          '<div class="attempt-id">' +
-            '<span class="attempt-sha">' + esc(shaShort) + "</span>" +
-            subject +
-          "</div>" +
-          '<div class="attempt-id">' +
-            metaBits.join("") +
-            '<span class="badge ' + oCls + '">' + esc(oLabel) + "</span>" +
-          "</div>" +
+      return '<div class="attempt ' + cardCls + '">' +
+        '<div class="a-head">' +
+          '<div class="a-id"><span class="a-sha">' + esc(shaShort) + "</span>" + subject + "</div>" +
+          '<div class="a-tags">' + tags + "</div>" +
         "</div>" +
-        '<div class="attempt-meta">' + footMeta + "</div>" +
-        (phases ? '<div class="phases">' + phases + "</div>" : "") +
+        '<div class="a-meta">' + metaBits.join(" · ") + "</div>" +
+        (phases ? '<div class="stepper">' + phases + "</div>" : "") +
         errorBlock +
       "</div>";
     }
 
-    function renderAttempts(deployments) {
+    function captureOpen() {
+      var set = {};
+      var nodes = document.querySelectorAll("details.tail[open]");
+      for (var i = 0; i < nodes.length; i++) {
+        var id = nodes[i].getAttribute("data-aid");
+        if (id) set[id] = true;
+      }
+      return set;
+    }
+
+    function restoreOpen(open) {
+      var nodes = document.querySelectorAll("details.tail");
+      for (var i = 0; i < nodes.length; i++) {
+        if (open[nodes[i].getAttribute("data-aid")]) nodes[i].open = true;
+      }
+    }
+
+    function placeholder(ic, title, body) {
+      return '<div class="placeholder">' + icon(ic) +
+        "<h3>" + esc(title) + "</h3><p>" + body + "</p></div>";
+    }
+
+    function renderAttempts(deployments, buildSha) {
       var host = document.getElementById("attemptsHost");
       var hint = document.getElementById("attemptsHint");
+      var open = captureOpen();
+
       if (!deployments) {
         hint.textContent = "";
-        host.innerHTML =
-          '<div class="placeholder"><h3>No deployment data</h3>' +
-          "<p>This instance has no pipeline status file (local dev, or " +
-          "<span style=\"font-family:var(--mono)\">DEPLOY_STATUS_FILE</span> is unset). " +
-          "Build identity above still reflects the running binary.</p></div>";
+        host.innerHTML = placeholder("i-box", "No deployment data",
+          "This instance has no pipeline status file (local dev, or " +
+          '<span class="mono">DEPLOY_STATUS_FILE</span> is unset). ' +
+          "The build identity above still reflects the running binary.");
         return;
       }
       var attempts = deployments.attempts || [];
       if (!attempts.length) {
         hint.textContent = "";
-        host.innerHTML =
-          '<div class="placeholder"><h3>No attempts recorded yet</h3>' +
-          "<p>The pipeline has not run a deploy on this host yet.</p></div>";
+        host.innerHTML = placeholder("i-sync", "No attempts recorded yet",
+          "The pipeline has not run a deploy on this host yet.");
         return;
       }
-      hint.textContent = attempts.length + (attempts.length === 1 ? " attempt" : " attempts") + " (newest first)";
-      host.innerHTML = '<div class="attempts">' + attempts.map(renderAttempt).join("") + "</div>";
+      hint.textContent = attempts.length + (attempts.length === 1 ? " attempt" : " attempts") + " · newest first";
+      host.innerHTML = '<div class="attempts">' +
+        attempts.map(function (a) { return renderAttempt(a, buildSha); }).join("") + "</div>";
+      restoreOpen(open);
     }
 
-    function render(data) {
-      var build = data.build || {};
-      document.getElementById("runningSha").textContent = build.sha_short || build.sha || "—";
-      document.getElementById("buildTime").textContent =
-        "built " + (build.build_time && build.build_time !== "unknown" ? fmtTime(build.build_time) : "unknown");
-      document.getElementById("uptime").textContent = fmtDuration(data.uptime_seconds);
-      document.getElementById("serverTime").textContent = "server " + fmtTime(data.server_time);
+    /* ---- top-level render ---- */
 
+    function render(data) {
+      hideError();
+      var build = data.build || {};
       var deployments = data.deployments || null;
+
+      renderVersionTile(build);
+      renderUptimeTile(data);
+      renderSyncTile(build, deployments);
       renderHeld(deployments && deployments.held);
-      renderFreshness(build, deployments);
-      renderAttempts(deployments);
+      renderAttempts(deployments, build.sha);
 
       document.getElementById("lastUpdated").textContent = "Updated " + fmtTime(new Date().toISOString());
+      setLive(true);
+      hasData = true;
     }
 
     function showError(msg) {
-      document.getElementById("attemptsHost").innerHTML =
-        '<div class="placeholder"><h3>Unable to load status</h3><p>' + esc(msg) + "</p></div>";
-      setFreshness("fail", "Unavailable", "could not reach deploy-status endpoint");
+      var strip = document.getElementById("errStrip");
+      document.getElementById("errText").textContent =
+        "Could not reach the status endpoint (" + msg + ")." + (hasData ? " Showing the last known status." : "");
+      strip.hidden = false;
+      setLive(false);
+      document.getElementById("lastUpdated").textContent = "Last attempt failed " + fmtTime(new Date().toISOString());
+      if (!hasData) {
+        document.getElementById("attemptsHost").innerHTML = placeholder("i-alert", "Unable to load status",
+          "Could not reach <span class=\"mono\">/api/v1/docs/deploy-status</span> (" + esc(msg) + "). Retrying every 30s.");
+        setSyncBadge({ cls: "muted", icon: "i-alert", label: "Status unavailable",
+          ctx: "Could not reach deploy-status endpoint" });
+      }
     }
 
     function load() {
@@ -512,6 +785,90 @@
         .then(render)
         .catch(function (e) { showError(e && e.message ? e.message : "network error"); });
     }
+
+    /* ---- copy to clipboard ---- */
+
+    function copyText(text) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(text);
+      }
+      return new Promise(function (resolve, reject) {
+        try {
+          var ta = document.createElement("textarea");
+          ta.value = text;
+          ta.setAttribute("readonly", "");
+          ta.style.position = "fixed";
+          ta.style.opacity = "0";
+          document.body.appendChild(ta);
+          ta.select();
+          var ok = document.execCommand("copy");
+          document.body.removeChild(ta);
+          if (ok) resolve(); else reject(new Error("copy blocked"));
+        } catch (err) { reject(err); }
+      });
+    }
+
+    function flashCopied(btn, failed) {
+      var label = btn.querySelector(".copy-label");
+      var use = btn.querySelector("use");
+      btn.classList.toggle("copied", !failed);
+      if (label) label.textContent = failed ? "Copy failed" : "Copied";
+      if (use) use.setAttribute("href", failed ? "#i-copy" : "#i-check");
+      if (copyTimer) clearTimeout(copyTimer);
+      copyTimer = setTimeout(function () {
+        btn.classList.remove("copied");
+        if (label) label.textContent = "Copy";
+        if (use) use.setAttribute("href", "#i-copy");
+      }, 1600);
+    }
+
+    document.getElementById("copyBtn").addEventListener("click", function () {
+      var sha = this.getAttribute("data-sha") || "";
+      if (!sha) return;
+      var btn = this;
+      copyText(sha).then(function () { flashCopied(btn, false); })
+        .catch(function () { flashCopied(btn, true); });
+    });
+
+    /* ---- modal ---- */
+
+    var modalOverlay = document.getElementById("modalOverlay");
+    var modalEl = document.getElementById("modal");
+    var howBtn = document.getElementById("howBtn");
+    var modalClose = document.getElementById("modalClose");
+    var lastFocus = null;
+
+    function openModal() {
+      lastFocus = document.activeElement;
+      modalOverlay.hidden = false;
+      document.body.style.overflow = "hidden";
+      document.addEventListener("keydown", modalKeydown, true);
+      modalClose.focus();
+    }
+
+    function closeModal() {
+      if (modalOverlay.hidden) return;
+      modalOverlay.hidden = true;
+      document.body.style.overflow = "";
+      document.removeEventListener("keydown", modalKeydown, true);
+      if (lastFocus && typeof lastFocus.focus === "function") lastFocus.focus();
+    }
+
+    function modalKeydown(e) {
+      if (e.key === "Escape") { e.preventDefault(); closeModal(); return; }
+      if (e.key !== "Tab") return;
+      var f = modalEl.querySelectorAll('a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])');
+      if (!f.length) return;
+      var first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+
+    howBtn.addEventListener("click", openModal);
+    modalClose.addEventListener("click", closeModal);
+    modalOverlay.addEventListener("click", function (e) { if (e.target === modalOverlay) closeModal(); });
+
+    /* ---- boot ---- */
 
     load();
     setInterval(load, REFRESH_MS);
